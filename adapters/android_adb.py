@@ -1,5 +1,8 @@
 # adapters/android_adb.py
-import os, subprocess, json, shutil, tempfile, sqlite3
+import subprocess
+import json
+import shutil
+import sqlite3
 from pathlib import Path
 from adapters.interface import AdapterBase
 
@@ -99,7 +102,7 @@ class Adapter(AdapterBase):
                     fvcf.write(f"FN:{name}\n")
                     fvcf.write("END:VCARD\n")
             return [str(csv_out.name), str(vcf_out.name)]
-        except Exception as e:
+        except Exception:
             return []
 
     def _parse_sqlite_sms(self, db_path: Path, out_dir: Path):
@@ -129,7 +132,7 @@ class Adapter(AdapterBase):
                 )
             out.write_text(json.dumps(msgs))
             return [str(out.name)]
-        except Exception as e:
+        except Exception:
             return []
 
     def extract(self, artifact_list, out_dir, metadata):
@@ -185,7 +188,7 @@ class Adapter(AdapterBase):
                             if p.is_file()
                         ]
                         summary["extracted"].extend(files)
-                    except Exception as e:
+                    except Exception:
                         pass
             if not summary["extracted"]:
                 (out_dir / "no_artifacts_found.txt").write_text(

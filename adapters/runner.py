@@ -1,5 +1,8 @@
 # adapters/runner.py
-import os, json, subprocess, hashlib, time, traceback
+import json
+import hashlib
+import time
+import traceback
 from pathlib import Path
 from typing import Dict, Any, List
 
@@ -79,7 +82,7 @@ class AdapterRunner:
                         ),
                     }
                     Path(str(p) + ".meta.json").write_text(json.dumps(meta))
-        except Exception as e:
+        except Exception:
             # best-effort meta writes
             pass
 
@@ -87,7 +90,7 @@ class AdapterRunner:
 
 
 if __name__ == "__main__":
-    import argparse, sys
+    import argparse
 
     ap = argparse.ArgumentParser()
     ap.add_argument("--module", required=True)

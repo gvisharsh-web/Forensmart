@@ -1,7 +1,10 @@
 # device_probe.py
 # Lightweight probe utility to detect connected devices and tools availability.
-import subprocess, sys, json, platform, shutil
-from pathlib import Path
+import subprocess
+import sys
+import json
+import platform
+import shutil
 
 
 def run_cmd(cmd):
@@ -80,7 +83,8 @@ def list_usb_ids():
 
 def detect_disks():
     # List physical drives on Windows via wmic or on unix via /dev
-    import platform, subprocess
+    import platform
+    import subprocess
 
     if platform.system().lower() == "windows":
         try:

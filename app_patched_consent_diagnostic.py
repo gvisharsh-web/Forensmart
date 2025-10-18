@@ -1,5 +1,8 @@
 import streamlit as st
-import json, os, pathlib, datetime, hashlib, traceback
+import json
+import pathlib
+import datetime
+import hashlib
 
 st.title("Forensmart Consent Diagnostic Tool (embedded)")
 

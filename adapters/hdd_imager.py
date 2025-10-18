@@ -1,11 +1,10 @@
 # adapters/hdd_imager.py
-import os, subprocess, json, shutil, hashlib, time
+import hashlib
 from pathlib import Path
 from adapters.interface import AdapterBase
 
 
 def sha256_bytes(b: bytes) -> str:
-    import hashlib
 
     return hashlib.sha256(b).hexdigest()
 

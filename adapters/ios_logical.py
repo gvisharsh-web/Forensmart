@@ -1,5 +1,7 @@
 # adapters/ios_logical.py
-import os, subprocess, json, shutil, tempfile
+import subprocess
+import json
+import shutil
 from pathlib import Path
 from adapters.interface import AdapterBase
 

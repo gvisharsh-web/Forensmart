@@ -108,7 +108,9 @@ except Exception:
 def verify_consent_id(consent_id: str):
     """Return (True, message) if consent verification passes, else (False, message)."""
     from pathlib import Path
-    import subprocess, sys, json
+    import subprocess
+    import sys
+    import json
 
     if not consent_id:
         return False, "No consent_id provided."
@@ -150,11 +152,8 @@ def verify_consent_id(consent_id: str):
 
 import pandas as pd
 import numpy as np
-from sklearn.ensemble import RandomForestClassifier
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import accuracy_score
-from tensorflow.keras.models import Sequential, load_model
-from tensorflow.keras.layers import Conv2D, MaxPooling2D, Flatten, Dense
 from PIL import Image
 import joblib
 import os
@@ -535,10 +534,8 @@ with tab6:
         )
 import streamlit as st
 import pandas as pd
-import pydeck as pdk
 import re
 import time
-from geopy.distance import geodesic
 import datetime
 
 # ======================================================
@@ -564,7 +561,8 @@ with tab1:
 
     # helper: compute SHA256
     def compute_hash(data):
-        import json, hashlib
+        import json
+        import hashlib
 
         if data is None:
             return "N/A"
@@ -1062,7 +1060,9 @@ with tab6:
     import datetime
     from fpdf import FPDF
     from io import BytesIO
-    import json, hashlib, os
+    import json
+    import hashlib
+    import os
 
     st.subheader("📄 Unified Case Report (Cover + Evidence + Hashes)")
 
@@ -1595,7 +1595,6 @@ with tabs[7]:
 # Comms Analyzer ML Pipeline (paste into app.py under Comms Analyzer tab)
 # ---------------------------
 import hashlib
-import io
 import os
 import matplotlib.pyplot as plt
 from collections import Counter, defaultdict
@@ -1607,7 +1606,7 @@ except Exception:
     detect = None
 
 try:
-    from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+    from transformers import pipeline, AutoTokenizer
 
     HAS_TRANSFORMERS = True
 except Exception:
@@ -1627,12 +1626,10 @@ try:
 except Exception:
     HAS_BERTOPIC = False
 
-from sklearn.feature_extraction.text import TfidfVectorizer, CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.decomposition import NMF
 from sklearn.metrics.pairwise import cosine_similarity
 import networkx as nx
-from nltk.tokenize import word_tokenize
-from nltk.corpus import stopwords
 import nltk
 
 # Ensure nltk data exists (download if not present)
@@ -1891,7 +1888,7 @@ def build_conversation_graph(messages):
     )
     nx.draw_networkx_labels(G, pos, font_size=8)
     plt.axis("off")
-    out_path = os.path.join("tmp", f"conversation_graph.png")
+    out_path = os.path.join("tmp", "conversation_graph.png")
     os.makedirs("tmp", exist_ok=True)
     plt.tight_layout()
     plt.savefig(out_path, dpi=150)
@@ -2077,12 +2074,10 @@ with col3:
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
 from sklearn.pipeline import Pipeline
-from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 import numpy as np
 import matplotlib.pyplot as plt
 import json
-from sklearn.feature_extraction.text import TfidfVectorizer
 
 
 # --- Helper: persist/load a simple sklearn pipeline into session_state ---
@@ -2228,7 +2223,7 @@ with st.expander(
     try:
         parsed = json.loads(cw_json)
         st.session_state["codeword_dict"] = parsed
-    except Exception as e:
+    except Exception:
         st.warning("Invalid JSON — keep previous dictionary.")
     st.write(
         "Run detection to scan messages for dictionary matches and embedding-similarity hits (if embeddings exist)."
@@ -2475,7 +2470,6 @@ from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import (
     classification_report,
-    accuracy_score,
     f1_score,
     precision_score,
     recall_score,
@@ -2485,7 +2479,6 @@ from sklearn.metrics import (
 HAS_TRANSFORMERS = False
 HAS_DATASETS = False
 try:
-    import transformers
     from transformers import (
         AutoTokenizer,
         AutoModelForSequenceClassification,
@@ -2498,8 +2491,7 @@ except Exception:
     HAS_TRANSFORMERS = False
 
 try:
-    import datasets
-    from datasets import Dataset, DatasetDict, load_metric
+    from datasets import Dataset, load_metric
 
     HAS_DATASETS = True
 except Exception:
@@ -2723,7 +2715,6 @@ def predict_with_transformer_dir(out_dir, texts, batch_size=16):
     model.eval()
     enc = tokenizer(texts, truncation=True, padding=True, return_tensors="pt")
     with torch.no_grad():
-        import torch
 
         outputs = model(**enc)
         logits = outputs.logits.cpu().numpy()
@@ -3003,7 +2994,7 @@ with st.expander("Export / Import Model + Labeled Data", expanded=False):
     if st.button("Export Transformer (zip)"):
         d = st.session_state.get("suspicious_transformer_dir", None)
         if d and os.path.exists(d):
-            import shutil, io
+            import shutil
 
             shutil.make_archive("models/suspicious_transformer_export", "zip", d)
             with open("models/suspicious_transformer_export.zip", "rb") as f:
@@ -3022,7 +3013,6 @@ with st.expander("Export / Import Model + Labeled Data", expanded=False):
 import numpy as np
 import pandas as pd
 import time
-import joblib
 from sklearn.model_selection import train_test_split
 from sklearn.metrics import classification_report
 
@@ -3317,7 +3307,7 @@ with st.expander("Export / Inspect semi-supervised artifacts", expanded=False):
 
 # ---- INSERT: Auto-parse social media databases (WhatsApp, Telegram, Messenger) ----
 import sqlite3
-from PIL import Image, ExifTags
+from PIL import ExifTags
 
 
 def parse_whatsapp_db(db_path):
@@ -3348,7 +3338,7 @@ def parse_whatsapp_db(db_path):
                             "timestamp": ts_val,
                         }
                     )
-            except Exception as e:
+            except Exception:
                 # schema mismatch or other issue
                 pass
         conn.close()
