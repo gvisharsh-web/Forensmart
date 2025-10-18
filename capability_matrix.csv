@@ -1,0 +1,4 @@
+device,os,os_version,extraction_mode,artifacts_available,tool,requires_root,notes
+Android,Android,9,adb/logical,contacts;sms;photos,adb,false,Example row
+iOS,iOS,14,logical,contacts;photos,idevicebackup2,true,Example row
+HDD,Generic,N/A,imaging,full_partition_image,dc3dd,true,Example row
