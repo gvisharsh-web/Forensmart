@@ -29,7 +29,7 @@ jobs:
         run: black --check .
 
       - name: Run linter (Ruff)
-        run: ruff .
+        run: ruff check .
 
       - name: Run unit tests
         run: pytest -q --disable-warnings --maxfail=1
