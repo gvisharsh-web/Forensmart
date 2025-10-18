@@ -3,12 +3,15 @@ import os, subprocess, json, shutil, tempfile, sqlite3
 from pathlib import Path
 from adapters.interface import AdapterBase
 
+
 class Adapter(AdapterBase):
     name = "android_adb"
 
     def probe(self):
         try:
-            out = subprocess.check_output(["adb", "devices", "-l"], stderr=subprocess.STDOUT).decode()
+            out = subprocess.check_output(
+                ["adb", "devices", "-l"], stderr=subprocess.STDOUT
+            ).decode()
             devices = [l for l in out.splitlines() if l.strip() and "device" in l]
             return {"ok": True, "raw": out, "devices": devices}
         except Exception as e:
@@ -18,13 +21,44 @@ class Adapter(AdapterBase):
         # Create simulated contacts and sms sqlite-like JSON files for testing.
         contacts = out_dir / "contacts2.db.json"
         sms = out_dir / "mmssms.db.json"
-        contacts.write_text(json.dumps([{"id":1,"name":"Alice Example","number":"+1111111"},{"id":2,"name":"Bob Example","number":"+2222222"}]))
-        sms.write_text(json.dumps([{"id":1,"thread_id":1,"address":"+1111111","body":"Hello world","date":"2025-01-01T00:00:00Z"}]))
+        contacts.write_text(
+            json.dumps(
+                [
+                    {"id": 1, "name": "Alice Example", "number": "+1111111"},
+                    {"id": 2, "name": "Bob Example", "number": "+2222222"},
+                ]
+            )
+        )
+        sms.write_text(
+            json.dumps(
+                [
+                    {
+                        "id": 1,
+                        "thread_id": 1,
+                        "address": "+1111111",
+                        "body": "Hello world",
+                        "date": "2025-01-01T00:00:00Z",
+                    }
+                ]
+            )
+        )
         # Also create vcard and sms json outputs for easy consumption
         vcf = out_dir / "contacts.vcf"
-        vcf.write_text("BEGIN:VCARD\nVERSION:3.0\nFN:Alice Example\nTEL:+1111111\nEND:VCARD\n")
+        vcf.write_text(
+            "BEGIN:VCARD\nVERSION:3.0\nFN:Alice Example\nTEL:+1111111\nEND:VCARD\n"
+        )
         msgs = out_dir / "sms_messages.json"
-        msgs.write_text(json.dumps([{"from":"+1111111","body":"Hello world","date":"2025-01-01T00:00:00Z"}]))
+        msgs.write_text(
+            json.dumps(
+                [
+                    {
+                        "from": "+1111111",
+                        "body": "Hello world",
+                        "date": "2025-01-01T00:00:00Z",
+                    }
+                ]
+            )
+        )
         return [str(contacts.name), str(sms.name), str(vcf.name), str(msgs.name)]
 
     def _pull_path(self, remote_path: str, local_target: Path):
@@ -58,8 +92,8 @@ class Adapter(AdapterBase):
             with open(csv_out, "w") as fcsv, open(vcf_out, "w") as fvcf:
                 fcsv.write("id,name\n")
                 for r in rows:
-                    fid = r[0] if len(r)>0 else ""
-                    name = r[1] if len(r)>1 else ""
+                    fid = r[0] if len(r) > 0 else ""
+                    name = r[1] if len(r) > 1 else ""
                     fcsv.write(f"{fid},{name}\n")
                     fvcf.write("BEGIN:VCARD\nVERSION:3.0\n")
                     fvcf.write(f"FN:{name}\n")
@@ -85,7 +119,14 @@ class Adapter(AdapterBase):
             out = out_dir / (db_path.stem + "_sms.json")
             msgs = []
             for r in rows:
-                msgs.append({"id": r[0] if len(r)>0 else None, "address": r[2] if len(r)>2 else None, "body": r[3] if len(r)>3 else None, "date": r[4] if len(r)>4 else None})
+                msgs.append(
+                    {
+                        "id": r[0] if len(r) > 0 else None,
+                        "address": r[2] if len(r) > 2 else None,
+                        "body": r[3] if len(r) > 3 else None,
+                        "date": r[4] if len(r) > 4 else None,
+                    }
+                )
             out.write_text(json.dumps(msgs))
             return [str(out.name)]
         except Exception as e:
@@ -105,10 +146,14 @@ class Adapter(AdapterBase):
 
         try:
             candidates = {
-                "contacts": ["/data/data/com.android.providers.contacts/databases/contacts2.db"],
-                "sms": ["/data/data/com.android.providers.telephony/databases/mmssms.db"]
+                "contacts": [
+                    "/data/data/com.android.providers.contacts/databases/contacts2.db"
+                ],
+                "sms": [
+                    "/data/data/com.android.providers.telephony/databases/mmssms.db"
+                ],
             }
-            for artifact in artifact_list or ["contacts","sms","photos"]:
+            for artifact in artifact_list or ["contacts", "sms", "photos"]:
                 if artifact == "contacts":
                     for rp in candidates["contacts"]:
                         local = out_dir / "contacts2.db"
@@ -131,13 +176,21 @@ class Adapter(AdapterBase):
                 elif artifact == "photos" or artifact == "all":
                     try:
                         target = out_dir / "DCIM"
-                        subprocess.check_call(["adb", "pull", "/sdcard/DCIM", str(target)])
-                        files = [str(p.relative_to(out_dir)) for p in target.rglob("*") if p.is_file()]
+                        subprocess.check_call(
+                            ["adb", "pull", "/sdcard/DCIM", str(target)]
+                        )
+                        files = [
+                            str(p.relative_to(out_dir))
+                            for p in target.rglob("*")
+                            if p.is_file()
+                        ]
                         summary["extracted"].extend(files)
                     except Exception as e:
                         pass
             if not summary["extracted"]:
-                (out_dir / "no_artifacts_found.txt").write_text("No artifacts extracted (permissions/tooling may be limited).")
+                (out_dir / "no_artifacts_found.txt").write_text(
+                    "No artifacts extracted (permissions/tooling may be limited)."
+                )
                 summary["extracted"].append("no_artifacts_found.txt")
         except Exception as e:
             summary["error"] = str(e)

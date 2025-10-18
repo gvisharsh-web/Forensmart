@@ -7,13 +7,17 @@ try:
     # Main App tab contains a note to continue using the existing UI below
     with tabs_top[0]:
         st.markdown("## Main App")
-        st.info("The original application UI continues below. Use the 'Adapters' tab to access extraction controls.")
+        st.info(
+            "The original application UI continues below. Use the 'Adapters' tab to access extraction controls."
+        )
     # Adapters tab: render adapter controls isolated from the rest of the UI
     with tabs_top[1]:
         st.markdown("## Extraction Adapters (Top-level)")
         consent_id = st.session_state.get("consent_id")
         if not consent_id:
-            st.warning("No consent_id linked in session. Capture consent in the Consent area before running intrusive extractions.")
+            st.warning(
+                "No consent_id linked in session. Capture consent in the Consent area before running intrusive extractions."
+            )
         st.subheader("Android")
         col1, col2 = st.columns(2)
         with col1:
@@ -24,18 +28,26 @@ try:
                     out_dir = f"./artifacts/{consent_id}/android"
                     try:
                         from adapters.runner import AdapterRunner
-                        runner = AdapterRunner(adapter_module="adapters.android_adb", adapter_cls="Adapter")
-                        res = runner.run_python_adapter(out_dir, ["all"], {"consent_id": consent_id})
+
+                        runner = AdapterRunner(
+                            adapter_module="adapters.android_adb", adapter_cls="Adapter"
+                        )
+                        res = runner.run_python_adapter(
+                            out_dir, ["all"], {"consent_id": consent_id}
+                        )
                         st.write(res)
                     except Exception as e:
                         st.error(f"Adapter run failed: {e}")
             if st.button("List Android Artifacts"):
                 from pathlib import Path as _P
+
                 base = _P(f"./artifacts/{consent_id}/android")
                 if not base.exists():
                     st.info("No artifacts yet for this consent_id.")
                 else:
-                    files = [str(p.relative_to(base)) for p in base.rglob('*') if p.is_file()]
+                    files = [
+                        str(p.relative_to(base)) for p in base.rglob("*") if p.is_file()
+                    ]
                     st.write(files)
         with col2:
             st.subheader("iOS")
@@ -43,15 +55,25 @@ try:
                 if not consent_id:
                     st.warning("No consent_id; capture consent first.")
                 else:
-                    ok, msg = verify_consent_id(consent_id) if 'verify_consent_id' in globals() else (True, "")
+                    ok, msg = (
+                        verify_consent_id(consent_id)
+                        if "verify_consent_id" in globals()
+                        else (True, "")
+                    )
                     if not ok:
                         st.error("Consent verification failed: " + msg)
                     else:
                         out_dir = f"./artifacts/{consent_id}/ios"
                         try:
                             from adapters.runner import AdapterRunner
-                            runner = AdapterRunner(adapter_module="adapters.ios_logical", adapter_cls="Adapter")
-                            res = runner.run_python_adapter(out_dir, ["all"], {"consent_id": consent_id})
+
+                            runner = AdapterRunner(
+                                adapter_module="adapters.ios_logical",
+                                adapter_cls="Adapter",
+                            )
+                            res = runner.run_python_adapter(
+                                out_dir, ["all"], {"consent_id": consent_id}
+                            )
                             st.write(res)
                         except Exception as e:
                             st.error(f"iOS adapter run failed: {e}")
@@ -60,15 +82,25 @@ try:
                 if not consent_id:
                     st.warning("No consent_id; capture consent first.")
                 else:
-                    ok, msg = verify_consent_id(consent_id) if 'verify_consent_id' in globals() else (True, "")
+                    ok, msg = (
+                        verify_consent_id(consent_id)
+                        if "verify_consent_id" in globals()
+                        else (True, "")
+                    )
                     if not ok:
                         st.error("Consent verification failed: " + msg)
                     else:
                         out_dir = f"./artifacts/{consent_id}/hdd"
                         try:
                             from adapters.runner import AdapterRunner
-                            runner = AdapterRunner(adapter_module="adapters.hdd_imager", adapter_cls="Adapter")
-                            res = runner.run_python_adapter(out_dir, ["simulate"], {"consent_id": consent_id})
+
+                            runner = AdapterRunner(
+                                adapter_module="adapters.hdd_imager",
+                                adapter_cls="Adapter",
+                            )
+                            res = runner.run_python_adapter(
+                                out_dir, ["simulate"], {"consent_id": consent_id}
+                            )
                             st.write(res)
                         except Exception as e:
                             st.error(f"HDD adapter run failed: {e}")
@@ -76,12 +108,12 @@ except Exception:
     pass
 
 
-
 # --- Consent verification helper ---
 def verify_consent_id(consent_id: str):
     """Return (True, message) if consent verification passes, else (False, message)."""
     from pathlib import Path
     import subprocess, sys, json
+
     if not consent_id:
         return False, "No consent_id provided."
     consent_folder = Path(f"./consent_records/{consent_id}")
@@ -90,7 +122,12 @@ def verify_consent_id(consent_id: str):
     verifier = Path("verify_consent.py")
     if verifier.exists():
         try:
-            cp = subprocess.run([sys.executable, str(verifier), str(consent_folder)], capture_output=True, text=True, timeout=30)
+            cp = subprocess.run(
+                [sys.executable, str(verifier), str(consent_folder)],
+                capture_output=True,
+                text=True,
+                timeout=30,
+            )
             if cp.returncode == 0:
                 return True, "Verification script passed."
             else:
@@ -113,6 +150,7 @@ def verify_consent_id(consent_id: str):
         if has_hash and has_sig:
             return True, "Basic presence checks OK (artifact_hash + signature present)."
         return False, "Missing artifact_hash or signature; cannot verify."
+
 
 import pandas as pd
 import numpy as np
@@ -143,20 +181,26 @@ if not os.path.exists("models"):
 
 # ================== CASE METADATA ==================
 st.sidebar.header("📂 Case Metadata")
-st.session_state["case_id"] = st.sidebar.text_input("Case ID", value=f"CASE-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
+st.session_state["case_id"] = st.sidebar.text_input(
+    "Case ID", value=f"CASE-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+)
 st.session_state["device_id"] = st.sidebar.text_input("Device ID / Serial")
 st.session_state["investigator"] = st.sidebar.text_input("Investigator Name")
-st.session_state["acquisition_date"] = st.sidebar.date_input("Acquisition Date", value=datetime.date.today())
+st.session_state["acquisition_date"] = st.sidebar.date_input(
+    "Acquisition Date", value=datetime.date.today()
+)
 
 # ================== TABS ==================
-tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
-    "📍 Location Intelligence",
-    "💬 Suspicious Messages",
-    "🔑 Password Strength",
-    "📊 Tabular ML Training",
-    "🖼️ Image ML Training",
-    "📄 Unified Report"
-])
+tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs(
+    [
+        "📍 Location Intelligence",
+        "💬 Suspicious Messages",
+        "🔑 Password Strength",
+        "📊 Tabular ML Training",
+        "🖼️ Image ML Training",
+        "📄 Unified Report",
+    ]
+)
 
 # ======================================================
 # 1️⃣ LOCATION INTELLIGENCE TAB
@@ -164,7 +208,10 @@ tab1, tab2, tab3, tab4, tab5, tab6 = st.tabs([
 with tab1:
     st.subheader("📍 Location Intelligence - GPS, Cell, Link Mode")
 
-    mode = st.radio("Choose Mode", ["USB GPS Logs", "Link Mode", "Cell Tower Fallback", "Manual Input"])
+    mode = st.radio(
+        "Choose Mode",
+        ["USB GPS Logs", "Link Mode", "Cell Tower Fallback", "Manual Input"],
+    )
 
     # Utility: hash calculator
     def compute_hash(data):
@@ -178,22 +225,32 @@ with tab1:
             return "N/A"
 
     # AI Timeline Summary
-    def generate_timeline_summary(df, lat_col="lat", lon_col="lon", time_col="timestamp", score_col=None):
-        if df.empty: return "No records"
+    def generate_timeline_summary(
+        df, lat_col="lat", lon_col="lon", time_col="timestamp", score_col=None
+    ):
+        if df.empty:
+            return "No records"
         df = df.sort_values(by=time_col).reset_index(drop=True)
         summary = []
-        for i in range(len(df)-1):
-            t1, t2 = df.loc[i, time_col], df.loc[i+1, time_col]
-            p1, p2 = (df.loc[i, lat_col], df.loc[i, lon_col]), (df.loc[i+1, lat_col], df.loc[i+1, lon_col])
-            gap = (t2 - t1).total_seconds()/60
-            dist = geodesic(p1,p2).km
-            speed = (dist/(gap/60)) if gap>0 else 0
+        for i in range(len(df) - 1):
+            t1, t2 = df.loc[i, time_col], df.loc[i + 1, time_col]
+            p1, p2 = (df.loc[i, lat_col], df.loc[i, lon_col]), (
+                df.loc[i + 1, lat_col],
+                df.loc[i + 1, lon_col],
+            )
+            gap = (t2 - t1).total_seconds() / 60
+            dist = geodesic(p1, p2).km
+            speed = (dist / (gap / 60)) if gap > 0 else 0
             if gap > 30:
                 summary.append(f"⏳ GPS gap {int(gap)} mins between {t1} and {t2}")
             elif speed > 200:
-                summary.append(f"🚨 Impossible travel: {dist:.1f} km in {int(gap)} mins (~{speed:.1f} km/h)")
+                summary.append(
+                    f"🚨 Impossible travel: {dist:.1f} km in {int(gap)} mins (~{speed:.1f} km/h)"
+                )
             else:
-                summary.append(f"📍 Moved {dist:.1f} km between {t1} and {t2} (avg {speed:.1f} km/h)")
+                summary.append(
+                    f"📍 Moved {dist:.1f} km between {t1} and {t2} (avg {speed:.1f} km/h)"
+                )
         return "\n".join(summary)
 
     # Example USB GPS Mode
@@ -202,10 +259,12 @@ with tab1:
         if gps_file:
             gps_df = pd.read_csv(gps_file)
             gps_df["timestamp"] = pd.to_datetime(gps_df["timestamp"])
-            gps_df = gps_df.rename(columns={"latitude":"lat","longitude":"lon"})
+            gps_df = gps_df.rename(columns={"latitude": "lat", "longitude": "lon"})
 
             if st.button("▶️ Playback + Summary"):
-                for t in pd.date_range(gps_df["timestamp"].min(), gps_df["timestamp"].max(), freq="30min"):
+                for t in pd.date_range(
+                    gps_df["timestamp"].min(), gps_df["timestamp"].max(), freq="30min"
+                ):
                     window = gps_df[gps_df["timestamp"] <= t]
                     if not window.empty:
                         st.write(f"🕒 {t}")
@@ -228,7 +287,15 @@ with tab2:
         risk_score = np.random.rand()
         explanation = "Contains keywords that may indicate threat"
         st.write(f"Suspicion Score: {risk_score:.2f}")
-        st.session_state["suspicious_messages"] = [{"timestamp": str(datetime.datetime.now()), "sender": "Unknown", "text": msg, "score": risk_score, "explanation": explanation}]
+        st.session_state["suspicious_messages"] = [
+            {
+                "timestamp": str(datetime.datetime.now()),
+                "sender": "Unknown",
+                "text": msg,
+                "score": risk_score,
+                "explanation": explanation,
+            }
+        ]
 
 # ======================================================
 # 3️⃣ PASSWORD TAB
@@ -260,47 +327,57 @@ with tab6:
         pdf.ln(10)
 
         pdf.set_font("Arial", size=12)
-        for k,v in metadata.items():
-            pdf.cell(0,10,f"{k}: {v}", ln=True)
+        for k, v in metadata.items():
+            pdf.cell(0, 10, f"{k}: {v}", ln=True)
         pdf.ln(10)
 
         if "location_summary" in st.session_state:
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(0,10,"📍 Location Analysis", ln=True)
+            pdf.cell(0, 10, "📍 Location Analysis", ln=True)
             pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0,10,st.session_state["location_summary"])
-            pdf.multi_cell(0,8,f"Hash: {compute_hash(st.session_state['location_summary'])}")
+            pdf.multi_cell(0, 10, st.session_state["location_summary"])
+            pdf.multi_cell(
+                0, 8, f"Hash: {compute_hash(st.session_state['location_summary'])}"
+            )
             pdf.ln(5)
 
         if "suspicious_messages" in st.session_state:
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(0,10,"💬 Suspicious Messages", ln=True)
+            pdf.cell(0, 10, "💬 Suspicious Messages", ln=True)
             pdf.set_font("Arial", size=12)
             for msg in st.session_state["suspicious_messages"]:
-                pdf.multi_cell(0,8,f"{msg['timestamp']} - {msg['text']} (Score {msg['score']:.2f})")
-                pdf.multi_cell(0,8,f"Explanation: {msg['explanation']}")
-            pdf.multi_cell(0,8,f"Hash: {compute_hash(st.session_state['suspicious_messages'])}")
+                pdf.multi_cell(
+                    0,
+                    8,
+                    f"{msg['timestamp']} - {msg['text']} (Score {msg['score']:.2f})",
+                )
+                pdf.multi_cell(0, 8, f"Explanation: {msg['explanation']}")
+            pdf.multi_cell(
+                0, 8, f"Hash: {compute_hash(st.session_state['suspicious_messages'])}"
+            )
             pdf.ln(5)
 
         if "password_eval" in st.session_state:
             pdf.set_font("Arial", "B", 14)
-            pdf.cell(0,10,"🔑 Password Strength", ln=True)
+            pdf.cell(0, 10, "🔑 Password Strength", ln=True)
             pdf.set_font("Arial", size=12)
-            pdf.multi_cell(0,10,st.session_state["password_eval"])
-            pdf.multi_cell(0,8,f"Hash: {compute_hash(st.session_state['password_eval'])}")
+            pdf.multi_cell(0, 10, st.session_state["password_eval"])
+            pdf.multi_cell(
+                0, 8, f"Hash: {compute_hash(st.session_state['password_eval'])}"
+            )
             pdf.ln(5)
 
         # Master Case Hash
         combined = {
             "location_summary": st.session_state.get("location_summary"),
             "suspicious_messages": st.session_state.get("suspicious_messages"),
-            "password_eval": st.session_state.get("password_eval")
+            "password_eval": st.session_state.get("password_eval"),
         }
-        pdf.set_font("Arial","B",12)
-        pdf.multi_cell(0,8,f"🔒 Master Case Hash: {compute_hash(combined)}")
+        pdf.set_font("Arial", "B", 12)
+        pdf.multi_cell(0, 8, f"🔒 Master Case Hash: {compute_hash(combined)}")
 
         pdf_output = BytesIO()
-        pdf.output(pdf_output,"F")
+        pdf.output(pdf_output, "F")
         pdf_output.seek(0)
         return pdf_output
 
@@ -308,12 +385,17 @@ with tab6:
         "Case ID": st.session_state["case_id"],
         "Device ID": st.session_state["device_id"],
         "Investigator": st.session_state["investigator"],
-        "Acquisition Date": str(st.session_state["acquisition_date"])
+        "Acquisition Date": str(st.session_state["acquisition_date"]),
     }
 
     if st.button("📄 Generate Unified Report"):
         pdf_file = export_unified_case_report(metadata)
-        st.download_button("⬇️ Download Case Report", data=pdf_file, file_name=f"{st.session_state['case_id']}_report.pdf", mime="application/pdf")
+        st.download_button(
+            "⬇️ Download Case Report",
+            data=pdf_file,
+            file_name=f"{st.session_state['case_id']}_report.pdf",
+            mime="application/pdf",
+        )
 import streamlit as st
 import pandas as pd
 import pydeck as pdk
@@ -334,13 +416,19 @@ with tab1:
     from shapely.geometry import Point, Polygon
     import matplotlib.pyplot as plt
 
-    st.subheader("📍 Location Intelligence — USB / Link / Cell / Manual / Hotspots / Zones")
+    st.subheader(
+        "📍 Location Intelligence — USB / Link / Cell / Manual / Hotspots / Zones"
+    )
 
-    mode = st.radio("Choose Mode", ["USB GPS Logs", "Link Mode (multi)", "Cell Tower Fallback", "Manual Input"])
+    mode = st.radio(
+        "Choose Mode",
+        ["USB GPS Logs", "Link Mode (multi)", "Cell Tower Fallback", "Manual Input"],
+    )
 
     # helper: compute SHA256
     def compute_hash(data):
         import json, hashlib
+
         if data is None:
             return "N/A"
         if isinstance(data, (dict, list)):
@@ -352,25 +440,33 @@ with tab1:
         return hashlib.sha256(b).hexdigest()
 
     # helper: simple timeline summary
-    def generate_timeline_summary(df, lat_col="lat", lon_col="lon", time_col="timestamp"):
+    def generate_timeline_summary(
+        df, lat_col="lat", lon_col="lon", time_col="timestamp"
+    ):
         if df is None or df.empty:
             return "No records"
         df = df.sort_values(by=time_col).reset_index(drop=True)
         parts = []
-        for i in range(len(df)-1):
+        for i in range(len(df) - 1):
             t1 = df.loc[i, time_col]
-            t2 = df.loc[i+1, time_col]
+            t2 = df.loc[i + 1, time_col]
             p1 = (df.loc[i, lat_col], df.loc[i, lon_col])
-            p2 = (df.loc[i+1, lat_col], df.loc[i+1, lon_col])
+            p2 = (df.loc[i + 1, lat_col], df.loc[i + 1, lon_col])
             gap_mins = (t2 - t1).total_seconds() / 60.0
             dist_km = geodesic(p1, p2).km
-            speed = (dist_km / (gap_mins/60.0)) if gap_mins > 0 else 0
+            speed = (dist_km / (gap_mins / 60.0)) if gap_mins > 0 else 0
             if gap_mins > 30:
-                parts.append(f"⏳ GPS gap of {int(gap_mins)} mins between {t1} and {t2}")
+                parts.append(
+                    f"⏳ GPS gap of {int(gap_mins)} mins between {t1} and {t2}"
+                )
             elif speed > 200:
-                parts.append(f"🚨 Impossible travel: {dist_km:.1f} km in {int(gap_mins)} mins (~{speed:.1f} km/h)")
+                parts.append(
+                    f"🚨 Impossible travel: {dist_km:.1f} km in {int(gap_mins)} mins (~{speed:.1f} km/h)"
+                )
             else:
-                parts.append(f"📍 Moved {dist_km:.1f} km between {t1} and {t2} (avg {speed:.1f} km/h)")
+                parts.append(
+                    f"📍 Moved {dist_km:.1f} km between {t1} and {t2} (avg {speed:.1f} km/h)"
+                )
         return "\n".join(parts)
 
     # helper: show a pydeck heatmap (visual only)
@@ -381,29 +477,37 @@ with tab1:
         df2 = df.copy()
         df2["weight"] = 1
         try:
-            st.pydeck_chart(pdk.Deck(
-                map_style="mapbox://styles/mapbox/dark-v10",
-                initial_view_state=pdk.ViewState(
-                    latitude=df2[lat_col].mean(),
-                    longitude=df2[lon_col].mean(),
-                    zoom=11, pitch=40
-                ),
-                layers=[
-                    pdk.Layer(
-                        "HeatmapLayer",
-                        data=df2,
-                        get_position=[lon_col, lat_col],
-                        get_weight="weight",
-                        radiusPixels=60,
-                    )
-                ],
-            ))
+            st.pydeck_chart(
+                pdk.Deck(
+                    map_style="mapbox://styles/mapbox/dark-v10",
+                    initial_view_state=pdk.ViewState(
+                        latitude=df2[lat_col].mean(),
+                        longitude=df2[lon_col].mean(),
+                        zoom=11,
+                        pitch=40,
+                    ),
+                    layers=[
+                        pdk.Layer(
+                            "HeatmapLayer",
+                            data=df2,
+                            get_position=[lon_col, lat_col],
+                            get_weight="weight",
+                            radiusPixels=60,
+                        )
+                    ],
+                )
+            )
         except Exception as e:
-            st.warning("Pydeck heatmap failed (mapbox key/pydeck). Falling back to scatter snapshot. " + str(e))
+            st.warning(
+                "Pydeck heatmap failed (mapbox key/pydeck). Falling back to scatter snapshot. "
+                + str(e)
+            )
 
     # ---------------- USB GPS Logs mode ----------------
     if mode == "USB GPS Logs":
-        gps_file = st.file_uploader("Upload GPS data (CSV with timestamp, latitude, longitude)", type=["csv"])
+        gps_file = st.file_uploader(
+            "Upload GPS data (CSV with timestamp, latitude, longitude)", type=["csv"]
+        )
         gps_df = None
         if gps_file:
             gps_df = pd.read_csv(gps_file)
@@ -423,12 +527,17 @@ with tab1:
         # time window + map + heatmap snapshot
         if gps_df is not None and not gps_df.empty:
             min_t, max_t = gps_df["timestamp"].min(), gps_df["timestamp"].max()
-            time_window = st.slider("Select time window", min_value=min_t.to_pydatetime(),
-                                    max_value=max_t.to_pydatetime(),
-                                    value=(min_t.to_pydatetime(), max_t.to_pydatetime()),
-                                    format="YYYY-MM-DD HH:mm")
-            filt = gps_df[(gps_df["timestamp"] >= pd.to_datetime(time_window[0])) &
-                          (gps_df["timestamp"] <= pd.to_datetime(time_window[1]))]
+            time_window = st.slider(
+                "Select time window",
+                min_value=min_t.to_pydatetime(),
+                max_value=max_t.to_pydatetime(),
+                value=(min_t.to_pydatetime(), max_t.to_pydatetime()),
+                format="YYYY-MM-DD HH:mm",
+            )
+            filt = gps_df[
+                (gps_df["timestamp"] >= pd.to_datetime(time_window[0]))
+                & (gps_df["timestamp"] <= pd.to_datetime(time_window[1]))
+            ]
 
             st.markdown("#### Map (selected window)")
             st.map(filt[["lat", "lon"]])
@@ -437,11 +546,11 @@ with tab1:
             show_pydeck_heatmap(filt)
             # Matplotlib snapshot (saved to session_state for PDF)
             if not filt.empty:
-                fig, ax = plt.subplots(figsize=(6,6))
+                fig, ax = plt.subplots(figsize=(6, 6))
                 ax.scatter(filt["lon"], filt["lat"], c="red", alpha=0.5)
                 ax.set_title("Suspicion Points (snapshot)")
                 tmp = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-                fig.savefig(tmp.name, bbox_inches='tight')
+                fig.savefig(tmp.name, bbox_inches="tight")
                 plt.close(fig)
                 st.session_state["heatmap_snapshot"] = tmp.name
                 st.image(tmp.name, caption="Heatmap snapshot (saved for report)")
@@ -458,14 +567,21 @@ with tab1:
                 st.subheader("📝 AI Timeline Summary")
                 st.text(summary)
                 st.session_state["location_summary"] = summary
-                st.success("Location summary saved to session_state['location_summary'].")
+                st.success(
+                    "Location summary saved to session_state['location_summary']."
+                )
 
             # ---------------- Crime hotspots upload (csv/xlsx/json/image) ----------------
             st.markdown("## Crime Scene Hotspots (file or image)")
-            crime_file = st.file_uploader("Upload hotspots (CSV/XLSX/JSON) or map image (JPG/PNG)", 
-                                          type=["csv","xlsx","xls","json","jpg","png"], key="crime_file")
+            crime_file = st.file_uploader(
+                "Upload hotspots (CSV/XLSX/JSON) or map image (JPG/PNG)",
+                type=["csv", "xlsx", "xls", "json", "jpg", "png"],
+                key="crime_file",
+            )
 
-            manual_hotspots = []  # used if user adds coordinates from an image during this run
+            manual_hotspots = (
+                []
+            )  # used if user adds coordinates from an image during this run
 
             if crime_file:
                 ext = os.path.splitext(crime_file.name)[1].lower()
@@ -476,7 +592,10 @@ with tab1:
                 elif ext == ".json":
                     crime_df = pd.read_json(crime_file)
                 elif ext in [".jpg", ".png"]:
-                    st.image(crime_file, caption="Uploaded crime map image (use manual input below to add points)")
+                    st.image(
+                        crime_file,
+                        caption="Uploaded crime map image (use manual input below to add points)",
+                    )
                     crime_df = None
                 else:
                     st.error("Unsupported hotspot file.")
@@ -484,52 +603,95 @@ with tab1:
 
                 # if a tabular file provided, plot hotspots and check overlaps
                 if crime_df is not None and not crime_df.empty:
-                    if {"latitude", "longitude"}.issubset(set(crime_df.columns)) or {"lat", "lon"}.issubset(set(crime_df.columns)):
+                    if {"latitude", "longitude"}.issubset(set(crime_df.columns)) or {
+                        "lat",
+                        "lon",
+                    }.issubset(set(crime_df.columns)):
                         if "latitude" in crime_df.columns:
-                            crime_df_plot = crime_df.rename(columns={"latitude":"lat","longitude":"lon"})
+                            crime_df_plot = crime_df.rename(
+                                columns={"latitude": "lat", "longitude": "lon"}
+                            )
                         else:
-                            crime_df_plot = crime_df.rename(columns={"lat":"lat","lon":"lon"})
+                            crime_df_plot = crime_df.rename(
+                                columns={"lat": "lat", "lon": "lon"}
+                            )
                         st.markdown("### Hotspot points (from file)")
-                        st.map(crime_df_plot[["lat","lon"]])
+                        st.map(crime_df_plot[["lat", "lon"]])
 
                         # check overlaps (≤ 200 m)
                         overlaps = []
                         for _, g in gps_df.iterrows():
                             for _, c in crime_df_plot.iterrows():
-                                d = geodesic((g["lat"], g["lon"]), (c["lat"], c["lon"])).meters
+                                d = geodesic(
+                                    (g["lat"], g["lon"]), (c["lat"], c["lon"])
+                                ).meters
                                 if d <= 200:
-                                    overlaps.append({"timestamp": g["timestamp"], "hotspot_name": c.get("name","Unknown"), "distance_m": round(d,1)})
+                                    overlaps.append(
+                                        {
+                                            "timestamp": g["timestamp"],
+                                            "hotspot_name": c.get("name", "Unknown"),
+                                            "distance_m": round(d, 1),
+                                        }
+                                    )
                         if overlaps:
                             st.markdown("### 🚨 Overlaps with hotspots (≤200m)")
                             st.dataframe(pd.DataFrame(overlaps))
                         else:
                             st.success("No overlaps with uploaded hotspots.")
                         # save for report
-                        st.session_state["crime_hotspots_table"] = crime_df_plot.to_dict("records")
-                        st.session_state["crime_hotspots_hash"] = compute_hash(crime_df_plot.to_dict("records"))
+                        st.session_state["crime_hotspots_table"] = (
+                            crime_df_plot.to_dict("records")
+                        )
+                        st.session_state["crime_hotspots_hash"] = compute_hash(
+                            crime_df_plot.to_dict("records")
+                        )
                     else:
-                        st.warning("Hotspot file must contain 'latitude' and 'longitude' (or 'lat'/'lon').")
+                        st.warning(
+                            "Hotspot file must contain 'latitude' and 'longitude' (or 'lat'/'lon')."
+                        )
                 else:
                     # file was image OR no dataframe produced
-                    st.info("If you uploaded an image, enter hotspot coordinates manually below (they will be saved).")
+                    st.info(
+                        "If you uploaded an image, enter hotspot coordinates manually below (they will be saved)."
+                    )
 
                     # manual hotspot entry (useful when image uploaded)
                     st.markdown("### Manual hotspot entry (for uploaded image)")
-                    mh_lat = st.number_input("Hotspot latitude", format="%.6f", key="mh_lat")
-                    mh_lon = st.number_input("Hotspot longitude", format="%.6f", key="mh_lon")
-                    mh_name = st.text_input("Hotspot name", value="Manual Hotspot", key="mh_name")
+                    mh_lat = st.number_input(
+                        "Hotspot latitude", format="%.6f", key="mh_lat"
+                    )
+                    mh_lon = st.number_input(
+                        "Hotspot longitude", format="%.6f", key="mh_lon"
+                    )
+                    mh_name = st.text_input(
+                        "Hotspot name", value="Manual Hotspot", key="mh_name"
+                    )
                     if st.button("➕ Add manual hotspot"):
-                        manual_hotspots.append({"name": mh_name, "lat": mh_lat, "lon": mh_lon})
+                        manual_hotspots.append(
+                            {"name": mh_name, "lat": mh_lat, "lon": mh_lon}
+                        )
                         st.success(f"Added hotspot {mh_name} ({mh_lat},{mh_lon})")
                         # map update + check overlap
-                        st.map(pd.DataFrame(manual_hotspots).rename(columns={"lat":"lat","lon":"lon"})[["lat","lon"]])
+                        st.map(
+                            pd.DataFrame(manual_hotspots).rename(
+                                columns={"lat": "lat", "lon": "lon"}
+                            )[["lat", "lon"]]
+                        )
                         # check overlap with GPS
                         over = []
                         for _, g in gps_df.iterrows():
                             for c in manual_hotspots:
-                                d = geodesic((g["lat"], g["lon"]), (c["lat"], c["lon"])).meters
+                                d = geodesic(
+                                    (g["lat"], g["lon"]), (c["lat"], c["lon"])
+                                ).meters
                                 if d <= 200:
-                                    over.append({"timestamp": g["timestamp"], "hotspot_name": c["name"], "distance_m": round(d,1)})
+                                    over.append(
+                                        {
+                                            "timestamp": g["timestamp"],
+                                            "hotspot_name": c["name"],
+                                            "distance_m": round(d, 1),
+                                        }
+                                    )
                         if over:
                             st.markdown("### 🚨 Overlaps with manual hotspots (≤200m)")
                             st.dataframe(pd.DataFrame(over))
@@ -557,24 +719,45 @@ with tab1:
                     geom = feat.get("geometry", {})
                     dtype = geom.get("type", "")
                     if dtype == "Polygon":
-                        coords = geom["coordinates"][0]  # list of [lon,lat] tuples in GeoJSON
+                        coords = geom["coordinates"][
+                            0
+                        ]  # list of [lon,lat] tuples in GeoJSON
                         # convert to (lat, lon) pairs for plotting logic consistency
                         coords_latlon = [(c[1], c[0]) for c in coords]
-                        poly = Polygon([(c[0], c[1]) for c in coords])  # shapely expects (x=lon,y=lat)
-                        zones.append({"zone_id": f"Zone {idx}", "coords": coords})  # keep GeoJSON coords for report
+                        poly = Polygon(
+                            [(c[0], c[1]) for c in coords]
+                        )  # shapely expects (x=lon,y=lat)
+                        zones.append(
+                            {"zone_id": f"Zone {idx}", "coords": coords}
+                        )  # keep GeoJSON coords for report
                         # check GPS points inside polygon
                         for _, g in gps_df.iterrows():
                             pt = Point(g["lon"], g["lat"])
                             if poly.contains(pt):
-                                matches.append({"timestamp": str(g["timestamp"]), "zone_id": f"Zone {idx}", "lat": g["lat"], "lon": g["lon"]})
+                                matches.append(
+                                    {
+                                        "timestamp": str(g["timestamp"]),
+                                        "zone_id": f"Zone {idx}",
+                                        "lat": g["lat"],
+                                        "lon": g["lon"],
+                                    }
+                                )
                 # save zones & matches into session_state
                 st.session_state["crime_zones"] = {"zones": zones, "matches": matches}
                 # create and save snapshot image (matplotlib)
-                fig, ax = plt.subplots(figsize=(6,6))
-                ax.scatter(gps_df["lon"], gps_df["lat"], c="blue", alpha=0.6, label="Suspect GPS")
+                fig, ax = plt.subplots(figsize=(6, 6))
+                ax.scatter(
+                    gps_df["lon"],
+                    gps_df["lat"],
+                    c="blue",
+                    alpha=0.6,
+                    label="Suspect GPS",
+                )
                 if matches:
                     md = pd.DataFrame(matches)
-                    ax.scatter(md["lon"], md["lat"], c="red", marker="x", s=80, label="Matches")
+                    ax.scatter(
+                        md["lon"], md["lat"], c="red", marker="x", s=80, label="Matches"
+                    )
                 for z in zones:
                     # coords are GeoJSON lon/lat pairs — convert to lists for plotting
                     coords = z["coords"]
@@ -584,7 +767,7 @@ with tab1:
                 ax.set_title("Crime Zones & GPS Trace (snapshot)")
                 ax.legend()
                 tmpf = tempfile.NamedTemporaryFile(delete=False, suffix=".png")
-                fig.savefig(tmpf.name, bbox_inches='tight')
+                fig.savefig(tmpf.name, bbox_inches="tight")
                 plt.close(fig)
                 st.session_state["crime_zones_map"] = tmpf.name
                 st.image(tmpf.name, caption="Crime zone snapshot (saved for report)")
@@ -596,21 +779,33 @@ with tab1:
 
     # ---------------- Link Mode (multi links) ----------------
     elif mode == "Link Mode (multi)":
-        st.markdown("Paste one or more shared GPS links (one per line). Example: https://maps.google.com/?q=12.9716,77.5946")
+        st.markdown(
+            "Paste one or more shared GPS links (one per line). Example: https://maps.google.com/?q=12.9716,77.5946"
+        )
         links_area = st.text_area("Links (newline separated)", height=140)
         link_rows = []
         if links_area.strip():
             for line in links_area.splitlines():
-                m = re.search(r'([-+]?\d{1,2}\.\d+),\s*([-+]?\d{1,3}\.\d+)', line)
+                m = re.search(r"([-+]?\d{1,2}\.\d+),\s*([-+]?\d{1,3}\.\d+)", line)
                 if m:
-                    lat = float(m.group(1)); lon = float(m.group(2))
-                    link_rows.append({"timestamp": dt.datetime.now(), "lat": lat, "lon": lon, "source_text": line.strip()})
+                    lat = float(m.group(1))
+                    lon = float(m.group(2))
+                    link_rows.append(
+                        {
+                            "timestamp": dt.datetime.now(),
+                            "lat": lat,
+                            "lon": lon,
+                            "source_text": line.strip(),
+                        }
+                    )
             if link_rows:
                 link_df = pd.DataFrame(link_rows)
-                st.map(link_df[["lat","lon"]])
+                st.map(link_df[["lat", "lon"]])
                 # save to session state for later report
                 st.session_state["link_points"] = link_df.to_dict("records")
-                st.session_state["link_points_hash"] = compute_hash(link_df.to_dict("records"))
+                st.session_state["link_points_hash"] = compute_hash(
+                    link_df.to_dict("records")
+                )
 
                 # check against uploaded hotspots (if present in session_state) and drawn zones
                 hits = []
@@ -618,16 +813,34 @@ with tab1:
                 if "crime_hotspots_table" in st.session_state:
                     for _, p in link_df.iterrows():
                         for c in st.session_state["crime_hotspots_table"]:
-                            d = geodesic((p["lat"], p["lon"]), (c["lat"], c["lon"])).meters
+                            d = geodesic(
+                                (p["lat"], p["lon"]), (c["lat"], c["lon"])
+                            ).meters
                             if d <= 200:
-                                hits.append({"timestamp": p["timestamp"], "match_type": "hotspot_file", "hotspot": c.get("name","Unknown"), "distance_m": round(d,1)})
+                                hits.append(
+                                    {
+                                        "timestamp": p["timestamp"],
+                                        "match_type": "hotspot_file",
+                                        "hotspot": c.get("name", "Unknown"),
+                                        "distance_m": round(d, 1),
+                                    }
+                                )
                 # check manual hotspots
                 if "crime_hotspots_manual" in st.session_state:
                     for _, p in link_df.iterrows():
                         for c in st.session_state["crime_hotspots_manual"]:
-                            d = geodesic((p["lat"], p["lon"]), (c["lat"], c["lon"])).meters
+                            d = geodesic(
+                                (p["lat"], p["lon"]), (c["lat"], c["lon"])
+                            ).meters
                             if d <= 200:
-                                hits.append({"timestamp": p["timestamp"], "match_type": "hotspot_manual", "hotspot": c.get("name","Manual"), "distance_m": round(d,1)})
+                                hits.append(
+                                    {
+                                        "timestamp": p["timestamp"],
+                                        "match_type": "hotspot_manual",
+                                        "hotspot": c.get("name", "Manual"),
+                                        "distance_m": round(d, 1),
+                                    }
+                                )
                 # check drawn zones
                 if "crime_zones" in st.session_state:
                     for _, p in link_df.iterrows():
@@ -635,7 +848,15 @@ with tab1:
                         for z in st.session_state["crime_zones"].get("zones", []):
                             poly = Polygon(z["coords"])
                             if poly.contains(pt):
-                                hits.append({"timestamp": p["timestamp"], "match_type": "drawn_zone", "zone_id": z["zone_id"], "lat": p["lat"], "lon": p["lon"]})
+                                hits.append(
+                                    {
+                                        "timestamp": p["timestamp"],
+                                        "match_type": "drawn_zone",
+                                        "zone_id": z["zone_id"],
+                                        "lat": p["lat"],
+                                        "lon": p["lon"],
+                                    }
+                                )
                 if hits:
                     st.markdown("### 🚨 Link points matched hotspots/zones")
                     st.dataframe(pd.DataFrame(hits))
@@ -645,20 +866,27 @@ with tab1:
 
     # ---------------- Cell Tower Fallback ----------------
     elif mode == "Cell Tower Fallback":
-        cell_file = st.file_uploader("Upload cell tower logs (CSV with cellid,lac,mcc,mnc,timestamp)", type=["csv"])
+        cell_file = st.file_uploader(
+            "Upload cell tower logs (CSV with cellid,lac,mcc,mnc,timestamp)",
+            type=["csv"],
+        )
         if cell_file:
             cell_df = pd.read_csv(cell_file)
             # placeholder: in prod, call OpenCellID or other DB to convert to lat/lon
             # for now map to a dummy location or allow user to provide a towers->coords file
-            if {"latitude","longitude"}.issubset(cell_df.columns):
-                cell_df = cell_df.rename(columns={"latitude":"lat","longitude":"lon"})
-                st.map(cell_df[["lat","lon"]])
+            if {"latitude", "longitude"}.issubset(cell_df.columns):
+                cell_df = cell_df.rename(
+                    columns={"latitude": "lat", "longitude": "lon"}
+                )
+                st.map(cell_df[["lat", "lon"]])
             else:
                 st.info("Cell tower file missing lat/long; showing placeholder.")
                 cell_df["lat"], cell_df["lon"] = 12.9716, 77.5946
-                st.map(cell_df[["lat","lon"]])
+                st.map(cell_df[["lat", "lon"]])
             st.session_state["cell_tower_points"] = cell_df.to_dict("records")
-            st.session_state["cell_tower_hash"] = compute_hash(cell_df.to_dict("records"))
+            st.session_state["cell_tower_hash"] = compute_hash(
+                cell_df.to_dict("records")
+            )
 
     # ---------------- Manual Input ----------------
     elif mode == "Manual Input":
@@ -668,12 +896,19 @@ with tab1:
             mlon = st.number_input("Longitude", format="%.6f", key="man_lon")
             mname = st.text_input("Label (optional)", key="man_name")
             if st.button("➕ Add as manual point"):
-                pt = {"timestamp": str(dt.datetime.now()), "lat": mlat, "lon": mlon, "label": mname}
+                pt = {
+                    "timestamp": str(dt.datetime.now()),
+                    "lat": mlat,
+                    "lon": mlon,
+                    "label": mname,
+                }
                 if "manual_points" not in st.session_state:
                     st.session_state["manual_points"] = []
                 st.session_state["manual_points"].append(pt)
-                st.success("Manual point added and saved to session_state['manual_points'].")
-                st.map(pd.DataFrame(st.session_state["manual_points"])[["lat","lon"]])
+                st.success(
+                    "Manual point added and saved to session_state['manual_points']."
+                )
+                st.map(pd.DataFrame(st.session_state["manual_points"])[["lat", "lon"]])
         else:
             ts = st.text_input("Enter timestamp (YYYY-MM-DD HH:MM:SS)")
             try:
@@ -712,13 +947,19 @@ with tab6:
         return hashlib.sha256(b).hexdigest()
 
     # ---------- Collect metadata ----------
-    case_id = st.session_state.get("case_id", f"CASE-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}")
+    case_id = st.session_state.get(
+        "case_id", f"CASE-{datetime.datetime.now().strftime('%Y%m%d-%H%M%S')}"
+    )
     device_id = st.session_state.get("device_id", "Unknown Device")
     investigator = st.session_state.get("investigator", "Unknown Investigator")
-    acquisition_date = st.session_state.get("acquisition_date", str(datetime.date.today()))
+    acquisition_date = st.session_state.get(
+        "acquisition_date", str(datetime.date.today())
+    )
 
     # optional abstract / summary input
-    abstract = st.text_area("Write a short case abstract / summary (this goes on cover page)", height=120)
+    abstract = st.text_area(
+        "Write a short case abstract / summary (this goes on cover page)", height=120
+    )
 
     # ---------- Build PDF ----------
     def export_unified_report_pdf():
@@ -750,7 +991,9 @@ with tab6:
         pdf.set_font("Arial", "B", 13)
         pdf.cell(0, 8, "📍 Location Intelligence", ln=True)
         pdf.set_font("Arial", size=11)
-        loc_summary = st.session_state.get("location_summary", "No location summary available.")
+        loc_summary = st.session_state.get(
+            "location_summary", "No location summary available."
+        )
         pdf.multi_cell(0, 7, loc_summary)
         pdf.ln(2)
         loc_hash = compute_hash(loc_summary)
@@ -789,7 +1032,11 @@ with tab6:
                 pdf.multi_cell(0, 6, "Hotspots table present but failed to render.")
             pdf.ln(2)
             pdf.set_font("Arial", "I", 9)
-            pdf.multi_cell(0, 6, f"Hash (SHA256): {st.session_state.get('crime_hotspots_hash','N/A')}")
+            pdf.multi_cell(
+                0,
+                6,
+                f"Hash (SHA256): {st.session_state.get('crime_hotspots_hash','N/A')}",
+            )
             pdf.ln(4)
 
         # ---------- Section: Manual Hotspots ----------
@@ -799,12 +1046,20 @@ with tab6:
             pdf.set_font("Arial", size=10)
             try:
                 for rec in st.session_state["crime_hotspots_manual"]:
-                    pdf.multi_cell(0, 6, f"- {rec.get('name','Manual')}: ({rec.get('lat')}, {rec.get('lon')})")
+                    pdf.multi_cell(
+                        0,
+                        6,
+                        f"- {rec.get('name','Manual')}: ({rec.get('lat')}, {rec.get('lon')})",
+                    )
             except Exception:
                 pdf.multi_cell(0, 6, "Manual hotspots present but failed to render.")
             pdf.ln(2)
             pdf.set_font("Arial", "I", 9)
-            pdf.multi_cell(0, 6, f"Hash (SHA256): {compute_hash(st.session_state.get('crime_hotspots_manual'))}")
+            pdf.multi_cell(
+                0,
+                6,
+                f"Hash (SHA256): {compute_hash(st.session_state.get('crime_hotspots_manual'))}",
+            )
             pdf.ln(4)
 
         # ---------- Section: Drawn Crime Zones ----------
@@ -819,7 +1074,11 @@ with tab6:
                 for z in zones:
                     # print first few coords (avoid massive dumps)
                     coords = z.get("coords", [])
-                    pdf.multi_cell(0, 6, f"- {z.get('zone_id','Zone')}: {len(coords)} points, sample: {coords[:3]}")
+                    pdf.multi_cell(
+                        0,
+                        6,
+                        f"- {z.get('zone_id','Zone')}: {len(coords)} points, sample: {coords[:3]}",
+                    )
             else:
                 pdf.multi_cell(0, 6, "No drawn zones found.")
             pdf.ln(2)
@@ -827,12 +1086,18 @@ with tab6:
             if matches:
                 pdf.multi_cell(0, 6, "🚨 Matches detected within zones:")
                 for m in matches:
-                    pdf.multi_cell(0, 6, f"  - {m.get('timestamp')} | {m.get('zone_id')} @ ({m.get('latitude')}, {m.get('longitude')})")
+                    pdf.multi_cell(
+                        0,
+                        6,
+                        f"  - {m.get('timestamp')} | {m.get('zone_id')} @ ({m.get('latitude')}, {m.get('longitude')})",
+                    )
             else:
                 pdf.multi_cell(0, 6, "No GPS matches inside drawn zones.")
             pdf.ln(2)
             pdf.set_font("Arial", "I", 9)
-            pdf.multi_cell(0, 6, f"Hash (SHA256) of drawn zones object: {compute_hash(zones_obj)}")
+            pdf.multi_cell(
+                0, 6, f"Hash (SHA256) of drawn zones object: {compute_hash(zones_obj)}"
+            )
             pdf.ln(4)
 
             # include zone snapshot image if present
@@ -846,7 +1111,11 @@ with tab6:
                     pdf.multi_cell(0, 7, f"[Crime zones image at: {cz_map}]")
                 pdf.ln(4)
                 pdf.set_font("Arial", "I", 9)
-                pdf.multi_cell(0, 6, f"Hash (SHA256) of zone snapshot: {compute_hash(open(cz_map,'rb').read())}")
+                pdf.multi_cell(
+                    0,
+                    6,
+                    f"Hash (SHA256) of zone snapshot: {compute_hash(open(cz_map,'rb').read())}",
+                )
                 pdf.ln(4)
 
         # ---------- Section: Link Points (Link Mode) ----------
@@ -856,12 +1125,18 @@ with tab6:
             pdf.set_font("Arial", size=10)
             try:
                 for rec in st.session_state.get("link_points", []):
-                    pdf.multi_cell(0, 6, f"- {rec.get('timestamp')}: ({rec.get('lat')}, {rec.get('lon')})")
+                    pdf.multi_cell(
+                        0,
+                        6,
+                        f"- {rec.get('timestamp')}: ({rec.get('lat')}, {rec.get('lon')})",
+                    )
             except Exception:
                 pdf.multi_cell(0, 6, "Link points present but failed to render.")
             pdf.ln(2)
             pdf.set_font("Arial", "I", 9)
-            pdf.multi_cell(0, 6, f"Hash (SHA256): {st.session_state.get('link_points_hash','N/A')}")
+            pdf.multi_cell(
+                0, 6, f"Hash (SHA256): {st.session_state.get('link_points_hash','N/A')}"
+            )
             pdf.ln(4)
 
         # ---------- Section: Cell Tower Points ----------
@@ -871,12 +1146,18 @@ with tab6:
             pdf.set_font("Arial", size=10)
             try:
                 for rec in st.session_state.get("cell_tower_points", []):
-                    pdf.multi_cell(0, 6, f"- {rec.get('timestamp','')}: ({rec.get('lat')},{rec.get('lon')})")
+                    pdf.multi_cell(
+                        0,
+                        6,
+                        f"- {rec.get('timestamp','')}: ({rec.get('lat')},{rec.get('lon')})",
+                    )
             except Exception:
                 pdf.multi_cell(0, 6, "Cell tower data present but failed to render.")
             pdf.ln(2)
             pdf.set_font("Arial", "I", 9)
-            pdf.multi_cell(0, 6, f"Hash (SHA256): {st.session_state.get('cell_tower_hash','N/A')}")
+            pdf.multi_cell(
+                0, 6, f"Hash (SHA256): {st.session_state.get('cell_tower_hash','N/A')}"
+            )
             pdf.ln(4)
 
         # ---------- Section: Suspicious Messages ----------
@@ -890,22 +1171,37 @@ with tab6:
                     ts = m.get("timestamp", "")
                     sender = m.get("sender", "")
                     text = m.get("text", "")
-                    score = m.get("suspicion_score", m.get("score", m.get("offense_score", 0.0)))
-                    pdf.multi_cell(0, 6, f"- [{ts}] {sender}: {text} (score: {score:.2f})")
+                    score = m.get(
+                        "suspicion_score", m.get("score", m.get("offense_score", 0.0))
+                    )
+                    pdf.multi_cell(
+                        0, 6, f"- [{ts}] {sender}: {text} (score: {score:.2f})"
+                    )
                     # include explainability tokens if present
                     if "top_tokens" in m:
                         try:
                             tokens = m.get("top_tokens", [])
                             # convert tokens to string if tuple list
-                            tokens_str = ", ".join([t[0] if isinstance(t, (list,tuple)) else str(t) for t in tokens][:8])
+                            tokens_str = ", ".join(
+                                [
+                                    t[0] if isinstance(t, (list, tuple)) else str(t)
+                                    for t in tokens
+                                ][:8]
+                            )
                             pdf.multi_cell(0, 6, f"    Top tokens: {tokens_str}")
                         except Exception:
                             pass
             except Exception:
-                pdf.multi_cell(0, 6, "Suspicious messages present but failed to render.")
+                pdf.multi_cell(
+                    0, 6, "Suspicious messages present but failed to render."
+                )
             pdf.ln(2)
             pdf.set_font("Arial", "I", 9)
-            pdf.multi_cell(0, 6, f"Hash (SHA256): {compute_hash(st.session_state.get('suspicious_messages'))}")
+            pdf.multi_cell(
+                0,
+                6,
+                f"Hash (SHA256): {compute_hash(st.session_state.get('suspicious_messages'))}",
+            )
             pdf.ln(4)
 
         # ---------- Section: Password Evaluation ----------
@@ -919,7 +1215,11 @@ with tab6:
                 pdf.multi_cell(0, 6, "Password eval present but failed to render.")
             pdf.ln(2)
             pdf.set_font("Arial", "I", 9)
-            pdf.multi_cell(0, 6, f"Hash (SHA256): {compute_hash(st.session_state.get('password_eval'))}")
+            pdf.multi_cell(
+                0,
+                6,
+                f"Hash (SHA256): {compute_hash(st.session_state.get('password_eval'))}",
+            )
             pdf.ln(6)
 
         # ---------- Footer: master case hash + generation metadata ----------
@@ -931,13 +1231,17 @@ with tab6:
             "link_points": st.session_state.get("link_points"),
             "cell_tower": st.session_state.get("cell_tower_points"),
             "suspicious_messages": st.session_state.get("suspicious_messages"),
-            "password_eval": st.session_state.get("password_eval")
+            "password_eval": st.session_state.get("password_eval"),
         }
         master_hash = compute_hash(combined)
         pdf.set_font("Arial", "B", 11)
         pdf.multi_cell(0, 8, f"🔒 Master Case Hash: {master_hash}")
         pdf.set_font("Arial", "I", 9)
-        pdf.multi_cell(0, 6, f"Report generated on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} by ForenSmart")
+        pdf.multi_cell(
+            0,
+            6,
+            f"Report generated on {datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')} by ForenSmart",
+        )
 
         # return bytes
         out = BytesIO()
@@ -949,8 +1253,15 @@ with tab6:
     if st.button("📄 Generate Unified PDF Report"):
         pdf_bytes = export_unified_report_pdf()
         filename = f"{case_id}_ForenSmart_Report.pdf"
-        st.download_button("⬇️ Download Report PDF", data=pdf_bytes, file_name=filename, mime="application/pdf")
-        st.success("Report generated — hashes included for each section and master case hash created.")
+        st.download_button(
+            "⬇️ Download Report PDF",
+            data=pdf_bytes,
+            file_name=filename,
+            mime="application/pdf",
+        )
+        st.success(
+            "Report generated — hashes included for each section and master case hash created."
+        )
 # ---------------------------
 # Comms Analyzer (New Feature Model)
 # ---------------------------
@@ -961,11 +1272,18 @@ with st.sidebar:
 # ---------------------------
 # Tab Structure
 # ---------------------------
-tabs = st.tabs([
-    "Data Input", "Preprocessing", "Message Intelligence", 
-    "Behavioral Network", "Psych & Sentiment", "Multimedia", 
-    "OSINT Integration", "Evidence & Report"
-])
+tabs = st.tabs(
+    [
+        "Data Input",
+        "Preprocessing",
+        "Message Intelligence",
+        "Behavioral Network",
+        "Psych & Sentiment",
+        "Multimedia",
+        "OSINT Integration",
+        "Evidence & Report",
+    ]
+)
 
 # --- Consent banner shown across tabs ---
 try:
@@ -973,10 +1291,11 @@ try:
     if current_consent:
         st.info(f"Current consent_id: {current_consent}")
     else:
-        st.info("No consent_id linked in session. Capture consent for intrusive extractions.")
+        st.info(
+            "No consent_id linked in session. Capture consent for intrusive extractions."
+        )
 except Exception:
     pass
-
 
 
 # ---------------------------
@@ -986,18 +1305,22 @@ with tabs[0]:
     st.subheader("Data Input & Extraction")
 
     if mode == "USB Mode":
-        st.info("📱 Please enable **USB Debugging** on your device:\n"
-                "1. Go to Settings → About Phone → tap *Build Number* 7 times to enable Developer Options.\n"
-                "2. Go to Developer Options → Enable **USB Debugging** and **ADB Debugging**.\n"
-                "3. Connect your phone via USB.")
+        st.info(
+            "📱 Please enable **USB Debugging** on your device:\n"
+            "1. Go to Settings → About Phone → tap *Build Number* 7 times to enable Developer Options.\n"
+            "2. Go to Developer Options → Enable **USB Debugging** and **ADB Debugging**.\n"
+            "3. Connect your phone via USB."
+        )
         st.button("Check Connected Device")
         # Placeholder: ADB-based extraction logic goes here
 
     elif mode == "Link Mode":
-        st.info("🌐 To use Link Mode:\n"
-                "1. Export your WhatsApp/Telegram/Signal chats to cloud (Google Drive/iCloud).\n"
-                "2. Copy the link or connect your account via API.\n"
-                "3. Paste the link below for analysis.")
+        st.info(
+            "🌐 To use Link Mode:\n"
+            "1. Export your WhatsApp/Telegram/Signal chats to cloud (Google Drive/iCloud).\n"
+            "2. Copy the link or connect your account via API.\n"
+            "3. Paste the link below for analysis."
+        )
         link = st.text_input("Paste Chat Export Link or API Token")
         st.button("Fetch & Extract Data")
         # Placeholder: Cloud/API extraction logic goes here
@@ -1036,7 +1359,9 @@ with tabs[7]:
     st.subheader("Evidence & Reporting")
 
     if st.button("Run Full Analysis Pipeline"):
-        st.success("✅ Running all modules (Preprocessing → Intelligence → Profiling → OSINT → Report)...")
+        st.success(
+            "✅ Running all modules (Preprocessing → Intelligence → Profiling → OSINT → Report)..."
+        )
         # Here, trigger all tabs' processing at once
         st.info("📊 Dashboard generated below")
         # Placeholder for dashboard summary of results
@@ -1061,18 +1386,21 @@ except Exception:
 
 try:
     from transformers import pipeline, AutoTokenizer, AutoModelForSeq2SeqLM
+
     HAS_TRANSFORMERS = True
 except Exception:
     HAS_TRANSFORMERS = False
 
 try:
     from sentence_transformers import SentenceTransformer
+
     HAS_SENTE = True
 except Exception:
     HAS_SENTE = False
 
 try:
     from bertopic import BERTopic
+
     HAS_BERTOPIC = True
 except Exception:
     HAS_BERTOPIC = False
@@ -1087,26 +1415,29 @@ import nltk
 
 # Ensure nltk data exists (download if not present)
 try:
-    nltk.data.find('tokenizers/punkt')
+    nltk.data.find("tokenizers/punkt")
 except Exception:
-    nltk.download('punkt')
+    nltk.download("punkt")
 try:
-    nltk.data.find('corpora/stopwords')
+    nltk.data.find("corpora/stopwords")
 except Exception:
-    nltk.download('stopwords')
+    nltk.download("stopwords")
 
 # VADER fallback for sentiment (English)
 try:
     from vaderSentiment.vaderSentiment import SentimentIntensityAnalyzer
+
     vader_analyzer = SentimentIntensityAnalyzer()
 except Exception:
     vader_analyzer = None
 
+
 # Utilities
 def sha256_hash(data):
     if isinstance(data, str):
-        data = data.encode('utf-8')
+        data = data.encode("utf-8")
     return hashlib.sha256(data).hexdigest()
+
 
 def detect_language_safe(text):
     if not text or not isinstance(text, str):
@@ -1122,6 +1453,7 @@ def detect_language_safe(text):
             return "non-en"
         return "en"
 
+
 # Optional translation using Marian (transformers) if available
 TRANSLATOR = None
 if HAS_TRANSFORMERS:
@@ -1131,9 +1463,10 @@ if HAS_TRANSFORMERS:
     except Exception:
         TRANSLATOR = None
 
+
 def translate_text(text, src=None, tgt="en"):
     """Translate text into target language if transformers-based translator available.
-       If not available, returns original text."""
+    If not available, returns original text."""
     if not text:
         return text
     if HAS_TRANSFORMERS:
@@ -1143,21 +1476,28 @@ def translate_text(text, src=None, tgt="en"):
             try:
                 # using Helsinki-NLP Marian multilingual as a reasonable fallback
                 model_name = "Helsinki-NLP/opus-mt-mul-en"
-                TRANSLATOR = pipeline("translation", model=model_name, device= -1)
+                TRANSLATOR = pipeline("translation", model=model_name, device=-1)
             except Exception:
                 TRANSLATOR = None
         if TRANSLATOR:
             try:
                 out = TRANSLATOR(text, max_length=512)
-                if isinstance(out, list) and len(out) > 0 and 'translation_text' in out[0]:
-                    return out[0]['translation_text']
+                if (
+                    isinstance(out, list)
+                    and len(out) > 0
+                    and "translation_text" in out[0]
+                ):
+                    return out[0]["translation_text"]
             except Exception:
                 return text
     # fallback: no translation available
     return text
 
+
 # Embeddings loader (sentence-transformers)
 EMBED_MODEL = None
+
+
 def get_embeddings(texts):
     global EMBED_MODEL
     if not texts:
@@ -1165,21 +1505,24 @@ def get_embeddings(texts):
     if HAS_SENTE:
         if EMBED_MODEL is None:
             try:
-                EMBED_MODEL = SentenceTransformer('all-MiniLM-L6-v2')  # compact & fast
+                EMBED_MODEL = SentenceTransformer("all-MiniLM-L6-v2")  # compact & fast
             except Exception:
                 EMBED_MODEL = None
         if EMBED_MODEL:
             return EMBED_MODEL.encode(texts, show_progress_bar=False)
     # fallback: simple Bag-of-Words vectors via TF-IDF (dense)
-    tfidf = TfidfVectorizer(max_features=1024, stop_words='english')
+    tfidf = TfidfVectorizer(max_features=1024, stop_words="english")
     X = tfidf.fit_transform(texts).toarray()
     return X
+
 
 # Keyword extraction (TF-IDF top-N)
 def extract_top_keywords(texts, top_n=20):
     if not texts:
         return {}
-    vec = TfidfVectorizer(max_df=0.8, min_df=1, ngram_range=(1,2), stop_words='english')
+    vec = TfidfVectorizer(
+        max_df=0.8, min_df=1, ngram_range=(1, 2), stop_words="english"
+    )
     X = vec.fit_transform(texts)
     sums = X.sum(axis=0)
     terms = vec.get_feature_names_out()
@@ -1187,13 +1530,16 @@ def extract_top_keywords(texts, top_n=20):
     term_freq = sorted(term_freq, key=lambda x: x[1], reverse=True)[:top_n]
     return dict(term_freq)
 
+
 # Topic modeling (BERTopic if available, else NMF)
 def topic_modeling(texts, n_topics=8):
     if not texts:
         return {"topics": [], "topic_info": []}
     if HAS_BERTOPIC:
         try:
-            topic_model = BERTopic(n_gram_range=(1,3), calculate_probabilities=False, verbose=False)
+            topic_model = BERTopic(
+                n_gram_range=(1, 3), calculate_probabilities=False, verbose=False
+            )
             topics, _ = topic_model.fit_transform(texts)
             info = topic_model.get_topic_info()
             # get top keywords per topic
@@ -1202,13 +1548,19 @@ def topic_modeling(texts, n_topics=8):
                 if t == -1:
                     continue
                 kw = topic_model.get_topic(t)
-                topics_dict[t] = [k for k,_ in kw]
-            return {"topics": topics, "topic_info": info.to_dict(), "topics_dict": topics_dict}
+                topics_dict[t] = [k for k, _ in kw]
+            return {
+                "topics": topics,
+                "topic_info": info.to_dict(),
+                "topics_dict": topics_dict,
+            }
         except Exception:
             pass
     # fallback NMF on TF-IDF
     try:
-        tfidf = TfidfVectorizer(max_df=0.95, min_df=2, max_features=2000, stop_words='english')
+        tfidf = TfidfVectorizer(
+            max_df=0.95, min_df=2, max_features=2000, stop_words="english"
+        )
         X = tfidf.fit_transform(texts)
         nmf = NMF(n_components=min(n_topics, 10), random_state=0)
         W = nmf.fit_transform(X)
@@ -1217,7 +1569,7 @@ def topic_modeling(texts, n_topics=8):
         topics = []
         topics_dict = {}
         for topic_idx, topic in enumerate(H):
-            top_features_ind = topic.argsort()[:-10 - 1:-1]
+            top_features_ind = topic.argsort()[: -10 - 1 : -1]
             top_features = [feature_names[i] for i in top_features_ind]
             topics_dict[topic_idx] = top_features
         # Assign each doc the top topic
@@ -1226,6 +1578,7 @@ def topic_modeling(texts, n_topics=8):
     except Exception:
         return {"topics": [], "topic_info": [], "topics_dict": {}}
 
+
 # Sentiment / emotion (transformers classifier if possible, else VADER for English)
 SENT_PIPE = None
 if HAS_TRANSFORMERS:
@@ -1233,6 +1586,7 @@ if HAS_TRANSFORMERS:
         SENT_PIPE = pipeline("sentiment-analysis", return_all_scores=True)
     except Exception:
         SENT_PIPE = None
+
 
 def sentiment_analysis(texts):
     if not texts:
@@ -1245,12 +1599,16 @@ def sentiment_analysis(texts):
             try:
                 res = SENT_PIPE(t[:512])  # limit to first 512 chars
                 # res is list of dicts sometimes; pick highest label
-                if isinstance(res, list) and len(res)>0 and isinstance(res[0], list):
+                if isinstance(res, list) and len(res) > 0 and isinstance(res[0], list):
                     # huggingface multi-return format
-                    best = sorted(res[0], key=lambda x: x['score'], reverse=True)[0]
-                    label = best['label']
-                elif isinstance(res, list) and isinstance(res[0], dict) and 'label' in res[0]:
-                    label = res[0]['label']
+                    best = sorted(res[0], key=lambda x: x["score"], reverse=True)[0]
+                    label = best["label"]
+                elif (
+                    isinstance(res, list)
+                    and isinstance(res[0], dict)
+                    and "label" in res[0]
+                ):
+                    label = res[0]["label"]
                 else:
                     label = "neutral"
                 agg[label] += 1
@@ -1262,24 +1620,25 @@ def sentiment_analysis(texts):
         if vader_analyzer:
             try:
                 vs = vader_analyzer.polarity_scores(t)
-                if vs['compound'] >= 0.05:
-                    lab = 'POSITIVE'
-                elif vs['compound'] <= -0.05:
-                    lab = 'NEGATIVE'
+                if vs["compound"] >= 0.05:
+                    lab = "POSITIVE"
+                elif vs["compound"] <= -0.05:
+                    lab = "NEGATIVE"
                 else:
-                    lab = 'NEUTRAL'
+                    lab = "NEUTRAL"
                 agg[lab] += 1
                 per_doc.append({"text": t, "label": lab})
                 continue
             except Exception:
                 pass
         # ultimate fallback
-        agg['UNKNOWN'] += 1
-        per_doc.append({"text": t, "label": 'UNKNOWN'})
+        agg["UNKNOWN"] += 1
+        per_doc.append({"text": t, "label": "UNKNOWN"})
     # normalize into percentages
     total = sum(agg.values())
-    dist = {k: (v/total)*100 for k,v in agg.items()} if total>0 else {}
+    dist = {k: (v / total) * 100 for k, v in agg.items()} if total > 0 else {}
     return {"distribution": dist, "per_doc": per_doc}
+
 
 # Conversation graph builder
 def build_conversation_graph(messages):
@@ -1291,27 +1650,32 @@ def build_conversation_graph(messages):
         return None, None
     G = nx.DiGraph()
     for m in messages:
-        s = m.get('sender', 'unknown')
-        r = m.get('receiver', 'group') or 'group'
+        s = m.get("sender", "unknown")
+        r = m.get("receiver", "group") or "group"
         # increase edge weight
         if G.has_edge(s, r):
-            G[s][r]['weight'] += 1
+            G[s][r]["weight"] += 1
         else:
             G.add_edge(s, r, weight=1)
     # simplify labels by degree and create a simple matplotlib visualization
-    plt.figure(figsize=(8,6))
+    plt.figure(figsize=(8, 6))
     pos = nx.spring_layout(G, k=0.5, seed=42)
-    weights = [G[u][v]['weight'] for u,v in G.edges()]
-    nx.draw_networkx_nodes(G, pos, node_size=[200 + 2000*G.degree(n) for n in G.nodes()])
-    nx.draw_networkx_edges(G, pos, width=[0.5+ (w*0.3) for w in weights], arrowsize=12)
+    weights = [G[u][v]["weight"] for u, v in G.edges()]
+    nx.draw_networkx_nodes(
+        G, pos, node_size=[200 + 2000 * G.degree(n) for n in G.nodes()]
+    )
+    nx.draw_networkx_edges(
+        G, pos, width=[0.5 + (w * 0.3) for w in weights], arrowsize=12
+    )
     nx.draw_networkx_labels(G, pos, font_size=8)
-    plt.axis('off')
+    plt.axis("off")
     out_path = os.path.join("tmp", f"conversation_graph.png")
     os.makedirs("tmp", exist_ok=True)
     plt.tight_layout()
     plt.savefig(out_path, dpi=150)
     plt.close()
     return out_path, G
+
 
 # Stylometry: simple pairwise similarity by tf-idf cosine between authors
 def stylometry_similarity(messages):
@@ -1321,28 +1685,31 @@ def stylometry_similarity(messages):
     """
     by_sender = defaultdict(list)
     for m in messages:
-        s = m.get('sender', 'unknown')
-        t = m.get('text', '')
+        s = m.get("sender", "unknown")
+        t = m.get("text", "")
         by_sender[s].append(t)
     senders = list(by_sender.keys())
     docs = [" ".join(by_sender[s]) for s in senders]
     if not docs:
         return {}
-    tfidf = TfidfVectorizer(max_features=2048, stop_words='english')
+    tfidf = TfidfVectorizer(max_features=2048, stop_words="english")
     X = tfidf.fit_transform(docs)
     sim = cosine_similarity(X)
     sim_dict = {}
     for i, s in enumerate(senders):
         sim_dict[s] = {}
         for j, t in enumerate(senders):
-            sim_dict[s][t] = float(sim[i,j])
+            sim_dict[s][t] = float(sim[i, j])
     return {"senders": senders, "similarity": sim_dict}
+
 
 # ---------------------------
 # Integration UI (inside the Comms Analyzer tab)
 # ---------------------------
 with st.expander("Comms Analyzer — Run / Utilities", expanded=True):
-    st.write("Use these controls to run the Comms Analyzer ML pipeline on the currently loaded chat data.")
+    st.write(
+        "Use these controls to run the Comms Analyzer ML pipeline on the currently loaded chat data."
+    )
     # The UI expects chat data to be present in st.session_state["chats"]
     # Format: st.session_state["chats"] = list of messages where message is dict: {'sender','receiver','text','time'}
     st.write("Loaded messages:", len(st.session_state.get("chats", [])))
@@ -1364,7 +1731,7 @@ with st.expander("Comms Analyzer — Run / Utilities", expanded=True):
         # 2) Optional: translate non-English messages into English for uniform analysis
         translated_texts = []
         for i, t in enumerate(texts):
-            if detected_langs[i] != 'en' and detected_langs[i] != 'unknown':
+            if detected_langs[i] != "en" and detected_langs[i] != "unknown":
                 # attempt translate
                 try:
                     translated = translate_text(t, src=detected_langs[i], tgt="en")
@@ -1403,13 +1770,26 @@ with st.expander("Comms Analyzer — Run / Utilities", expanded=True):
 
         # 9) Suspicious message heuristic example (regex/keyword + sentiment + short messages)
         suspicious = []
-        suspect_keywords = set(["bomb","attack","explode","transfer","kill","meet","drop","pickup","send","wire"])
+        suspect_keywords = set(
+            [
+                "bomb",
+                "attack",
+                "explode",
+                "transfer",
+                "kill",
+                "meet",
+                "drop",
+                "pickup",
+                "send",
+                "wire",
+            ]
+        )
         for m in msgs:
-            t = m.get("text","").lower()
+            t = m.get("text", "").lower()
             score = 0
             if any(k in t for k in suspect_keywords):
                 score += 1
-            if len(t.split()) < 6 and len(t)>0:
+            if len(t.split()) < 6 and len(t) > 0:
                 score += 0.5
             # negative sentiment add weight
             label = None
@@ -1417,26 +1797,39 @@ with st.expander("Comms Analyzer — Run / Utilities", expanded=True):
                 # try to find corresponding sentiment entry
                 pass
             if score >= 1:
-                suspicious.append({"sender": m.get("sender"), "time": m.get("time"), "text": m.get("text"), "score": score})
+                suspicious.append(
+                    {
+                        "sender": m.get("sender"),
+                        "time": m.get("time"),
+                        "text": m.get("text"),
+                        "score": score,
+                    }
+                )
         st.session_state["suspicious_messages"] = suspicious
 
         # 10) Evidence hashing for chat text blocks (store per-message hash and master)
         evidence_hashes = []
         for m in msgs:
-            h = sha256_hash(m.get("text",""))
-            evidence_hashes.append({"sender": m.get("sender"), "time": m.get("time"), "hash": h})
+            h = sha256_hash(m.get("text", ""))
+            evidence_hashes.append(
+                {"sender": m.get("sender"), "time": m.get("time"), "hash": h}
+            )
         st.session_state["comms_evidence_hashes"] = evidence_hashes
-        st.session_state["comms_master_hash"] = sha256_hash("".join([e["hash"] for e in evidence_hashes]))
+        st.session_state["comms_master_hash"] = sha256_hash(
+            "".join([e["hash"] for e in evidence_hashes])
+        )
 
-        st.success("Comms Analyzer pipeline finished. Results saved to st.session_state keys: "
-                   "top_keywords, comms_topics, comms_embeddings, sentiment_summary, conversation_graph, stylometry, suspicious_messages, comms_evidence_hashes, comms_master_hash")
+        st.success(
+            "Comms Analyzer pipeline finished. Results saved to st.session_state keys: "
+            "top_keywords, comms_topics, comms_embeddings, sentiment_summary, conversation_graph, stylometry, suspicious_messages, comms_evidence_hashes, comms_master_hash"
+        )
 
 # Quick buttons: run only keywords / sentiment / graph if needed
 col1, col2, col3 = st.columns(3)
 with col1:
     if st.button("Extract Top Keywords Only"):
         texts = st.session_state.get("chats", [])
-        texts = [m.get("text","") for m in texts]
+        texts = [m.get("text", "") for m in texts]
         st.session_state["top_keywords"] = extract_top_keywords(texts)
         st.success("Top keywords extracted.")
 with col2:
@@ -1450,7 +1843,7 @@ with col2:
             st.warning("No messages to build graph.")
 with col3:
     if st.button("Run Sentiment Only"):
-        texts = [m.get("text","") for m in st.session_state.get("chats",[])]
+        texts = [m.get("text", "") for m in st.session_state.get("chats", [])]
         sent_res = sentiment_analysis(texts)
         st.session_state["sentiment_summary"] = sent_res.get("distribution", {})
         st.session_state["sentiment_per_message"] = sent_res.get("per_doc", [])
@@ -1469,16 +1862,23 @@ import matplotlib.pyplot as plt
 import json
 from sklearn.feature_extraction.text import TfidfVectorizer
 
+
 # --- Helper: persist/load a simple sklearn pipeline into session_state ---
 def save_suspicious_model(model):
     st.session_state["suspicious_model"] = model
 
+
 def load_suspicious_model():
     return st.session_state.get("suspicious_model", None)
 
+
 # --- Labeling UI for supervised suspicious-message classifier ---
-with st.expander("Label Messages for Suspicious Classifier (trainable)", expanded=False):
-    st.write("Label some messages as Suspicious / Not Suspicious to build the classifier. Minimum ~20 examples recommended (balanced).")
+with st.expander(
+    "Label Messages for Suspicious Classifier (trainable)", expanded=False
+):
+    st.write(
+        "Label some messages as Suspicious / Not Suspicious to build the classifier. Minimum ~20 examples recommended (balanced)."
+    )
     msgs = st.session_state.get("chats", [])
     # Prepare a DataFrame display for a random sample of messages to label
     sample_size = min(40, max(10, int(len(msgs) * 0.3)))
@@ -1495,22 +1895,49 @@ with st.expander("Label Messages for Suspicious Classifier (trainable)", expande
         for i in range(start, end):
             m = msgs[i]
             text = m.get("text", "")
-            st.markdown(f"**Msg #{i}** — *{m.get('sender','unknown')}* @ {m.get('time','')}")
-            choice = st.radio(f"Label message {i}", ["Unlabeled", "Not Suspicious", "Suspicious"], key=f"sublabel_{i}")
+            st.markdown(
+                f"**Msg #{i}** — *{m.get('sender','unknown')}* @ {m.get('time','')}"
+            )
+            choice = st.radio(
+                f"Label message {i}",
+                ["Unlabeled", "Not Suspicious", "Suspicious"],
+                key=f"sublabel_{i}",
+            )
             if choice != "Unlabeled":
                 # store label into session_state list if not already present or if changed
-                existing = [x for x in st.session_state["susp_labels"] if x["index"] == i]
+                existing = [
+                    x for x in st.session_state["susp_labels"] if x["index"] == i
+                ]
                 if existing:
-                    existing[0].update({"label": 1 if choice=="Suspicious" else 0, "text": text, "sender": m.get("sender"), "time": m.get("time")})
+                    existing[0].update(
+                        {
+                            "label": 1 if choice == "Suspicious" else 0,
+                            "text": text,
+                            "sender": m.get("sender"),
+                            "time": m.get("time"),
+                        }
+                    )
                 else:
-                    st.session_state["susp_labels"].append({"index": i, "text": text, "label": 1 if choice=="Suspicious" else 0, "sender": m.get("sender"), "time": m.get("time")})
-        nav1, nav2, nav3 = st.columns([1,1,2])
+                    st.session_state["susp_labels"].append(
+                        {
+                            "index": i,
+                            "text": text,
+                            "label": 1 if choice == "Suspicious" else 0,
+                            "sender": m.get("sender"),
+                            "time": m.get("time"),
+                        }
+                    )
+        nav1, nav2, nav3 = st.columns([1, 1, 2])
         with nav1:
             if st.button("Prev", key="susp_prev"):
-                st.session_state["susp_label_index"] = max(0, st.session_state["susp_label_index"] - 5)
+                st.session_state["susp_label_index"] = max(
+                    0, st.session_state["susp_label_index"] - 5
+                )
         with nav2:
             if st.button("Next", key="susp_next"):
-                st.session_state["susp_label_index"] = min(len(msgs)-1, st.session_state["susp_label_index"] + 5)
+                st.session_state["susp_label_index"] = min(
+                    len(msgs) - 1, st.session_state["susp_label_index"] + 5
+                )
         with nav3:
             if st.button("Clear Labels", key="susp_clear"):
                 st.session_state["susp_labels"] = []
@@ -1521,7 +1948,7 @@ with st.expander("Label Messages for Suspicious Classifier (trainable)", expande
     lab_df = pd.DataFrame(st.session_state.get("susp_labels", []))
     if not lab_df.empty:
         st.write("Labels collected:", lab_df.shape[0])
-        st.dataframe(lab_df[["index","sender","time","label","text"]])
+        st.dataframe(lab_df[["index", "sender", "time", "label", "text"]])
 
     # Train button
     if st.button("Train/Update Suspicious Classifier"):
@@ -1531,37 +1958,63 @@ with st.expander("Label Messages for Suspicious Classifier (trainable)", expande
         else:
             X = lab_df["text"].astype(str).tolist()
             y = lab_df["label"].astype(int).tolist()
-            pipeline = Pipeline([
-                ("tfidf", TfidfVectorizer(max_features=5000, ngram_range=(1,2), stop_words='english')),
-                ("clf", LogisticRegression(max_iter=1000))
-            ])
-            X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
+            pipeline = Pipeline(
+                [
+                    (
+                        "tfidf",
+                        TfidfVectorizer(
+                            max_features=5000, ngram_range=(1, 2), stop_words="english"
+                        ),
+                    ),
+                    ("clf", LogisticRegression(max_iter=1000)),
+                ]
+            )
+            X_train, X_test, y_train, y_test = train_test_split(
+                X, y, test_size=0.2, random_state=42, stratify=y
+            )
             pipeline.fit(X_train, y_train)
             preds = pipeline.predict(X_test)
             report = classification_report(y_test, preds, output_dict=True)
             st.write("Training complete — validation report:")
             st.text(classification_report(y_test, preds))
             save_suspicious_model(pipeline)
-            st.success("Suspicious classifier saved in session_state['suspicious_model'].")
+            st.success(
+                "Suspicious classifier saved in session_state['suspicious_model']."
+            )
 
 # --- Codeword Detector: editable dictionary + embedding similarity fallback ---
-with st.expander("Codeword Detector (dictionary + embedding-similarity)", expanded=False):
+with st.expander(
+    "Codeword Detector (dictionary + embedding-similarity)", expanded=False
+):
     # default dictionary (you can expand)
-    default_codewords = st.session_state.get("codeword_dict", {
-        "drop": ["drop","dp"], "pickup": ["pickup","pk"], "wire": ["wire","transfer","send cash"], "meet": ["meet","mtg","pickup"], "bomb": ["bomb","explode","blow up"]
-    })
+    default_codewords = st.session_state.get(
+        "codeword_dict",
+        {
+            "drop": ["drop", "dp"],
+            "pickup": ["pickup", "pk"],
+            "wire": ["wire", "transfer", "send cash"],
+            "meet": ["meet", "mtg", "pickup"],
+            "bomb": ["bomb", "explode", "blow up"],
+        },
+    )
     st.write("Edit codeword dictionary (key: intent, value: list of terms):")
-    cw_json = st.text_area("codeword_dict (JSON)", value=json.dumps(default_codewords, indent=2), height=140)
+    cw_json = st.text_area(
+        "codeword_dict (JSON)",
+        value=json.dumps(default_codewords, indent=2),
+        height=140,
+    )
     try:
         parsed = json.loads(cw_json)
         st.session_state["codeword_dict"] = parsed
     except Exception as e:
         st.warning("Invalid JSON — keep previous dictionary.")
-    st.write("Run detection to scan messages for dictionary matches and embedding-similarity hits (if embeddings exist).")
+    st.write(
+        "Run detection to scan messages for dictionary matches and embedding-similarity hits (if embeddings exist)."
+    )
     if st.button("Run Codeword Detection"):
         codew = st.session_state.get("codeword_dict", {})
         msgs = st.session_state.get("chats", [])
-        texts = [m.get("text","") for m in msgs]
+        texts = [m.get("text", "") for m in msgs]
         hits = []
         # build flat set of code terms
         term_map = {}
@@ -1570,13 +2023,23 @@ with st.expander("Codeword Detector (dictionary + embedding-similarity)", expand
                 term_map[t.lower()] = intent
         # exact substring / token match pass
         for i, m in enumerate(msgs):
-            t = m.get("text","").lower()
+            t = m.get("text", "").lower()
             for term, intent in term_map.items():
                 if term in t:
-                    hits.append({"index": i, "sender": m.get("sender"), "time": m.get("time"), "term": term, "intent": intent, "method": "dict_match", "text": m.get("text")})
+                    hits.append(
+                        {
+                            "index": i,
+                            "sender": m.get("sender"),
+                            "time": m.get("time"),
+                            "term": term,
+                            "intent": intent,
+                            "method": "dict_match",
+                            "text": m.get("text"),
+                        }
+                    )
         # embedding-sim fallback
         emb_matrix = st.session_state.get("comms_embeddings", None)
-        if emb_matrix is not None and len(texts)>0:
+        if emb_matrix is not None and len(texts) > 0:
             # compute embeddings for code terms (use get_embeddings)
             term_list = list(term_map.keys())
             term_embs = get_embeddings(term_list)
@@ -1585,24 +2048,40 @@ with st.expander("Codeword Detector (dictionary + embedding-similarity)", expand
                 # get similarity between each message and each term
                 try:
                     from sklearn.metrics.pairwise import cosine_similarity
+
                     if isinstance(emb_matrix, np.ndarray):
                         sim = cosine_similarity(emb_matrix, term_embs)
                         threshold = 0.70
                         for i in range(sim.shape[0]):
                             for j in range(sim.shape[1]):
-                                if sim[i,j] >= threshold:
-                                    hits.append({"index": i, "sender": msgs[i].get("sender"), "time": msgs[i].get("time"), "term": term_list[j], "intent": term_map[term_list[j]], "method": "embedding_sim", "score": float(sim[i,j]), "text": msgs[i].get("text")})
+                                if sim[i, j] >= threshold:
+                                    hits.append(
+                                        {
+                                            "index": i,
+                                            "sender": msgs[i].get("sender"),
+                                            "time": msgs[i].get("time"),
+                                            "term": term_list[j],
+                                            "intent": term_map[term_list[j]],
+                                            "method": "embedding_sim",
+                                            "score": float(sim[i, j]),
+                                            "text": msgs[i].get("text"),
+                                        }
+                                    )
                 except Exception:
                     pass
         st.session_state["codeword_hits"] = hits
-        st.success(f"Codeword detection finished — {len(hits)} hits stored in st.session_state['codeword_hits'].")
+        st.success(
+            f"Codeword detection finished — {len(hits)} hits stored in st.session_state['codeword_hits']."
+        )
 
 # --- Use Suspicious Classifier to predict on all messages ---
 with st.expander("Apply Suspicious Classifier / Heuristics", expanded=True):
-    st.write("Use the trained classifier (if any) + heuristic rules to generate a scored suspicious_messages list.")
+    st.write(
+        "Use the trained classifier (if any) + heuristic rules to generate a scored suspicious_messages list."
+    )
     if st.button("Run Suspicion Scoring (Classifier + Heuristics)"):
         msgs = st.session_state.get("chats", [])
-        texts = [m.get("text","") for m in msgs]
+        texts = [m.get("text", "") for m in msgs]
         model = load_suspicious_model()
         preds = []
         probs = []
@@ -1620,9 +2099,22 @@ with st.expander("Apply Suspicious Classifier / Heuristics", expanded=True):
         # start with classifier output, then add heuristics & codeword hits
         suspicious_out = []
         cw_hits = {h["index"]: h for h in st.session_state.get("codeword_hits", [])}
-        suspect_keywords = set(["bomb","attack","explode","transfer","kill","meet","drop","pickup","send","wire"])
+        suspect_keywords = set(
+            [
+                "bomb",
+                "attack",
+                "explode",
+                "transfer",
+                "kill",
+                "meet",
+                "drop",
+                "pickup",
+                "send",
+                "wire",
+            ]
+        )
         for i, m in enumerate(msgs):
-            t = m.get("text","", "")
+            t = m.get("text", "", "")
             score = 0.0
             reason = []
             # classifier
@@ -1653,11 +2145,23 @@ with st.expander("Apply Suspicious Classifier / Heuristics", expanded=True):
                 score += 1.2
                 reason.append(f"codeword:{cw_hits[i]['term']}")
             if score >= 1.0:
-                suspicious_out.append({"index": i, "sender": m.get("sender"), "time": m.get("time"), "text": t, "score": float(score), "reasons": reason})
+                suspicious_out.append(
+                    {
+                        "index": i,
+                        "sender": m.get("sender"),
+                        "time": m.get("time"),
+                        "text": t,
+                        "score": float(score),
+                        "reasons": reason,
+                    }
+                )
         # sort by score desc
         suspicious_out = sorted(suspicious_out, key=lambda x: x["score"], reverse=True)
         st.session_state["suspicious_messages"] = suspicious_out
-        st.success(f"Suspicion scoring complete — {len(suspicious_out)} messages flagged (stored in st.session_state['suspicious_messages']).")
+        st.success(
+            f"Suspicion scoring complete — {len(suspicious_out)} messages flagged (stored in st.session_state['suspicious_messages'])."
+        )
+
 
 # --- Dashboard wiring: richer plots for Comms Analyzer (hooks into Unified Dashboard)
 # These write into session_state keys which your Unified Dashboard reads:
@@ -1666,9 +2170,9 @@ def render_comms_charts():
     top_keywords = st.session_state.get("top_keywords", {})
     if top_keywords:
         kw_items = list(top_keywords.items())[:20]
-        labels = [k for k,_ in kw_items]
-        vals = [v for _,v in kw_items]
-        fig, ax = plt.subplots(figsize=(6,3))
+        labels = [k for k, _ in kw_items]
+        vals = [v for _, v in kw_items]
+        fig, ax = plt.subplots(figsize=(6, 3))
         ax.barh(range(len(labels))[::-1], vals[::-1])
         ax.set_yticks(range(len(labels)))
         ax.set_yticklabels(labels[::-1])
@@ -1681,8 +2185,8 @@ def render_comms_charts():
     if sentiment:
         labels = list(sentiment.keys())
         vals = list(sentiment.values())
-        fig, ax = plt.subplots(figsize=(4,3))
-        ax.pie(vals, labels=labels, autopct='%1.1f%%')
+        fig, ax = plt.subplots(figsize=(4, 3))
+        ax.pie(vals, labels=labels, autopct="%1.1f%%")
         ax.set_title("Sentiment Distribution")
         st.pyplot(fig)
 
@@ -1693,9 +2197,9 @@ def render_comms_charts():
         st.markdown("**Suspicious Messages (top 50)**")
         st.dataframe(df.head(50))
         # counts by sender
-        counts = df['sender'].value_counts().to_dict()
+        counts = df["sender"].value_counts().to_dict()
         if counts:
-            fig, ax = plt.subplots(figsize=(6,2.5))
+            fig, ax = plt.subplots(figsize=(6, 2.5))
             ax.bar(counts.keys(), counts.values())
             ax.set_title("Suspicious Messages by Sender")
             plt.xticks(rotation=45)
@@ -1708,26 +2212,31 @@ def render_comms_charts():
         sim = styl["similarity"]
         senders = styl["senders"]
         mat = np.array([[sim[a][b] for b in senders] for a in senders])
-        fig, ax = plt.subplots(figsize=(5,4))
+        fig, ax = plt.subplots(figsize=(5, 4))
         im = ax.imshow(mat, vmin=0, vmax=1)
-        ax.set_xticks(range(len(senders))); ax.set_xticklabels(senders, rotation=45, ha='right')
-        ax.set_yticks(range(len(senders))); ax.set_yticklabels(senders)
+        ax.set_xticks(range(len(senders)))
+        ax.set_xticklabels(senders, rotation=45, ha="right")
+        ax.set_yticks(range(len(senders)))
+        ax.set_yticklabels(senders)
         ax.set_title("Stylometry Similarity (cosine)")
         plt.colorbar(im, ax=ax, fraction=0.046, pad=0.04)
         plt.tight_layout()
         st.pyplot(fig)
 
+
 # expose a button to render charts inline (or dashboard will call this)
 if st.button("Render Comms Charts Now"):
     render_comms_charts()
-    st.success("Comms charts rendered (top_keywords, sentiment, suspicious messages, stylometry).")
+    st.success(
+        "Comms charts rendered (top_keywords, sentiment, suspicious messages, stylometry)."
+    )
 
 # ensure Unified Dashboard picks these up (store a small summary)
 st.session_state["comms_summary"] = {
     "num_messages": len(st.session_state.get("chats", [])),
     "num_suspicious": len(st.session_state.get("suspicious_messages", [])),
     "num_codeword_hits": len(st.session_state.get("codeword_hits", [])),
-    "dominant_lang": st.session_state.get("comms_dominant_lang", "unknown")
+    "dominant_lang": st.session_state.get("comms_dominant_lang", "unknown"),
 }
 # ---------------------------
 # Upgraded Suspicious Classifier (TF-IDF + Transformer fine-tuning)
@@ -1742,14 +2251,26 @@ from sklearn.pipeline import Pipeline
 from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.linear_model import LogisticRegression
 from sklearn.model_selection import train_test_split
-from sklearn.metrics import classification_report, accuracy_score, f1_score, precision_score, recall_score
+from sklearn.metrics import (
+    classification_report,
+    accuracy_score,
+    f1_score,
+    precision_score,
+    recall_score,
+)
 
 # Try to import Transformers + datasets; set flags if available
 HAS_TRANSFORMERS = False
 HAS_DATASETS = False
 try:
     import transformers
-    from transformers import AutoTokenizer, AutoModelForSequenceClassification, Trainer, TrainingArguments
+    from transformers import (
+        AutoTokenizer,
+        AutoModelForSequenceClassification,
+        Trainer,
+        TrainingArguments,
+    )
+
     HAS_TRANSFORMERS = True
 except Exception:
     HAS_TRANSFORMERS = False
@@ -1757,27 +2278,33 @@ except Exception:
 try:
     import datasets
     from datasets import Dataset, DatasetDict, load_metric
+
     HAS_DATASETS = True
 except Exception:
     HAS_DATASETS = False
 
+
 # Helper: save/load sklearn pipeline (persist to session_state and disk)
 def save_tfidf_model(pipeline, path="models/suspicious_tfidf.pkl"):
     import joblib
+
     os.makedirs(os.path.dirname(path), exist_ok=True)
     joblib.dump(pipeline, path)
     st.session_state["suspicious_model"] = pipeline
     st.session_state["suspicious_model_type"] = "tfidf"
     st.success(f"TF-IDF suspicious model saved to {path}")
 
+
 def load_tfidf_model(path="models/suspicious_tfidf.pkl"):
     import joblib
+
     if os.path.exists(path):
         model = joblib.load(path)
         st.session_state["suspicious_model"] = model
         st.session_state["suspicious_model_type"] = "tfidf"
         return model
     return st.session_state.get("suspicious_model", None)
+
 
 # Transformer save/load helpers
 def save_transformer_model(model, tokenizer, out_dir="models/suspicious_transformer"):
@@ -1787,6 +2314,7 @@ def save_transformer_model(model, tokenizer, out_dir="models/suspicious_transfor
     st.session_state["suspicious_transformer_dir"] = out_dir
     st.session_state["suspicious_model_type"] = "transformer"
     st.success(f"Transformer model saved to {out_dir}")
+
 
 def load_transformer_model(out_dir="models/suspicious_transformer"):
     if not HAS_TRANSFORMERS:
@@ -1799,6 +2327,7 @@ def load_transformer_model(out_dir="models/suspicious_transformer"):
         return model, tokenizer
     return None, None
 
+
 # Quick weak-supervision / pseudo-label generator:
 def generate_pseudo_labels(messages, codeword_hits=None, suspect_keywords=None):
     """
@@ -1809,7 +2338,20 @@ def generate_pseudo_labels(messages, codeword_hits=None, suspect_keywords=None):
     label: 1 suspicious, 0 non-suspicious (pseudo)
     """
     if suspect_keywords is None:
-        suspect_keywords = set(["bomb","attack","explode","transfer","kill","meet","drop","pickup","send","wire"])
+        suspect_keywords = set(
+            [
+                "bomb",
+                "attack",
+                "explode",
+                "transfer",
+                "kill",
+                "meet",
+                "drop",
+                "pickup",
+                "send",
+                "wire",
+            ]
+        )
     pseudo = []
     cw_idx_set = set()
     if codeword_hits:
@@ -1838,22 +2380,40 @@ def generate_pseudo_labels(messages, codeword_hits=None, suspect_keywords=None):
         # fallback: none
         if label is None:
             label = 0
-        pseudo.append({"text": t, "label": int(label), "sources": ",".join(sources), "index": i})
+        pseudo.append(
+            {"text": t, "label": int(label), "sources": ",".join(sources), "index": i}
+        )
     df = pd.DataFrame(pseudo)
     return df
 
+
 # TF-IDF trainer (fast)
 def train_tfidf_classifier(texts, labels):
-    pipeline = Pipeline([
-        ("tfidf", TfidfVectorizer(max_features=10000, ngram_range=(1,2), stop_words='english')),
-        ("clf", LogisticRegression(max_iter=2000, class_weight='balanced'))
-    ])
+    pipeline = Pipeline(
+        [
+            (
+                "tfidf",
+                TfidfVectorizer(
+                    max_features=10000, ngram_range=(1, 2), stop_words="english"
+                ),
+            ),
+            ("clf", LogisticRegression(max_iter=2000, class_weight="balanced")),
+        ]
+    )
     pipeline.fit(texts, labels)
     return pipeline
 
+
 # Transformer fine-tuning trainer
-def train_transformer_classifier(texts, labels, model_name="distilbert-base-uncased", out_dir="models/suspicious_transformer",
-                                 num_train_epochs=1, batch_size=8, lr=2e-5):
+def train_transformer_classifier(
+    texts,
+    labels,
+    model_name="distilbert-base-uncased",
+    out_dir="models/suspicious_transformer",
+    num_train_epochs=1,
+    batch_size=8,
+    lr=2e-5,
+):
     """
     texts: list[str], labels: list[int]
     returns: trained model, tokenizer
@@ -1868,7 +2428,9 @@ def train_transformer_classifier(texts, labels, model_name="distilbert-base-unca
     tokenizer = AutoTokenizer.from_pretrained(model_name, use_fast=True)
 
     def tokenize_fn(batch):
-        return tokenizer(batch["text"], truncation=True, padding="max_length", max_length=256)
+        return tokenizer(
+            batch["text"], truncation=True, padding="max_length", max_length=256
+        )
 
     ds = ds.map(tokenize_fn, batched=True)
     ds = ds.rename_column("label", "labels")
@@ -1887,10 +2449,14 @@ def train_transformer_classifier(texts, labels, model_name="distilbert-base-unca
         save_strategy="epoch",
         logging_strategy="epoch",
         load_best_model_at_end=True,
-        fp16=False
+        fp16=False,
     )
 
-    metric = load_metric("accuracy") if hasattr(__import__("datasets"), "load_metric") else None
+    metric = (
+        load_metric("accuracy")
+        if hasattr(__import__("datasets"), "load_metric")
+        else None
+    )
 
     def compute_metrics(eval_pred):
         logits, labels_eval = eval_pred
@@ -1899,7 +2465,7 @@ def train_transformer_classifier(texts, labels, model_name="distilbert-base-unca
             "accuracy": float(accuracy_score(labels_eval, preds)),
             "f1": float(f1_score(labels_eval, preds, zero_division=0)),
             "precision": float(precision_score(labels_eval, preds, zero_division=0)),
-            "recall": float(recall_score(labels_eval, preds, zero_division=0))
+            "recall": float(recall_score(labels_eval, preds, zero_division=0)),
         }
 
     trainer = Trainer(
@@ -1907,7 +2473,7 @@ def train_transformer_classifier(texts, labels, model_name="distilbert-base-unca
         args=training_args,
         train_dataset=ds["train"],
         eval_dataset=ds["test"],
-        compute_metrics=compute_metrics
+        compute_metrics=compute_metrics,
     )
 
     trainer.train()
@@ -1915,6 +2481,7 @@ def train_transformer_classifier(texts, labels, model_name="distilbert-base-unca
     trainer.save_model(out_dir)
     tokenizer.save_pretrained(out_dir)
     return model, tokenizer, trainer
+
 
 # Inference wrappers
 def predict_with_tfidf(model, texts):
@@ -1925,6 +2492,7 @@ def predict_with_tfidf(model, texts):
         probs = None
     return preds, probs
 
+
 def predict_with_transformer_dir(out_dir, texts, batch_size=16):
     if not HAS_TRANSFORMERS:
         raise RuntimeError("Transformers not available")
@@ -1934,46 +2502,71 @@ def predict_with_transformer_dir(out_dir, texts, batch_size=16):
     enc = tokenizer(texts, truncation=True, padding=True, return_tensors="pt")
     with torch.no_grad():
         import torch
+
         outputs = model(**enc)
         logits = outputs.logits.cpu().numpy()
         preds = np.argmax(logits, axis=-1)
         # softmax prob for class 1
         from scipy.special import softmax
+
         probs = softmax(logits, axis=1)
     return preds, probs
+
 
 # ---------------------------
 # Streamlit UI: upgraded trainer / controls
 # ---------------------------
 with st.expander("Upgraded Suspicious Classifier (Train / Evaluate)", expanded=True):
-    st.write("Choose training mode. Transformer training requires `transformers` and `datasets` packages installed.")
+    st.write(
+        "Choose training mode. Transformer training requires `transformers` and `datasets` packages installed."
+    )
     # ensure we have some labeled data or pseudo labels
     labeled_df = pd.DataFrame(st.session_state.get("susp_labels", []))
     # allow pseudo-label generation
     if st.button("Generate Pseudo-Labels (weak supervision)"):
-        pseudo = generate_pseudo_labels(st.session_state.get("chats", []),
-                                       codeword_hits=st.session_state.get("codeword_hits", []))
+        pseudo = generate_pseudo_labels(
+            st.session_state.get("chats", []),
+            codeword_hits=st.session_state.get("codeword_hits", []),
+        )
         # Merge pseudo labels with any human labels (human labels take precedence)
-        human = labeled_df[["text","label"]].dropna() if not labeled_df.empty else pd.DataFrame(columns=["text","label"])
+        human = (
+            labeled_df[["text", "label"]].dropna()
+            if not labeled_df.empty
+            else pd.DataFrame(columns=["text", "label"])
+        )
         if not human.empty:
             # remove human-labeled texts from pseudo
             pseudo = pseudo[~pseudo["text"].isin(human["text"])]
-        combined = pd.concat([human, pseudo[["text","label"]].rename(columns={"label":"label"})], ignore_index=True)
+        combined = pd.concat(
+            [human, pseudo[["text", "label"]].rename(columns={"label": "label"})],
+            ignore_index=True,
+        )
         st.session_state["susp_pseudo_df"] = combined
         st.write("Pseudo-labels generated — sample:")
         st.dataframe(combined.head(20))
 
     # Choose model type
-    model_choice = st.selectbox("Model type", options=["tfidf", "transformer"] if HAS_TRANSFORMERS and HAS_DATASETS else ["tfidf"], index=0)
+    model_choice = st.selectbox(
+        "Model type",
+        options=(
+            ["tfidf", "transformer"] if HAS_TRANSFORMERS and HAS_DATASETS else ["tfidf"]
+        ),
+        index=0,
+    )
     st.markdown("**Training Data Source**")
-    data_sel = st.selectbox("Use labeled examples from:", options=["Human labels (susp_labels)", "Pseudo-labeled (generated)"])
+    data_sel = st.selectbox(
+        "Use labeled examples from:",
+        options=["Human labels (susp_labels)", "Pseudo-labeled (generated)"],
+    )
     if data_sel == "Human labels (susp_labels)":
         df_train = pd.DataFrame(st.session_state.get("susp_labels", []))
     else:
         df_train = st.session_state.get("susp_pseudo_df", pd.DataFrame())
 
     if df_train is None or df_train.empty:
-        st.warning("No labeled data available. Label messages in the Labeler (earlier) or generate pseudo-labels first.")
+        st.warning(
+            "No labeled data available. Label messages in the Labeler (earlier) or generate pseudo-labels first."
+        )
     else:
         st.write("Training examples:", df_train.shape[0])
         # hyperparameters
@@ -1990,7 +2583,13 @@ with st.expander("Upgraded Suspicious Classifier (Train / Evaluate)", expanded=T
                     model = train_tfidf_classifier(texts, labels)
                     save_tfidf_model(model)
                     # Evaluate
-                    X_train, X_test, y_train, y_test = train_test_split(texts, labels, test_size=test_size, random_state=random_state, stratify=labels if len(set(labels))>1 else None)
+                    X_train, X_test, y_train, y_test = train_test_split(
+                        texts,
+                        labels,
+                        test_size=test_size,
+                        random_state=random_state,
+                        stratify=labels if len(set(labels)) > 1 else None,
+                    )
                     preds = model.predict(X_test)
                     st.text(classification_report(y_test, preds))
                     st.success("TF-IDF model trained and saved.")
@@ -2000,31 +2599,42 @@ with st.expander("Upgraded Suspicious Classifier (Train / Evaluate)", expanded=T
             # transformer branch
             c1, c2, c3 = st.columns(3)
             with c1:
-                model_name = st.text_input("Transformer base model", value="distilbert-base-uncased")
+                model_name = st.text_input(
+                    "Transformer base model", value="distilbert-base-uncased"
+                )
             with c2:
-                num_epochs = st.number_input("Epochs", min_value=1, max_value=10, value=1)
+                num_epochs = st.number_input(
+                    "Epochs", min_value=1, max_value=10, value=1
+                )
             with c3:
-                batch_size = st.selectbox("Batch size", [4,8,16], index=1)
+                batch_size = st.selectbox("Batch size", [4, 8, 16], index=1)
             out_dir = st.text_input("Output dir", value="models/suspicious_transformer")
             if st.button("Train Transformer Suspicious Classifier"):
                 if not HAS_TRANSFORMERS or not HAS_DATASETS:
-                    st.error("Transformers/datasets not installed. Install required packages to use transformer training.")
+                    st.error(
+                        "Transformers/datasets not installed. Install required packages to use transformer training."
+                    )
                 else:
                     texts = df_train["text"].astype(str).tolist()
                     labels = df_train["label"].astype(int).tolist()
                     try:
-                        st.info("Training transformer (this may be slow on CPU). Training progress will stream below.")
+                        st.info(
+                            "Training transformer (this may be slow on CPU). Training progress will stream below."
+                        )
                         t0 = time.time()
                         model, tokenizer, trainer = train_transformer_classifier(
-                            texts, labels,
+                            texts,
+                            labels,
                             model_name=model_name,
                             out_dir=out_dir,
                             num_train_epochs=num_epochs,
-                            batch_size=batch_size
+                            batch_size=batch_size,
                         )
                         save_transformer_model(model, tokenizer, out_dir)
                         t1 = time.time()
-                        st.success(f"Transformer training finished in {int(t1-t0)}s and saved to {out_dir}")
+                        st.success(
+                            f"Transformer training finished in {int(t1-t0)}s and saved to {out_dir}"
+                        )
                         # Evaluate on holdout stored in trainer.state if available
                         if hasattr(trainer, "evaluate"):
                             eval_res = trainer.evaluate()
@@ -2036,12 +2646,14 @@ with st.expander("Upgraded Suspicious Classifier (Train / Evaluate)", expanded=T
 # Apply the selected model to all messages and update st.session_state["suspicious_messages"]
 # ---------------------------
 with st.expander("Apply Suspicious Model to Messages (Run Inference)", expanded=True):
-    st.write("Run inference using the selected model in session_state. Transformer inference will use saved dir if present.")
+    st.write(
+        "Run inference using the selected model in session_state. Transformer inference will use saved dir if present."
+    )
     model_type_now = st.session_state.get("suspicious_model_type", "tfidf")
     st.write("Current selected model type:", model_type_now)
     if st.button("Run Suspicion Inference (All messages)"):
         msgs = st.session_state.get("chats", [])
-        texts = [ (m.get("text") or "") for m in msgs ]
+        texts = [(m.get("text") or "") for m in msgs]
         results = []
         if model_type_now == "tfidf":
             model = st.session_state.get("suspicious_model", None)
@@ -2055,13 +2667,25 @@ with st.expander("Apply Suspicious Model to Messages (Run Inference)", expanded=
                 for i, p in enumerate(preds):
                     prob = float(probs[i][1]) if probs is not None else None
                     if int(p) == 1 or (prob is not None and prob >= 0.5):
-                        results.append({"index": i, "sender": msgs[i].get("sender"), "time": msgs[i].get("time"), "text": texts[i], "score": float(prob) if prob is not None else 1.0, "method":"tfidf"})
+                        results.append(
+                            {
+                                "index": i,
+                                "sender": msgs[i].get("sender"),
+                                "time": msgs[i].get("time"),
+                                "text": texts[i],
+                                "score": float(prob) if prob is not None else 1.0,
+                                "method": "tfidf",
+                            }
+                        )
         elif model_type_now == "transformer":
-            out_dir = st.session_state.get("suspicious_transformer_dir", "models/suspicious_transformer")
+            out_dir = st.session_state.get(
+                "suspicious_transformer_dir", "models/suspicious_transformer"
+            )
             if os.path.exists(out_dir) and HAS_TRANSFORMERS:
                 try:
                     import torch
                     from scipy.special import softmax
+
                     tokenizer = AutoTokenizer.from_pretrained(out_dir, use_fast=True)
                     model = AutoModelForSequenceClassification.from_pretrained(out_dir)
                     model.eval()
@@ -2071,8 +2695,13 @@ with st.expander("Apply Suspicious Model to Messages (Run Inference)", expanded=
                         batch.append(t)
                         batch_indices.append(i)
                         # process in batches of 32
-                        if len(batch) >= 32 or i == len(texts)-1:
-                            enc = tokenizer(batch, truncation=True, padding=True, return_tensors="pt")
+                        if len(batch) >= 32 or i == len(texts) - 1:
+                            enc = tokenizer(
+                                batch,
+                                truncation=True,
+                                padding=True,
+                                return_tensors="pt",
+                            )
                             with torch.no_grad():
                                 outputs = model(**enc)
                                 logits = outputs.logits.cpu().numpy()
@@ -2082,13 +2711,24 @@ with st.expander("Apply Suspicious Model to Messages (Run Inference)", expanded=
                                     p = int(preds[local_idx])
                                     prob = float(probs[local_idx][1])
                                     if p == 1 or prob >= 0.5:
-                                        results.append({"index": msg_idx, "sender": msgs[msg_idx].get("sender"), "time": msgs[msg_idx].get("time"), "text": texts[msg_idx], "score": prob, "method":"transformer"})
+                                        results.append(
+                                            {
+                                                "index": msg_idx,
+                                                "sender": msgs[msg_idx].get("sender"),
+                                                "time": msgs[msg_idx].get("time"),
+                                                "text": texts[msg_idx],
+                                                "score": prob,
+                                                "method": "transformer",
+                                            }
+                                        )
                             batch = []
                             batch_indices = []
                 except Exception as e:
                     st.error(f"Transformer inference failed: {e}")
             else:
-                st.error("No transformer saved model found. Train and save first or switch to tfidf.")
+                st.error(
+                    "No transformer saved model found. Train and save first or switch to tfidf."
+                )
         # enrich results with codeword hits if available
         cw_hits = {h["index"]: h for h in st.session_state.get("codeword_hits", [])}
         # merge duplicates: prefer higher score
@@ -2098,15 +2738,19 @@ with st.expander("Apply Suspicious Model to Messages (Run Inference)", expanded=
             if idx in cw_hits:
                 r["codeword"] = cw_hits[idx]["term"]
                 r["method"] += "+codeword"
-                r["score"] = max(r.get("score",0), 1.0)
+                r["score"] = max(r.get("score", 0), 1.0)
             if idx in merged:
-                if r.get("score",0) > merged[idx].get("score",0):
+                if r.get("score", 0) > merged[idx].get("score", 0):
                     merged[idx] = r
             else:
                 merged[idx] = r
-        final = sorted(list(merged.values()), key=lambda x: x.get("score",0), reverse=True)
+        final = sorted(
+            list(merged.values()), key=lambda x: x.get("score", 0), reverse=True
+        )
         st.session_state["suspicious_messages"] = final
-        st.success(f"Inference complete — {len(final)} suspicious messages flagged and stored in st.session_state['suspicious_messages'].")
+        st.success(
+            f"Inference complete — {len(final)} suspicious messages flagged and stored in st.session_state['suspicious_messages']."
+        )
 
 # ---------------------------
 # Utility: Export/Import trained models & labeled data
@@ -2116,7 +2760,9 @@ with st.expander("Export / Import Model + Labeled Data", expanded=False):
         labels = pd.DataFrame(st.session_state.get("susp_labels", []))
         if not labels.empty:
             csv = labels.to_csv(index=False).encode("utf-8")
-            st.download_button("Download CSV", csv, file_name="suspicious_labels.csv", mime="text/csv")
+            st.download_button(
+                "Download CSV", csv, file_name="suspicious_labels.csv", mime="text/csv"
+            )
         else:
             st.warning("No labeled data available.")
     if st.button("Export TF-IDF Model (joblib)"):
@@ -2124,17 +2770,26 @@ with st.expander("Export / Import Model + Labeled Data", expanded=False):
         mdl = st.session_state.get("suspicious_model", None)
         if mdl:
             save_tfidf_model(mdl, path="models/exported_suspicious_tfidf.pkl")
-            with open("models/exported_suspicious_tfidf.pkl","rb") as f:
-                st.download_button("Download TF-IDF model", f, file_name="exported_suspicious_tfidf.pkl")
+            with open("models/exported_suspicious_tfidf.pkl", "rb") as f:
+                st.download_button(
+                    "Download TF-IDF model",
+                    f,
+                    file_name="exported_suspicious_tfidf.pkl",
+                )
         else:
             st.warning("No TF-IDF model to export.")
     if st.button("Export Transformer (zip)"):
         d = st.session_state.get("suspicious_transformer_dir", None)
         if d and os.path.exists(d):
             import shutil, io
-            shutil.make_archive("models/suspicious_transformer_export", 'zip', d)
-            with open("models/suspicious_transformer_export.zip","rb") as f:
-                st.download_button("Download Transformer model (zip)", f, file_name="suspicious_transformer_export.zip")
+
+            shutil.make_archive("models/suspicious_transformer_export", "zip", d)
+            with open("models/suspicious_transformer_export.zip", "rb") as f:
+                st.download_button(
+                    "Download Transformer model (zip)",
+                    f,
+                    file_name="suspicious_transformer_export.zip",
+                )
         else:
             st.warning("No transformer saved model to export.")
 
@@ -2156,13 +2811,22 @@ except Exception:
     from sklearn.pipeline import Pipeline
     from sklearn.feature_extraction.text import TfidfVectorizer
     from sklearn.linear_model import LogisticRegression
+
     def train_tfidf_classifier(texts, labels):
-        pipeline = Pipeline([
-            ("tfidf", TfidfVectorizer(max_features=10000, ngram_range=(1,2), stop_words='english')),
-            ("clf", LogisticRegression(max_iter=2000, class_weight='balanced'))
-        ])
+        pipeline = Pipeline(
+            [
+                (
+                    "tfidf",
+                    TfidfVectorizer(
+                        max_features=10000, ngram_range=(1, 2), stop_words="english"
+                    ),
+                ),
+                ("clf", LogisticRegression(max_iter=2000, class_weight="balanced")),
+            ]
+        )
         pipeline.fit(texts, labels)
         return pipeline
+
 
 # Fallback save function
 def save_tfidf_model_local(model, path="models/suspicious_tfidf_auto.pkl"):
@@ -2171,6 +2835,7 @@ def save_tfidf_model_local(model, path="models/suspicious_tfidf_auto.pkl"):
     st.session_state["suspicious_model"] = model
     st.session_state["suspicious_model_type"] = "tfidf"
     st.success(f"Auto-trained TF-IDF model saved to {path}")
+
 
 # Utility to get texts and mask of unlabeled
 def _prepare_datasets():
@@ -2186,9 +2851,14 @@ def _prepare_datasets():
     unlabeled_indices = [i for i in range(len(texts)) if i not in labeled_indices]
     return texts, human_labels, labeled_indices, unlabeled_indices
 
+
 # Main semi-supervised loop UI
-with st.expander("Semi-supervised Trainer (self-training + active learning)", expanded=True):
-    st.write("This runs iterative pseudo-labeling on high-confidence predictions and surfaces low-confidence items for human labeling.")
+with st.expander(
+    "Semi-supervised Trainer (self-training + active learning)", expanded=True
+):
+    st.write(
+        "This runs iterative pseudo-labeling on high-confidence predictions and surfaces low-confidence items for human labeling."
+    )
 
     # Parameters
     cols = st.columns(4)
@@ -2197,18 +2867,28 @@ with st.expander("Semi-supervised Trainer (self-training + active learning)", ex
     with cols[1]:
         high_conf = st.slider("High-confidence threshold", 0.6, 0.99, 0.90, 0.01)
     with cols[2]:
-        low_conf = st.slider("Low-confidence threshold (active pool)", 0.01, 0.59, 0.4, 0.01)
+        low_conf = st.slider(
+            "Low-confidence threshold (active pool)", 0.01, 0.59, 0.4, 0.01
+        )
     with cols[3]:
-        sample_for_human = st.number_input("Active sample size per round", min_value=1, max_value=200, value=20, step=1)
+        sample_for_human = st.number_input(
+            "Active sample size per round", min_value=1, max_value=200, value=20, step=1
+        )
 
-    st.markdown("**Workflow:** start with any human-labeled messages (susp_labels) and optional pseudo labels. The loop will:")
-    st.markdown("1) Train base TF-IDF classifier on current labels.  2) Predict on unlabeled.  3) Add predictions with prob >= high_conf as pseudo-labeled.  4) Collect low-confidence messages (prob in [low_conf, high_conf)) into an active pool for human labeling.  5) Repeat for n_rounds.")
+    st.markdown(
+        "**Workflow:** start with any human-labeled messages (susp_labels) and optional pseudo labels. The loop will:"
+    )
+    st.markdown(
+        "1) Train base TF-IDF classifier on current labels.  2) Predict on unlabeled.  3) Add predictions with prob >= high_conf as pseudo-labeled.  4) Collect low-confidence messages (prob in [low_conf, high_conf)) into an active pool for human labeling.  5) Repeat for n_rounds."
+    )
 
     if st.button("Run Semi-supervised Loop"):
         t0 = time.time()
         texts, human_labels, labeled_idxs, unlabeled_idxs = _prepare_datasets()
         if not human_labels:
-            st.warning("No human labels found in st.session_state['susp_labels']. It's recommended to have at least a few (10+) human labels. You can still run, pseudo-labels will be used.")
+            st.warning(
+                "No human labels found in st.session_state['susp_labels']. It's recommended to have at least a few (10+) human labels. You can still run, pseudo-labels will be used."
+            )
         # Build initial training set: human labels + any pseudo stored earlier
         pseudo_df = st.session_state.get("susp_pseudo_df", pd.DataFrame())
         train_texts = []
@@ -2220,23 +2900,31 @@ with st.expander("Semi-supervised Trainer (self-training + active learning)", ex
         # add pseudo-labeled examples (if any and not duplicate of human)
         if isinstance(pseudo_df, pd.DataFrame) and not pseudo_df.empty:
             for _, r in pseudo_df.iterrows():
-                t = str(r.get("text",""))
+                t = str(r.get("text", ""))
                 if t not in train_texts:
                     train_texts.append(t)
-                    train_labels.append(int(r.get("label",0)))
+                    train_labels.append(int(r.get("label", 0)))
         # If still empty, warn and stop
         if len(train_texts) < 1:
-            st.error("No training data available (no human labels and no pseudo labels). Label some messages first.")
+            st.error(
+                "No training data available (no human labels and no pseudo labels). Label some messages first."
+            )
         else:
             # Keep track of newly added pseudo indices
             all_new_pseudo = set()
             model = None
-            for rnd in range(1, int(n_rounds)+1):
-                st.info(f"Round {rnd} — training model on {len(train_texts)} examples...")
+            for rnd in range(1, int(n_rounds) + 1):
+                st.info(
+                    f"Round {rnd} — training model on {len(train_texts)} examples..."
+                )
                 # train model
                 model = train_tfidf_classifier(train_texts, train_labels)
                 # predict probs on unlabeled
-                unlabeled_idxs = [i for i in range(len(texts)) if i not in labeled_idxs and i not in all_new_pseudo]
+                unlabeled_idxs = [
+                    i
+                    for i in range(len(texts))
+                    if i not in labeled_idxs and i not in all_new_pseudo
+                ]
                 if not unlabeled_idxs:
                     st.success("No unlabeled examples left.")
                     break
@@ -2245,13 +2933,13 @@ with st.expander("Semi-supervised Trainer (self-training + active learning)", ex
                     probs = None
                     if hasattr(model, "predict_proba"):
                         probs = model.predict_proba(unl_texts)
-                        pos_probs = probs[:,1]
+                        pos_probs = probs[:, 1]
                     else:
                         # fallback: use decision_function
                         try:
                             dec = model.decision_function(unl_texts)
                             # map to [0,1] with logistic
-                            pos_probs = 1/(1+np.exp(-dec))
+                            pos_probs = 1 / (1 + np.exp(-dec))
                         except Exception:
                             pos_probs = np.zeros(len(unl_texts))
                 except Exception as e:
@@ -2259,18 +2947,37 @@ with st.expander("Semi-supervised Trainer (self-training + active learning)", ex
                     break
 
                 # select high-confidence positives and negatives
-                high_pos_idx_local = [unlabeled_idxs[i] for i,p in enumerate(pos_probs) if p >= high_conf]
-                high_neg_idx_local = [unlabeled_idxs[i] for i,p in enumerate(pos_probs) if p <= (1-high_conf)]
+                high_pos_idx_local = [
+                    unlabeled_idxs[i] for i, p in enumerate(pos_probs) if p >= high_conf
+                ]
+                high_neg_idx_local = [
+                    unlabeled_idxs[i]
+                    for i, p in enumerate(pos_probs)
+                    if p <= (1 - high_conf)
+                ]
                 # Add to pseudo labelled set
                 added = 0
                 for idx in high_pos_idx_local:
-                    train_texts.append(texts[idx]); train_labels.append(1); all_new_pseudo.add(idx); added += 1
+                    train_texts.append(texts[idx])
+                    train_labels.append(1)
+                    all_new_pseudo.add(idx)
+                    added += 1
                 for idx in high_neg_idx_local:
-                    train_texts.append(texts[idx]); train_labels.append(0); all_new_pseudo.add(idx); added += 1
+                    train_texts.append(texts[idx])
+                    train_labels.append(0)
+                    all_new_pseudo.add(idx)
+                    added += 1
 
-                st.write(f"Round {rnd}: added {added} high-confidence pseudo-labels (pos:{len(high_pos_idx_local)} neg:{len(high_neg_idx_local)})")
+                st.write(
+                    f"Round {rnd}: added {added} high-confidence pseudo-labels (pos:{len(high_pos_idx_local)} neg:{len(high_neg_idx_local)})"
+                )
                 # Build active pool of low-confidence for human labeling
-                low_pool_local = [unlabeled_idxs[i] for i,p in enumerate(pos_probs) if (p > (1-high_conf) and p < high_conf) and (p >= low_conf and p <= (1-low_conf) or True)]
+                low_pool_local = [
+                    unlabeled_idxs[i]
+                    for i, p in enumerate(pos_probs)
+                    if (p > (1 - high_conf) and p < high_conf)
+                    and (p >= low_conf and p <= (1 - low_conf) or True)
+                ]
                 # sample limited size for this round
                 if low_pool_local:
                     sample = low_pool_local[:sample_for_human]
@@ -2280,14 +2987,20 @@ with st.expander("Semi-supervised Trainer (self-training + active learning)", ex
                         if sidx not in existing_pool:
                             existing_pool.append(int(sidx))
                     st.session_state["susp_active_pool"] = existing_pool
-                    st.write(f"Round {rnd}: added {len(sample)} examples to active labeling pool (st.session_state['susp_active_pool']).")
+                    st.write(
+                        f"Round {rnd}: added {len(sample)} examples to active labeling pool (st.session_state['susp_active_pool'])."
+                    )
 
             # end rounds
-            st.success(f"Semi-supervised loop finished. Added total pseudo-labeled items: {len(all_new_pseudo)}")
+            st.success(
+                f"Semi-supervised loop finished. Added total pseudo-labeled items: {len(all_new_pseudo)}"
+            )
             # Save the final model and persist
             if model is not None:
                 try:
-                    save_tfidf_model_local(model, path="models/suspicious_tfidf_auto.pkl")
+                    save_tfidf_model_local(
+                        model, path="models/suspicious_tfidf_auto.pkl"
+                    )
                     st.session_state["susp_pseudo_added_count"] = len(all_new_pseudo)
                     # Optionally evaluate on a holdout of human labels if available
                     human_texts = [texts[i] for i in list(human_labels.keys())]
@@ -2299,44 +3012,82 @@ with st.expander("Semi-supervised Trainer (self-training + active learning)", ex
                 except Exception as e:
                     st.error(f"Failed to save model: {e}")
             t1 = time.time()
-            st.write(f"Finished in {int(t1-t0)}s. Pseudo-labeled count: {len(all_new_pseudo)}")
+            st.write(
+                f"Finished in {int(t1-t0)}s. Pseudo-labeled count: {len(all_new_pseudo)}"
+            )
 
 # Expose Active pool for human labeling
-with st.expander("Active Learning Pool — label these to improve the model", expanded=False):
+with st.expander(
+    "Active Learning Pool — label these to improve the model", expanded=False
+):
     pool = st.session_state.get("susp_active_pool", [])
     msgs = st.session_state.get("chats", [])
     if not pool:
-        st.info("Active pool is empty. Run semi-supervised loop or train to populate low-confidence examples.")
+        st.info(
+            "Active pool is empty. Run semi-supervised loop or train to populate low-confidence examples."
+        )
     else:
         st.write(f"{len(pool)} messages awaiting human review.")
         # show up to 30 examples to label here
-        sample = pool[:min(50, len(pool))]
+        sample = pool[: min(50, len(pool))]
         for idx in sample:
             m = msgs[int(idx)]
-            st.markdown(f"**Msg #{idx}** — *{m.get('sender','unknown')}* @ {m.get('time','')}")
-            choice = st.radio(f"Label active msg {idx}", ["Unlabeled","Not Suspicious","Suspicious"], key=f"active_label_{idx}")
+            st.markdown(
+                f"**Msg #{idx}** — *{m.get('sender','unknown')}* @ {m.get('time','')}"
+            )
+            choice = st.radio(
+                f"Label active msg {idx}",
+                ["Unlabeled", "Not Suspicious", "Suspicious"],
+                key=f"active_label_{idx}",
+            )
             if choice != "Unlabeled":
                 # add or update label in st.session_state['susp_labels']
                 found = False
                 labels_list = st.session_state.get("susp_labels", [])
                 for item in labels_list:
                     if item.get("index") == idx:
-                        item.update({"label": 1 if choice=="Suspicious" else 0, "text": m.get("text",""), "sender": m.get("sender"), "time": m.get("time")})
+                        item.update(
+                            {
+                                "label": 1 if choice == "Suspicious" else 0,
+                                "text": m.get("text", ""),
+                                "sender": m.get("sender"),
+                                "time": m.get("time"),
+                            }
+                        )
                         found = True
                 if not found:
-                    labels_list.append({"index": int(idx), "text": m.get("text",""), "label": 1 if choice=="Suspicious" else 0, "sender": m.get("sender"), "time": m.get("time")})
+                    labels_list.append(
+                        {
+                            "index": int(idx),
+                            "text": m.get("text", ""),
+                            "label": 1 if choice == "Suspicious" else 0,
+                            "sender": m.get("sender"),
+                            "time": m.get("time"),
+                        }
+                    )
                 st.session_state["susp_labels"] = labels_list
                 # remove from active pool automatically
-                new_pool = [p for p in st.session_state.get("susp_active_pool", []) if p != idx]
+                new_pool = [
+                    p for p in st.session_state.get("susp_active_pool", []) if p != idx
+                ]
                 st.session_state["susp_active_pool"] = new_pool
-                st.success(f"Labeled message #{idx} as {choice} and removed from active pool.")
+                st.success(
+                    f"Labeled message #{idx} as {choice} and removed from active pool."
+                )
 
 # Quick utility to export active pool indices and pseudo suggestions
 with st.expander("Export / Inspect semi-supervised artifacts", expanded=False):
     if st.button("Show indices of pseudo-labeled examples (session)"):
-        st.write("Pseudo-added-count:", st.session_state.get("susp_pseudo_added_count", 0))
+        st.write(
+            "Pseudo-added-count:", st.session_state.get("susp_pseudo_added_count", 0)
+        )
     if st.button("Download active pool indices (CSV)"):
         pool = st.session_state.get("susp_active_pool", [])
         df = pd.DataFrame({"index": pool})
         csv = df.to_csv(index=False).encode("utf-8")
-        st.download_button("Download active_pool.csv", csv, file_name="active_pool.csv", mime="text/csv")
+        st.download_button(
+            "Download active_pool.csv",
+            csv,
+            file_name="active_pool.csv",
+            mime="text/csv",
+        )

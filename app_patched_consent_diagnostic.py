@@ -1,10 +1,11 @@
-
 import streamlit as st
 import json, os, pathlib, datetime, hashlib, traceback
 
 st.title("Forensmart Consent Diagnostic Tool (embedded)")
 
-st.markdown("This diagnostic overlay helps identify why `consent_id` is not reflected in the Adapters tab. It does not change original adapter logic; it only reads files and session state and lets you force actions.")
+st.markdown(
+    "This diagnostic overlay helps identify why `consent_id` is not reflected in the Adapters tab. It does not change original adapter logic; it only reads files and session state and lets you force actions."
+)
 
 # Show session_state summary
 st.header("Session state")
@@ -32,7 +33,9 @@ if not consent_files:
 else:
     st.write(f"Found {len(consent_files)} consent.json files (oldest → newest):")
     for p, m in consent_files:
-        st.write(f"- {p}  (mtime: {datetime.datetime.utcfromtimestamp(m).isoformat()}Z)")
+        st.write(
+            f"- {p}  (mtime: {datetime.datetime.utcfromtimestamp(m).isoformat()}Z)"
+        )
     latest_path = consent_files[-1][0]
     st.subheader("Latest consent.json content")
     try:
@@ -49,7 +52,9 @@ if cr_path.exists():
     for p in cr_path.rglob("consent.json"):
         cr_found.append(p)
 if cr_found:
-    st.write(f"Found {len(cr_found)} consent.json in consent_records (showing first 5):")
+    st.write(
+        f"Found {len(cr_found)} consent.json in consent_records (showing first 5):"
+    )
     for p in cr_found[:5]:
         st.write("-", p)
 else:
@@ -63,11 +68,21 @@ for p, _ in consent_files:
     exists = sha_path.exists()
     content = sha_path.read_text(encoding="utf-8").strip() if exists else None
     try:
-        raw = json.dumps(json.load(open(p, "r", encoding="utf-8")), sort_keys=True).encode("utf-8")
+        raw = json.dumps(
+            json.load(open(p, "r", encoding="utf-8")), sort_keys=True
+        ).encode("utf-8")
         actual = hashlib.sha256(raw).hexdigest()
     except Exception as e:
         actual = f"error: {e}"
-    sha_reports.append({"path": str(p), "sha_path": str(sha_path), "sha_exists": exists, "sha_content": content, "actual_sha": actual})
+    sha_reports.append(
+        {
+            "path": str(p),
+            "sha_path": str(sha_path),
+            "sha_exists": exists,
+            "sha_content": content,
+            "actual_sha": actual,
+        }
+    )
 st.table(sha_reports)
 
 # Provide controls to force load a consent into session_state
@@ -101,7 +116,9 @@ with col2:
 st.header("Write diagnostic trace file")
 if st.button("Write diagnostic trace to artifacts/debug_trace.txt"):
     try:
-        outdir = pathlib.Path("artifacts") / ("session_debug_" + datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ"))
+        outdir = pathlib.Path("artifacts") / (
+            "session_debug_" + datetime.datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        )
         outdir.mkdir(parents=True, exist_ok=True)
         trace_path = outdir / "debug_trace.txt"
         with open(trace_path, "w", encoding="utf-8") as f:
@@ -116,5 +133,6 @@ if st.button("Write diagnostic trace to artifacts/debug_trace.txt"):
         st.error("Failed to write trace: " + str(e))
 
 st.markdown("---")
-st.info("Use the Force actions and then switch to the Adapters tab in your main app (or re-run) to see whether adapters reflect the session_state changes. If the adapters still do not see the consent_id, copy the content of the 'Latest consent.json content' shown above and paste it here so I can inspect it.")
-
+st.info(
+    "Use the Force actions and then switch to the Adapters tab in your main app (or re-run) to see whether adapters reflect the session_state changes. If the adapters still do not see the consent_id, copy the content of the 'Latest consent.json content' shown above and paste it here so I can inspect it."
+)
