@@ -2681,7 +2681,7 @@ def train_transformer_classifier(
         fp16=False,
     )
 
-    metric = (
+    (
         load_metric("accuracy")
         if hasattr(__import__("datasets"), "load_metric")
         else None

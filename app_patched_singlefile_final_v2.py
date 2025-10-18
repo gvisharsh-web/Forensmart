@@ -88,7 +88,6 @@ def render_adapter_manager_v2():
                 if not android_devices:
                     st.info("No Android devices detected via adb.")
                 else:
-                    sel_idx = 0
                     sel = st.selectbox(
                         "Select Android device",
                         options=android_devices,
@@ -3230,7 +3229,7 @@ except Exception:
             fp16=False,
         )
 
-        metric = (
+        (
             load_metric("accuracy")
             if hasattr(__import__("datasets"), "load_metric")
             else None

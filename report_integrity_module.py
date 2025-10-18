@@ -66,5 +66,5 @@ def finalize_report_integrity(consent_id, pdf_bytes, investigator):
     manifests = collect_manifests(consent_id)
     master_hash = compute_master_hash(manifests)
     updated_pdf = embed_report_hash(pdf_bytes, master_hash)
-    sig = write_report_signature(consent_id, master_hash, investigator)
+    write_report_signature(consent_id, master_hash, investigator)
     return updated_pdf, master_hash

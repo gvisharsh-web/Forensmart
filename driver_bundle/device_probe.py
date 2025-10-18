@@ -40,7 +40,7 @@ def detect_fastboot():
 
 
 def detect_idevice():
-    ideviceinfo = shutil.which("ideviceinfo")
+    shutil.which("ideviceinfo")
     idevice_id = shutil.which("idevice_id")
     if not idevice_id:
         return {"found": False, "note": "libimobiledevice not installed"}
