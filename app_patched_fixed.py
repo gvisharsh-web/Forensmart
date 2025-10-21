@@ -525,10 +525,10 @@ with tab6:
     }
 
     if st.button("📄 Generate Unified Report"):
-        pdf_file = export_unified_case_report(metadata)
+        pdf_bytes = export_unified_case_report(metadata)
         st.download_button(
             "⬇️ Download Case Report",
-            data=pdf_file,
+            data=pdf_bytes,
             file_name=f"{st.session_state['case_id']}_report.pdf",
             mime="application/pdf",
         )
@@ -1463,15 +1463,14 @@ with tab6:
         if consent_id and "finalize_report_integrity" in globals():
             try:
                 updated_pdf, master_hash = finalize_report_integrity(
-                    consent_id, out_bytesio.getvalue(), investigator
+                    consent_id, pdf_bytes.getvalue(), investigator
                 )
-                # replace out_bytesio content if applicable (store hash in session)
+                # replace pdf_bytes content if applicable (store hash in session)
                 st.session_state["master_report_hash"] = master_hash
-                out_bytesio = (
-                    io.BytesIO(updated_pdf)
-                    if isinstance(updated_pdf, (bytes, bytearray))
-                    else out_bytesio
-                )
+                if isinstance(updated_pdf, (bytes, bytearray)):
+                    pdf_bytes = BytesIO(updated_pdf)
+                elif isinstance(updated_pdf, BytesIO):
+                    pdf_bytes = updated_pdf
             except Exception as _e:
                 st.warning(f"Report integrity step failed: {_e}")
         filename = f"{case_id}_ForenSmart_Report.pdf"

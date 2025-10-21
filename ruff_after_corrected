@@ -1,0 +1,620 @@
+F821 Undefined name `verify_consent_id`
+  --> app_patched_fixed.py:59:25
+   |
+57 |                 else:
+58 |                     ok, msg = (
+59 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+60 |                         if "verify_consent_id" in globals()
+61 |                         else (True, "")
+   |
+
+F821 Undefined name `verify_consent_id`
+  --> app_patched_fixed.py:84:25
+   |
+82 |                 else:
+83 |                     ok, msg = (
+84 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+85 |                         if "verify_consent_id" in globals()
+86 |                         else (True, "")
+   |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:153:1
+    |
+153 | import pandas as pd
+    | ^^^^^^^^^^^^^^^^^^^
+154 | import numpy as np
+155 | from sklearn.model_selection import train_test_split
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:154:1
+    |
+153 | import pandas as pd
+154 | import numpy as np
+    | ^^^^^^^^^^^^^^^^^^
+155 | from sklearn.model_selection import train_test_split
+156 | from sklearn.metrics import accuracy_score
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:155:1
+    |
+153 | import pandas as pd
+154 | import numpy as np
+155 | from sklearn.model_selection import train_test_split
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+156 | from sklearn.metrics import accuracy_score
+157 | from PIL import Image
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:156:1
+    |
+154 | import numpy as np
+155 | from sklearn.model_selection import train_test_split
+156 | from sklearn.metrics import accuracy_score
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+157 | from PIL import Image
+158 | import joblib
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:157:1
+    |
+155 | from sklearn.model_selection import train_test_split
+156 | from sklearn.metrics import accuracy_score
+157 | from PIL import Image
+    | ^^^^^^^^^^^^^^^^^^^^^
+158 | import joblib
+159 | import os
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:158:1
+    |
+156 | from sklearn.metrics import accuracy_score
+157 | from PIL import Image
+158 | import joblib
+    | ^^^^^^^^^^^^^
+159 | import os
+160 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:159:1
+    |
+157 | from PIL import Image
+158 | import joblib
+159 | import os
+    | ^^^^^^^^^
+160 | import datetime
+161 | import hashlib
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:160:1
+    |
+158 | import joblib
+159 | import os
+160 | import datetime
+    | ^^^^^^^^^^^^^^^
+161 | import hashlib
+162 | from fpdf import FPDF
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:161:1
+    |
+159 | import os
+160 | import datetime
+161 | import hashlib
+    | ^^^^^^^^^^^^^^
+162 | from fpdf import FPDF
+163 | from io import BytesIO
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:162:1
+    |
+160 | import datetime
+161 | import hashlib
+162 | from fpdf import FPDF
+    | ^^^^^^^^^^^^^^^^^^^^^
+163 | from io import BytesIO
+164 | import pydeck as pdk
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:163:1
+    |
+161 | import hashlib
+162 | from fpdf import FPDF
+163 | from io import BytesIO
+    | ^^^^^^^^^^^^^^^^^^^^^^
+164 | import pydeck as pdk
+165 | from geopy.distance import geodesic
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:164:1
+    |
+162 | from fpdf import FPDF
+163 | from io import BytesIO
+164 | import pydeck as pdk
+    | ^^^^^^^^^^^^^^^^^^^^
+165 | from geopy.distance import geodesic
+166 | import time
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:165:1
+    |
+163 | from io import BytesIO
+164 | import pydeck as pdk
+165 | from geopy.distance import geodesic
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+166 | import time
+167 | import json
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:166:1
+    |
+164 | import pydeck as pdk
+165 | from geopy.distance import geodesic
+166 | import time
+    | ^^^^^^^^^^^
+167 | import json
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:167:1
+    |
+165 | from geopy.distance import geodesic
+166 | import time
+167 | import json
+    | ^^^^^^^^^^^
+168 |
+169 | # ================== CONFIG ==================
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:535:1
+    |
+533 |             mime="application/pdf",
+534 |         )
+535 | import streamlit as st
+    | ^^^^^^^^^^^^^^^^^^^^^^
+536 | import pandas as pd
+537 | import re
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:536:1
+    |
+534 |         )
+535 | import streamlit as st
+536 | import pandas as pd
+    | ^^^^^^^^^^^^^^^^^^^
+537 | import re
+538 | import time
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:537:1
+    |
+535 | import streamlit as st
+536 | import pandas as pd
+537 | import re
+    | ^^^^^^^^^
+538 | import time
+539 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:538:1
+    |
+536 | import pandas as pd
+537 | import re
+538 | import time
+    | ^^^^^^^^^^^
+539 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:539:1
+    |
+537 | import re
+538 | import time
+539 | import datetime
+    | ^^^^^^^^^^^^^^^
+540 |
+541 | # ======================================================
+    |
+
+E722 Do not use bare `except`
+    --> app_patched_fixed.py:1082:13
+     |
+1080 |             try:
+1081 |                 b = str(data).encode()
+1082 |             except:
+     |             ^^^^^^
+1083 |                 return "N/A"
+1084 |         return hashlib.sha256(b).hexdigest()
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1596:1
+     |
+1594 | # Comms Analyzer ML Pipeline (paste into app.py under Comms Analyzer tab)
+1595 | # ---------------------------
+1596 | import hashlib
+     | ^^^^^^^^^^^^^^
+1597 | import os
+1598 | import matplotlib.pyplot as plt
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1597:1
+     |
+1595 | # ---------------------------
+1596 | import hashlib
+1597 | import os
+     | ^^^^^^^^^
+1598 | import matplotlib.pyplot as plt
+1599 | from collections import Counter, defaultdict
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1598:1
+     |
+1596 | import hashlib
+1597 | import os
+1598 | import matplotlib.pyplot as plt
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1599 | from collections import Counter, defaultdict
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1599:1
+     |
+1597 | import os
+1598 | import matplotlib.pyplot as plt
+1599 | from collections import Counter, defaultdict
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1600 |
+1601 | # NLP / ML imports with graceful failover
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1628:1
+     |
+1626 |     HAS_BERTOPIC = False
+1627 |
+1628 | from sklearn.feature_extraction.text import TfidfVectorizer
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1629 | from sklearn.decomposition import NMF
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1629:1
+     |
+1628 | from sklearn.feature_extraction.text import TfidfVectorizer
+1629 | from sklearn.decomposition import NMF
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+1631 | import networkx as nx
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1630:1
+     |
+1628 | from sklearn.feature_extraction.text import TfidfVectorizer
+1629 | from sklearn.decomposition import NMF
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1631 | import networkx as nx
+1632 | import nltk
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1631:1
+     |
+1629 | from sklearn.decomposition import NMF
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+1631 | import networkx as nx
+     | ^^^^^^^^^^^^^^^^^^^^^
+1632 | import nltk
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1632:1
+     |
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+1631 | import networkx as nx
+1632 | import nltk
+     | ^^^^^^^^^^^
+1633 |
+1634 | # Ensure nltk data exists (download if not present)
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2073:1
+     |
+2071 | # Paste this after your existing Comms Analyzer pipeline in app.py
+2072 | # ---------------------------
+2073 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+2074 | from sklearn.linear_model import LogisticRegression
+2075 | from sklearn.pipeline import Pipeline
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2074:1
+     |
+2072 | # ---------------------------
+2073 | import pandas as pd
+2074 | from sklearn.linear_model import LogisticRegression
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2075 | from sklearn.pipeline import Pipeline
+2076 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2075:1
+     |
+2073 | import pandas as pd
+2074 | from sklearn.linear_model import LogisticRegression
+2075 | from sklearn.pipeline import Pipeline
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2076 | from sklearn.metrics import classification_report
+2077 | import numpy as np
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2076:1
+     |
+2074 | from sklearn.linear_model import LogisticRegression
+2075 | from sklearn.pipeline import Pipeline
+2076 | from sklearn.metrics import classification_report
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2077 | import numpy as np
+2078 | import matplotlib.pyplot as plt
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2077:1
+     |
+2075 | from sklearn.pipeline import Pipeline
+2076 | from sklearn.metrics import classification_report
+2077 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+2078 | import matplotlib.pyplot as plt
+2079 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2078:1
+     |
+2076 | from sklearn.metrics import classification_report
+2077 | import numpy as np
+2078 | import matplotlib.pyplot as plt
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2079 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2079:1
+     |
+2077 | import numpy as np
+2078 | import matplotlib.pyplot as plt
+2079 | import json
+     | ^^^^^^^^^^^
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2461:1
+     |
+2459 | # Paste into Comms Analyzer section of app.py
+2460 | # ---------------------------
+2461 | import os
+     | ^^^^^^^^^
+2462 | import time
+2463 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2462:1
+     |
+2460 | # ---------------------------
+2461 | import os
+2462 | import time
+     | ^^^^^^^^^^^
+2463 | import json
+2464 | import numpy as np
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2463:1
+     |
+2461 | import os
+2462 | import time
+2463 | import json
+     | ^^^^^^^^^^^
+2464 | import numpy as np
+2465 | import pandas as pd
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2464:1
+     |
+2462 | import time
+2463 | import json
+2464 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+2465 | import pandas as pd
+2466 | from sklearn.pipeline import Pipeline
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2465:1
+     |
+2463 | import json
+2464 | import numpy as np
+2465 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+2466 | from sklearn.pipeline import Pipeline
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2466:1
+     |
+2464 | import numpy as np
+2465 | import pandas as pd
+2466 | from sklearn.pipeline import Pipeline
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+2468 | from sklearn.linear_model import LogisticRegression
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2467:1
+     |
+2465 | import pandas as pd
+2466 | from sklearn.pipeline import Pipeline
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2468 | from sklearn.linear_model import LogisticRegression
+2469 | from sklearn.model_selection import train_test_split
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2468:1
+     |
+2466 | from sklearn.pipeline import Pipeline
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+2468 | from sklearn.linear_model import LogisticRegression
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2469 | from sklearn.model_selection import train_test_split
+2470 | from sklearn.metrics import (
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2469:1
+     |
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+2468 | from sklearn.linear_model import LogisticRegression
+2469 | from sklearn.model_selection import train_test_split
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2470 | from sklearn.metrics import (
+2471 |     classification_report,
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2470:1
+     |
+2468 |   from sklearn.linear_model import LogisticRegression
+2469 |   from sklearn.model_selection import train_test_split
+2470 | / from sklearn.metrics import (
+2471 | |     classification_report,
+2472 | |     f1_score,
+2473 | |     precision_score,
+2474 | |     recall_score,
+2475 | | )
+     | |_^
+2476 |
+2477 |   # Try to import Transformers + datasets; set flags if available
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3012:1
+     |
+3010 | # Paste into Comms Analyzer section in app.py (after existing classifier code)
+3011 | # ---------------------------
+3012 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+3013 | import pandas as pd
+3014 | import time
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3013:1
+     |
+3011 | # ---------------------------
+3012 | import numpy as np
+3013 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+3014 | import time
+3015 | from sklearn.model_selection import train_test_split
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3014:1
+     |
+3012 | import numpy as np
+3013 | import pandas as pd
+3014 | import time
+     | ^^^^^^^^^^^
+3015 | from sklearn.model_selection import train_test_split
+3016 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3015:1
+     |
+3013 | import pandas as pd
+3014 | import time
+3015 | from sklearn.model_selection import train_test_split
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3016 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3016:1
+     |
+3014 | import time
+3015 | from sklearn.model_selection import train_test_split
+3016 | from sklearn.metrics import classification_report
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3017 |
+3018 | # Fallback trainer if not defined earlier
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3308:1
+     |
+3307 | # ---- INSERT: Auto-parse social media databases (WhatsApp, Telegram, Messenger) ----
+3308 | import sqlite3
+     | ^^^^^^^^^^^^^^
+3309 | from PIL import ExifTags
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3309:1
+     |
+3307 | # ---- INSERT: Auto-parse social media databases (WhatsApp, Telegram, Messenger) ----
+3308 | import sqlite3
+3309 | from PIL import ExifTags
+     | ^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+
+E722 Do not use bare `except`
+    --> app_patched_fixed.py:3363:17
+     |
+3361 |                     for i, r in enumerate(rows):
+3362 |                         msgs.append({"row": i, "data": str(r)})
+3363 |                 except:
+     |                 ^^^^^^
+3364 |                     pass
+3365 |         conn.close()
+     |
+
+E902 The system cannot find the file specified. (os error 2)
+--> final.txt:1:1
+
+Found 58 errors.

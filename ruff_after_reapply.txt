@@ -1,0 +1,1362 @@
+E741 Ambiguous variable name: `l`
+  --> adapters\android_adb.py:18:30
+   |
+16 |                 ["adb", "devices", "-l"], stderr=subprocess.STDOUT
+17 |             ).decode()
+18 |             devices = [l for l in out.splitlines() if l.strip() and "device" in l]
+   |                              ^
+19 |             return {"ok": True, "raw": out, "devices": devices}
+20 |         except Exception as e:
+   |
+
+E722 Do not use bare `except`
+  --> adapters\android_adb.py:83:13
+   |
+81 |             try:
+82 |                 cur.execute("SELECT _id, display_name FROM contacts")
+83 |             except:
+   |             ^^^^^^
+84 |                 try:
+85 |                     cur.execute("SELECT _id, display_name FROM raw_contacts")
+   |
+
+E722 Do not use bare `except`
+  --> adapters\android_adb.py:86:17
+   |
+84 |                 try:
+85 |                     cur.execute("SELECT _id, display_name FROM raw_contacts")
+86 |                 except:
+   |                 ^^^^^^
+87 |                     # fallback: try any text fields
+88 |                     cur.execute("PRAGMA table_info(contacts)")
+   |
+
+E722 Do not use bare `except`
+   --> adapters\android_adb.py:115:13
+    |
+113 |             try:
+114 |                 cur.execute("SELECT _id, thread_id, address, body, date FROM sms")
+115 |             except:
+    |             ^^^^^^
+116 |                 try:
+117 |                     cur.execute("SELECT _id, address, body, date FROM sms")
+    |
+
+E722 Do not use bare `except`
+   --> adapters\android_adb.py:118:17
+    |
+116 |                 try:
+117 |                     cur.execute("SELECT _id, address, body, date FROM sms")
+118 |                 except:
+    |                 ^^^^^^
+119 |                     rows = []
+120 |             for r in cur.fetchmany(5000):
+    |
+
+E741 Ambiguous variable name: `l`
+  --> adapters\ios_logical.py:24:38
+   |
+22 |                 ["idevice_id", "-l"], stderr=subprocess.STDOUT
+23 |             ).decode()
+24 |             devices = [l.strip() for l in out.splitlines() if l.strip()]
+   |                                      ^
+25 |             return {"ok": True, "devices": devices}
+26 |         except Exception as e:
+   |
+
+F821 Undefined name `_apply_dev_mode_defaults`
+  --> app_patched_dev_mode.py:20:9
+   |
+18 |     # call helper if available to apply defaults
+19 |     if "_apply_dev_mode_defaults" in globals():
+20 |         _apply_dev_mode_defaults(st)
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+21 | except Exception as _e:
+22 |     st.error("DEV DEBUG: failed to apply dev mode defaults: " + str(_e))
+   |
+
+F821 Undefined name `_apply_dev_mode_defaults`
+  --> app_patched_dev_mode.py:35:13
+   |
+33 |         # Apply developer mode defaults if enabled
+34 |         if "_apply_dev_mode_defaults" in globals():
+35 |             _apply_dev_mode_defaults(st)
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^
+36 |         st.markdown("## Extraction Adapters (Top-level)")
+37 |         consent_id = st.session_state.get("consent_id")
+   |
+
+F821 Undefined name `verify_consent_id`
+  --> app_patched_dev_mode.py:76:25
+   |
+74 |                 else:
+75 |                     ok, msg = (
+76 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+77 |                         if "verify_consent_id" in globals()
+78 |                         else (True, "")
+   |
+
+F821 Undefined name `verify_consent_id`
+   --> app_patched_dev_mode.py:101:25
+    |
+ 99 |                 else:
+100 |                     ok, msg = (
+101 |                         verify_consent_id(consent_id)
+    |                         ^^^^^^^^^^^^^^^^^
+102 |                         if "verify_consent_id" in globals()
+103 |                         else (True, "")
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:170:1
+    |
+170 | import pandas as pd
+    | ^^^^^^^^^^^^^^^^^^^
+171 | import numpy as np
+172 | from sklearn.model_selection import train_test_split
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:171:1
+    |
+170 | import pandas as pd
+171 | import numpy as np
+    | ^^^^^^^^^^^^^^^^^^
+172 | from sklearn.model_selection import train_test_split
+173 | from sklearn.metrics import accuracy_score
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:172:1
+    |
+170 | import pandas as pd
+171 | import numpy as np
+172 | from sklearn.model_selection import train_test_split
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+173 | from sklearn.metrics import accuracy_score
+174 | from PIL import Image
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:173:1
+    |
+171 | import numpy as np
+172 | from sklearn.model_selection import train_test_split
+173 | from sklearn.metrics import accuracy_score
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+174 | from PIL import Image
+175 | import joblib
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:174:1
+    |
+172 | from sklearn.model_selection import train_test_split
+173 | from sklearn.metrics import accuracy_score
+174 | from PIL import Image
+    | ^^^^^^^^^^^^^^^^^^^^^
+175 | import joblib
+176 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:175:1
+    |
+173 | from sklearn.metrics import accuracy_score
+174 | from PIL import Image
+175 | import joblib
+    | ^^^^^^^^^^^^^
+176 | import datetime
+177 | import hashlib
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:176:1
+    |
+174 | from PIL import Image
+175 | import joblib
+176 | import datetime
+    | ^^^^^^^^^^^^^^^
+177 | import hashlib
+178 | from fpdf import FPDF
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:177:1
+    |
+175 | import joblib
+176 | import datetime
+177 | import hashlib
+    | ^^^^^^^^^^^^^^
+178 | from fpdf import FPDF
+179 | from io import BytesIO
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:178:1
+    |
+176 | import datetime
+177 | import hashlib
+178 | from fpdf import FPDF
+    | ^^^^^^^^^^^^^^^^^^^^^
+179 | from io import BytesIO
+180 | import pydeck as pdk
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:179:1
+    |
+177 | import hashlib
+178 | from fpdf import FPDF
+179 | from io import BytesIO
+    | ^^^^^^^^^^^^^^^^^^^^^^
+180 | import pydeck as pdk
+181 | from geopy.distance import geodesic
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:180:1
+    |
+178 | from fpdf import FPDF
+179 | from io import BytesIO
+180 | import pydeck as pdk
+    | ^^^^^^^^^^^^^^^^^^^^
+181 | from geopy.distance import geodesic
+182 | import time
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:181:1
+    |
+179 | from io import BytesIO
+180 | import pydeck as pdk
+181 | from geopy.distance import geodesic
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+182 | import time
+183 | import json
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:182:1
+    |
+180 | import pydeck as pdk
+181 | from geopy.distance import geodesic
+182 | import time
+    | ^^^^^^^^^^^
+183 | import json
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:183:1
+    |
+181 | from geopy.distance import geodesic
+182 | import time
+183 | import json
+    | ^^^^^^^^^^^
+184 |
+185 | # ================== CONFIG ==================
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:551:1
+    |
+549 |             mime="application/pdf",
+550 |         )
+551 | import streamlit as st
+    | ^^^^^^^^^^^^^^^^^^^^^^
+552 | import pandas as pd
+553 | import re
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:552:1
+    |
+550 |         )
+551 | import streamlit as st
+552 | import pandas as pd
+    | ^^^^^^^^^^^^^^^^^^^
+553 | import re
+554 | import time
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:553:1
+    |
+551 | import streamlit as st
+552 | import pandas as pd
+553 | import re
+    | ^^^^^^^^^
+554 | import time
+555 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:554:1
+    |
+552 | import pandas as pd
+553 | import re
+554 | import time
+    | ^^^^^^^^^^^
+555 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_dev_mode.py:555:1
+    |
+553 | import re
+554 | import time
+555 | import datetime
+    | ^^^^^^^^^^^^^^^
+556 |
+557 | # ======================================================
+    |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:1613:1
+     |
+1611 | # Comms Analyzer ML Pipeline (paste into app.py under Comms Analyzer tab)
+1612 | # ---------------------------
+1613 | import hashlib
+     | ^^^^^^^^^^^^^^
+1614 | import os
+1615 | import matplotlib.pyplot as plt
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:1614:1
+     |
+1612 | # ---------------------------
+1613 | import hashlib
+1614 | import os
+     | ^^^^^^^^^
+1615 | import matplotlib.pyplot as plt
+1616 | from collections import Counter, defaultdict
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:1615:1
+     |
+1613 | import hashlib
+1614 | import os
+1615 | import matplotlib.pyplot as plt
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1616 | from collections import Counter, defaultdict
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:1616:1
+     |
+1614 | import os
+1615 | import matplotlib.pyplot as plt
+1616 | from collections import Counter, defaultdict
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1617 |
+1618 | # NLP / ML imports with graceful failover
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:1645:1
+     |
+1643 |     HAS_BERTOPIC = False
+1644 |
+1645 | from sklearn.feature_extraction.text import TfidfVectorizer
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1646 | from sklearn.decomposition import NMF
+1647 | from sklearn.metrics.pairwise import cosine_similarity
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:1646:1
+     |
+1645 | from sklearn.feature_extraction.text import TfidfVectorizer
+1646 | from sklearn.decomposition import NMF
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1647 | from sklearn.metrics.pairwise import cosine_similarity
+1648 | import networkx as nx
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:1647:1
+     |
+1645 | from sklearn.feature_extraction.text import TfidfVectorizer
+1646 | from sklearn.decomposition import NMF
+1647 | from sklearn.metrics.pairwise import cosine_similarity
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1648 | import networkx as nx
+1649 | import nltk
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:1648:1
+     |
+1646 | from sklearn.decomposition import NMF
+1647 | from sklearn.metrics.pairwise import cosine_similarity
+1648 | import networkx as nx
+     | ^^^^^^^^^^^^^^^^^^^^^
+1649 | import nltk
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:1649:1
+     |
+1647 | from sklearn.metrics.pairwise import cosine_similarity
+1648 | import networkx as nx
+1649 | import nltk
+     | ^^^^^^^^^^^
+1650 |
+1651 | # Ensure nltk data exists (download if not present)
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2090:1
+     |
+2088 | # Paste this after your existing Comms Analyzer pipeline in app.py
+2089 | # ---------------------------
+2090 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+2091 | from sklearn.linear_model import LogisticRegression
+2092 | from sklearn.pipeline import Pipeline
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2091:1
+     |
+2089 | # ---------------------------
+2090 | import pandas as pd
+2091 | from sklearn.linear_model import LogisticRegression
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2092 | from sklearn.pipeline import Pipeline
+2093 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2092:1
+     |
+2090 | import pandas as pd
+2091 | from sklearn.linear_model import LogisticRegression
+2092 | from sklearn.pipeline import Pipeline
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2093 | from sklearn.metrics import classification_report
+2094 | import numpy as np
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2093:1
+     |
+2091 | from sklearn.linear_model import LogisticRegression
+2092 | from sklearn.pipeline import Pipeline
+2093 | from sklearn.metrics import classification_report
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2094 | import numpy as np
+2095 | import matplotlib.pyplot as plt
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2094:1
+     |
+2092 | from sklearn.pipeline import Pipeline
+2093 | from sklearn.metrics import classification_report
+2094 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+2095 | import matplotlib.pyplot as plt
+2096 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2095:1
+     |
+2093 | from sklearn.metrics import classification_report
+2094 | import numpy as np
+2095 | import matplotlib.pyplot as plt
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2096 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2096:1
+     |
+2094 | import numpy as np
+2095 | import matplotlib.pyplot as plt
+2096 | import json
+     | ^^^^^^^^^^^
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2478:1
+     |
+2476 | # Paste into Comms Analyzer section of app.py
+2477 | # ---------------------------
+2478 | import os
+     | ^^^^^^^^^
+2479 | import time
+2480 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2479:1
+     |
+2477 | # ---------------------------
+2478 | import os
+2479 | import time
+     | ^^^^^^^^^^^
+2480 | import json
+2481 | import numpy as np
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2480:1
+     |
+2478 | import os
+2479 | import time
+2480 | import json
+     | ^^^^^^^^^^^
+2481 | import numpy as np
+2482 | import pandas as pd
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2481:1
+     |
+2479 | import time
+2480 | import json
+2481 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+2482 | import pandas as pd
+2483 | from sklearn.pipeline import Pipeline
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2482:1
+     |
+2480 | import json
+2481 | import numpy as np
+2482 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+2483 | from sklearn.pipeline import Pipeline
+2484 | from sklearn.feature_extraction.text import TfidfVectorizer
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2483:1
+     |
+2481 | import numpy as np
+2482 | import pandas as pd
+2483 | from sklearn.pipeline import Pipeline
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2484 | from sklearn.feature_extraction.text import TfidfVectorizer
+2485 | from sklearn.linear_model import LogisticRegression
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2484:1
+     |
+2482 | import pandas as pd
+2483 | from sklearn.pipeline import Pipeline
+2484 | from sklearn.feature_extraction.text import TfidfVectorizer
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2485 | from sklearn.linear_model import LogisticRegression
+2486 | from sklearn.model_selection import train_test_split
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2485:1
+     |
+2483 | from sklearn.pipeline import Pipeline
+2484 | from sklearn.feature_extraction.text import TfidfVectorizer
+2485 | from sklearn.linear_model import LogisticRegression
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2486 | from sklearn.model_selection import train_test_split
+2487 | from sklearn.metrics import (
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2486:1
+     |
+2484 | from sklearn.feature_extraction.text import TfidfVectorizer
+2485 | from sklearn.linear_model import LogisticRegression
+2486 | from sklearn.model_selection import train_test_split
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2487 | from sklearn.metrics import (
+2488 |     classification_report,
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:2487:1
+     |
+2485 |   from sklearn.linear_model import LogisticRegression
+2486 |   from sklearn.model_selection import train_test_split
+2487 | / from sklearn.metrics import (
+2488 | |     classification_report,
+2489 | |     f1_score,
+2490 | |     precision_score,
+2491 | |     recall_score,
+2492 | | )
+     | |_^
+2493 |
+2494 |   # Try to import Transformers + datasets; set flags if available
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3029:1
+     |
+3027 | # Paste into Comms Analyzer section in app.py (after existing classifier code)
+3028 | # ---------------------------
+3029 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+3030 | import pandas as pd
+3031 | import time
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3030:1
+     |
+3028 | # ---------------------------
+3029 | import numpy as np
+3030 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+3031 | import time
+3032 | from sklearn.model_selection import train_test_split
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3031:1
+     |
+3029 | import numpy as np
+3030 | import pandas as pd
+3031 | import time
+     | ^^^^^^^^^^^
+3032 | from sklearn.model_selection import train_test_split
+3033 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3032:1
+     |
+3030 | import pandas as pd
+3031 | import time
+3032 | from sklearn.model_selection import train_test_split
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3033 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3033:1
+     |
+3031 | import time
+3032 | from sklearn.model_selection import train_test_split
+3033 | from sklearn.metrics import classification_report
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3034 |
+3035 | # Fallback trainer if not defined earlier
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3325:1
+     |
+3324 | # ---- INSERT: Auto-parse social media databases (WhatsApp, Telegram, Messenger) ----
+3325 | import sqlite3
+     | ^^^^^^^^^^^^^^
+3326 | from PIL import ExifTags
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3326:1
+     |
+3324 | # ---- INSERT: Auto-parse social media databases (WhatsApp, Telegram, Messenger) ----
+3325 | import sqlite3
+3326 | from PIL import ExifTags
+     | ^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3496:1
+     |
+3494 | # Call `require_adb_ui(st)` from your Adapters tab UI to show the consent/debug area,
+3495 | # and call `require_adb_ready_or_abort()` before starting an extraction.
+3496 | import json
+     | ^^^^^^^^^^^
+3497 | import time
+3498 | import hashlib
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3497:1
+     |
+3495 | # and call `require_adb_ready_or_abort()` before starting an extraction.
+3496 | import json
+3497 | import time
+     | ^^^^^^^^^^^
+3498 | import hashlib
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_dev_mode.py:3498:1
+     |
+3496 | import json
+3497 | import time
+3498 | import hashlib
+     | ^^^^^^^^^^^^^^
+     |
+
+F821 Undefined name `subprocess`
+    --> app_patched_dev_mode.py:3504:15
+     |
+3502 |     """Return a dict with 'devices' list and raw output, or {'error': msg} on failure."""
+3503 |     try:
+3504 |         out = subprocess.check_output(
+     |               ^^^^^^^^^^
+3505 |             ["adb", "devices", "-l"], stderr=subprocess.STDOUT
+3506 |         ).decode(errors="ignore")
+     |
+
+F821 Undefined name `subprocess`
+    --> app_patched_dev_mode.py:3505:46
+     |
+3503 |     try:
+3504 |         out = subprocess.check_output(
+3505 |             ["adb", "devices", "-l"], stderr=subprocess.STDOUT
+     |                                              ^^^^^^^^^^
+3506 |         ).decode(errors="ignore")
+3507 |     except Exception as e:
+     |
+
+E741 Ambiguous variable name: `l`
+    --> app_patched_dev_mode.py:3509:28
+     |
+3507 |     except Exception as e:
+3508 |         return {"error": str(e)}
+3509 |     lines = [l.strip() for l in out.splitlines() if l.strip()]
+     |                            ^
+3510 |     devices = []
+3511 |     for l in lines[1:]:  # skip header line if present
+     |
+
+E741 Ambiguous variable name: `l`
+    --> app_patched_dev_mode.py:3511:9
+     |
+3509 |     lines = [l.strip() for l in out.splitlines() if l.strip()]
+3510 |     devices = []
+3511 |     for l in lines[1:]:  # skip header line if present
+     |         ^
+3512 |         parts = l.split()
+3513 |         if len(parts) >= 2:
+     |
+
+F821 Undefined name `verify_consent_id`
+  --> app_patched_fixed.py:59:25
+   |
+57 |                 else:
+58 |                     ok, msg = (
+59 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+60 |                         if "verify_consent_id" in globals()
+61 |                         else (True, "")
+   |
+
+F821 Undefined name `verify_consent_id`
+  --> app_patched_fixed.py:84:25
+   |
+82 |                 else:
+83 |                     ok, msg = (
+84 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+85 |                         if "verify_consent_id" in globals()
+86 |                         else (True, "")
+   |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:153:1
+    |
+153 | import pandas as pd
+    | ^^^^^^^^^^^^^^^^^^^
+154 | import numpy as np
+155 | from sklearn.model_selection import train_test_split
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:154:1
+    |
+153 | import pandas as pd
+154 | import numpy as np
+    | ^^^^^^^^^^^^^^^^^^
+155 | from sklearn.model_selection import train_test_split
+156 | from sklearn.metrics import accuracy_score
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:155:1
+    |
+153 | import pandas as pd
+154 | import numpy as np
+155 | from sklearn.model_selection import train_test_split
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+156 | from sklearn.metrics import accuracy_score
+157 | from PIL import Image
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:156:1
+    |
+154 | import numpy as np
+155 | from sklearn.model_selection import train_test_split
+156 | from sklearn.metrics import accuracy_score
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+157 | from PIL import Image
+158 | import joblib
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:157:1
+    |
+155 | from sklearn.model_selection import train_test_split
+156 | from sklearn.metrics import accuracy_score
+157 | from PIL import Image
+    | ^^^^^^^^^^^^^^^^^^^^^
+158 | import joblib
+159 | import os
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:158:1
+    |
+156 | from sklearn.metrics import accuracy_score
+157 | from PIL import Image
+158 | import joblib
+    | ^^^^^^^^^^^^^
+159 | import os
+160 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:159:1
+    |
+157 | from PIL import Image
+158 | import joblib
+159 | import os
+    | ^^^^^^^^^
+160 | import datetime
+161 | import hashlib
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:160:1
+    |
+158 | import joblib
+159 | import os
+160 | import datetime
+    | ^^^^^^^^^^^^^^^
+161 | import hashlib
+162 | from fpdf import FPDF
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:161:1
+    |
+159 | import os
+160 | import datetime
+161 | import hashlib
+    | ^^^^^^^^^^^^^^
+162 | from fpdf import FPDF
+163 | from io import BytesIO
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:162:1
+    |
+160 | import datetime
+161 | import hashlib
+162 | from fpdf import FPDF
+    | ^^^^^^^^^^^^^^^^^^^^^
+163 | from io import BytesIO
+164 | import pydeck as pdk
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:163:1
+    |
+161 | import hashlib
+162 | from fpdf import FPDF
+163 | from io import BytesIO
+    | ^^^^^^^^^^^^^^^^^^^^^^
+164 | import pydeck as pdk
+165 | from geopy.distance import geodesic
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:164:1
+    |
+162 | from fpdf import FPDF
+163 | from io import BytesIO
+164 | import pydeck as pdk
+    | ^^^^^^^^^^^^^^^^^^^^
+165 | from geopy.distance import geodesic
+166 | import time
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:165:1
+    |
+163 | from io import BytesIO
+164 | import pydeck as pdk
+165 | from geopy.distance import geodesic
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+166 | import time
+167 | import json
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:166:1
+    |
+164 | import pydeck as pdk
+165 | from geopy.distance import geodesic
+166 | import time
+    | ^^^^^^^^^^^
+167 | import json
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:167:1
+    |
+165 | from geopy.distance import geodesic
+166 | import time
+167 | import json
+    | ^^^^^^^^^^^
+168 |
+169 | # ================== CONFIG ==================
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:535:1
+    |
+533 |             mime="application/pdf",
+534 |         )
+535 | import streamlit as st
+    | ^^^^^^^^^^^^^^^^^^^^^^
+536 | import pandas as pd
+537 | import re
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:536:1
+    |
+534 |         )
+535 | import streamlit as st
+536 | import pandas as pd
+    | ^^^^^^^^^^^^^^^^^^^
+537 | import re
+538 | import time
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:537:1
+    |
+535 | import streamlit as st
+536 | import pandas as pd
+537 | import re
+    | ^^^^^^^^^
+538 | import time
+539 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:538:1
+    |
+536 | import pandas as pd
+537 | import re
+538 | import time
+    | ^^^^^^^^^^^
+539 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed.py:539:1
+    |
+537 | import re
+538 | import time
+539 | import datetime
+    | ^^^^^^^^^^^^^^^
+540 |
+541 | # ======================================================
+    |
+
+E722 Do not use bare `except`
+    --> app_patched_fixed.py:1082:13
+     |
+1080 |             try:
+1081 |                 b = str(data).encode()
+1082 |             except:
+     |             ^^^^^^
+1083 |                 return "N/A"
+1084 |         return hashlib.sha256(b).hexdigest()
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1596:1
+     |
+1594 | # Comms Analyzer ML Pipeline (paste into app.py under Comms Analyzer tab)
+1595 | # ---------------------------
+1596 | import hashlib
+     | ^^^^^^^^^^^^^^
+1597 | import os
+1598 | import matplotlib.pyplot as plt
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1597:1
+     |
+1595 | # ---------------------------
+1596 | import hashlib
+1597 | import os
+     | ^^^^^^^^^
+1598 | import matplotlib.pyplot as plt
+1599 | from collections import Counter, defaultdict
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1598:1
+     |
+1596 | import hashlib
+1597 | import os
+1598 | import matplotlib.pyplot as plt
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1599 | from collections import Counter, defaultdict
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1599:1
+     |
+1597 | import os
+1598 | import matplotlib.pyplot as plt
+1599 | from collections import Counter, defaultdict
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1600 |
+1601 | # NLP / ML imports with graceful failover
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1628:1
+     |
+1626 |     HAS_BERTOPIC = False
+1627 |
+1628 | from sklearn.feature_extraction.text import TfidfVectorizer
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1629 | from sklearn.decomposition import NMF
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1629:1
+     |
+1628 | from sklearn.feature_extraction.text import TfidfVectorizer
+1629 | from sklearn.decomposition import NMF
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+1631 | import networkx as nx
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1630:1
+     |
+1628 | from sklearn.feature_extraction.text import TfidfVectorizer
+1629 | from sklearn.decomposition import NMF
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1631 | import networkx as nx
+1632 | import nltk
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1631:1
+     |
+1629 | from sklearn.decomposition import NMF
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+1631 | import networkx as nx
+     | ^^^^^^^^^^^^^^^^^^^^^
+1632 | import nltk
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:1632:1
+     |
+1630 | from sklearn.metrics.pairwise import cosine_similarity
+1631 | import networkx as nx
+1632 | import nltk
+     | ^^^^^^^^^^^
+1633 |
+1634 | # Ensure nltk data exists (download if not present)
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2073:1
+     |
+2071 | # Paste this after your existing Comms Analyzer pipeline in app.py
+2072 | # ---------------------------
+2073 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+2074 | from sklearn.linear_model import LogisticRegression
+2075 | from sklearn.pipeline import Pipeline
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2074:1
+     |
+2072 | # ---------------------------
+2073 | import pandas as pd
+2074 | from sklearn.linear_model import LogisticRegression
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2075 | from sklearn.pipeline import Pipeline
+2076 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2075:1
+     |
+2073 | import pandas as pd
+2074 | from sklearn.linear_model import LogisticRegression
+2075 | from sklearn.pipeline import Pipeline
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2076 | from sklearn.metrics import classification_report
+2077 | import numpy as np
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2076:1
+     |
+2074 | from sklearn.linear_model import LogisticRegression
+2075 | from sklearn.pipeline import Pipeline
+2076 | from sklearn.metrics import classification_report
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2077 | import numpy as np
+2078 | import matplotlib.pyplot as plt
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2077:1
+     |
+2075 | from sklearn.pipeline import Pipeline
+2076 | from sklearn.metrics import classification_report
+2077 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+2078 | import matplotlib.pyplot as plt
+2079 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2078:1
+     |
+2076 | from sklearn.metrics import classification_report
+2077 | import numpy as np
+2078 | import matplotlib.pyplot as plt
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2079 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2079:1
+     |
+2077 | import numpy as np
+2078 | import matplotlib.pyplot as plt
+2079 | import json
+     | ^^^^^^^^^^^
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2461:1
+     |
+2459 | # Paste into Comms Analyzer section of app.py
+2460 | # ---------------------------
+2461 | import os
+     | ^^^^^^^^^
+2462 | import time
+2463 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2462:1
+     |
+2460 | # ---------------------------
+2461 | import os
+2462 | import time
+     | ^^^^^^^^^^^
+2463 | import json
+2464 | import numpy as np
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2463:1
+     |
+2461 | import os
+2462 | import time
+2463 | import json
+     | ^^^^^^^^^^^
+2464 | import numpy as np
+2465 | import pandas as pd
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2464:1
+     |
+2462 | import time
+2463 | import json
+2464 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+2465 | import pandas as pd
+2466 | from sklearn.pipeline import Pipeline
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2465:1
+     |
+2463 | import json
+2464 | import numpy as np
+2465 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+2466 | from sklearn.pipeline import Pipeline
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2466:1
+     |
+2464 | import numpy as np
+2465 | import pandas as pd
+2466 | from sklearn.pipeline import Pipeline
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+2468 | from sklearn.linear_model import LogisticRegression
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2467:1
+     |
+2465 | import pandas as pd
+2466 | from sklearn.pipeline import Pipeline
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2468 | from sklearn.linear_model import LogisticRegression
+2469 | from sklearn.model_selection import train_test_split
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2468:1
+     |
+2466 | from sklearn.pipeline import Pipeline
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+2468 | from sklearn.linear_model import LogisticRegression
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2469 | from sklearn.model_selection import train_test_split
+2470 | from sklearn.metrics import (
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2469:1
+     |
+2467 | from sklearn.feature_extraction.text import TfidfVectorizer
+2468 | from sklearn.linear_model import LogisticRegression
+2469 | from sklearn.model_selection import train_test_split
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2470 | from sklearn.metrics import (
+2471 |     classification_report,
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:2470:1
+     |
+2468 |   from sklearn.linear_model import LogisticRegression
+2469 |   from sklearn.model_selection import train_test_split
+2470 | / from sklearn.metrics import (
+2471 | |     classification_report,
+2472 | |     f1_score,
+2473 | |     precision_score,
+2474 | |     recall_score,
+2475 | | )
+     | |_^
+2476 |
+2477 |   # Try to import Transformers + datasets; set flags if available
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3012:1
+     |
+3010 | # Paste into Comms Analyzer section in app.py (after existing classifier code)
+3011 | # ---------------------------
+3012 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+3013 | import pandas as pd
+3014 | import time
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3013:1
+     |
+3011 | # ---------------------------
+3012 | import numpy as np
+3013 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+3014 | import time
+3015 | from sklearn.model_selection import train_test_split
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3014:1
+     |
+3012 | import numpy as np
+3013 | import pandas as pd
+3014 | import time
+     | ^^^^^^^^^^^
+3015 | from sklearn.model_selection import train_test_split
+3016 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3015:1
+     |
+3013 | import pandas as pd
+3014 | import time
+3015 | from sklearn.model_selection import train_test_split
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3016 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3016:1
+     |
+3014 | import time
+3015 | from sklearn.model_selection import train_test_split
+3016 | from sklearn.metrics import classification_report
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3017 |
+3018 | # Fallback trainer if not defined earlier
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3308:1
+     |
+3307 | # ---- INSERT: Auto-parse social media databases (WhatsApp, Telegram, Messenger) ----
+3308 | import sqlite3
+     | ^^^^^^^^^^^^^^
+3309 | from PIL import ExifTags
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed.py:3309:1
+     |
+3307 | # ---- INSERT: Auto-parse social media databases (WhatsApp, Telegram, Messenger) ----
+3308 | import sqlite3
+3309 | from PIL import ExifTags
+     | ^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+
+E722 Do not use bare `except`
+    --> app_patched_fixed.py:3363:17
+     |
+3361 |                     for i, r in enumerate(rows):
+3362 |                         msgs.append({"row": i, "data": str(r)})
+3363 |                 except:
+     |                 ^^^^^^
+3364 |                     pass
+3365 |         conn.close()
+     |
+
+Found 126 errors.
