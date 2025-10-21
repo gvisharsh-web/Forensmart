@@ -1,3 +1,6 @@
+# ForenSmart CI pipeline
+# - Lints (black/ruff), checks syntax, runs lightweight smoke imports, starts streamlit headlessly briefly,
+#   runs pytest, and uploads a zipped repo artifact for debugging.
 name: Forensmart CI Pipeline
 
 on:
@@ -6,30 +9,95 @@ on:
   pull_request:
     branches: [ main, develop ]
 
+permissions:
+  contents: read
+
 jobs:
   build-and-test:
     runs-on: ubuntu-latest
+    timeout-minutes: 45
 
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Set up Python
+      - name: Set up Python 3.11
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
 
-      - name: Install dependencies
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
+      - name: Install system deps (optional)
         run: |
-          python -m pip install --upgrade pip
-          if [ -f requirements.txt ]; then pip install -r requirements.txt; fi
+          sudo apt-get update
+          sudo apt-get install -y ffmpeg libsndfile1 || true
+
+      - name: Install Python dependencies
+        run: |
+          python -m pip install --upgrade pip setuptools wheel
+          if [ -f requirements.txt ]; then
+            pip install -r requirements.txt
+          else
+            echo "No requirements.txt found - installing minimal test deps"
+            pip install streamlit pandas numpy scikit-learn fpdf geopy pydeck folium shapely pillow joblib
+          fi
           pip install black ruff pytest
 
+      - name: Syntax / compile check
+        run: python -m compileall -q .
+
       - name: Run code formatter check (Black)
-        run: black --check .
+        run: |
+          black --check .
 
       - name: Run linter (Ruff)
         run: ruff check .
 
+      - name: Lightweight smoke imports
+        run: |
+          python - <<'PY'
+import importlib, sys
+modules = [
+    "streamlit", "pandas", "numpy", "sklearn", "fpdf", "geopy", "pydeck",
+    "PIL", "joblib", "folium", "shapely"
+]
+missing = []
+for m in modules:
+    try:
+        importlib.import_module(m)
+    except Exception as e:
+        missing.append((m, str(e)))
+if missing:
+    print("MISSING_IMPORTS:", missing)
+    sys.exit(3)
+print("SMOKE_IMPORTS_OK")
+PY
+
+      - name: Streamlit smoke-start (headless)
+        run: |
+          nohup streamlit run app_patched.py --server.headless true --server.fileWatcherType none > streamlit_start.log 2>&1 &
+          sleep 6
+          tail -n +1 streamlit_start.log | sed -n '1,200p'
+          pkill -f "streamlit run" || true
+
       - name: Run unit tests
         run: pytest -q --disable-warnings --maxfail=1
+
+      - name: Zip build artifact (for debugging)
+        if: failure() || always()
+        run: |
+          zip -r ForenSmart_build.zip . -x ".git/*" "artifacts/*" "consent_records/*" "models/*" "tmp/*" || true
+
+      - name: Upload build artifact
+        if: failure() || always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ForenSmart_build
+          path: ForenSmart_build.zip
