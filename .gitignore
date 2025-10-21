@@ -7,3 +7,11 @@ __pycache__/
 *.log
 *.sqlite3
 *.db
+# Ignore virtual environment and cache
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+*.db
