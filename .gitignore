@@ -1,20 +1,14 @@
-# Ignore virtual environment
-.venv/
-venv/
-__pycache__/
-*.pyc
-.DS_Store
-*.log
-*.sqlite3
-*.db
-<<<<<<< HEAD
 # Ignore virtual environment and cache
 .venv/
 venv/
 __pycache__/
+.cache/
+
+# Ignore compiled and temp files
 *.pyc
+*.pyo
+*.pyd
 .DS_Store
 *.log
+*.sqlite3
 *.db
-=======
->>>>>>> 9f55d777 (chore: remove .venv and ignore local environment)
