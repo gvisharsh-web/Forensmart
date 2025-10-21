@@ -1,5 +1,6 @@
 import os  # required for FORNSMART_DEV_MODE env toggle
 import streamlit as st
+import io
 from adapters.runner import AdapterRunner
 from pathlib import Path as _P
 import pathlib
@@ -1094,7 +1095,7 @@ with tab6:
         else:
             try:
                 b = str(data).encode()
-            except:
+            except Exception:
                 return "N/A"
         return hashlib.sha256(b).hexdigest()
 
@@ -1478,14 +1479,14 @@ with tab6:
         if consent_id and "finalize_report_integrity" in globals():
             try:
                 updated_pdf, master_hash = finalize_report_integrity(
-                    consent_id, out_bytesio.getvalue(), investigator
+                    consent_id, pdf_bytes.getvalue(), investigator
                 )
-                # replace out_bytesio content if applicable (store hash in session)
+                # replace pdf_bytes content if applicable (store hash in session)
                 st.session_state["master_report_hash"] = master_hash
-                out_bytesio = (
+                pdf_bytes = (
                     io.BytesIO(updated_pdf)
                     if isinstance(updated_pdf, (bytes, bytearray))
-                    else out_bytesio
+                    else pdf_bytes
                 )
             except Exception as _e:
                 st.warning(f"Report integrity step failed: {_e}")
@@ -3376,7 +3377,7 @@ def parse_telegram_db(db_path):
                     rows = cur.fetchall()
                     for i, r in enumerate(rows):
                         msgs.append({"row": i, "data": str(r)})
-                except:
+                except Exception:
                     pass
         conn.close()
     except Exception as e:
