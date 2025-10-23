@@ -1,0 +1,710 @@
+E402 Module level import not at top of file
+  --> app_patched_fixed_noconsent.py:18:1
+   |
+17 | # --- Consent persistence helpers (auto-inserted) ---
+18 | import json
+   | ^^^^^^^^^^^
+19 | import time
+20 | import tempfile
+   |
+
+E402 Module level import not at top of file
+  --> app_patched_fixed_noconsent.py:19:1
+   |
+17 | # --- Consent persistence helpers (auto-inserted) ---
+18 | import json
+19 | import time
+   | ^^^^^^^^^^^
+20 | import tempfile
+21 | import os
+   |
+
+E402 Module level import not at top of file
+  --> app_patched_fixed_noconsent.py:20:1
+   |
+18 | import json
+19 | import time
+20 | import tempfile
+   | ^^^^^^^^^^^^^^^
+21 | import os
+22 | from pathlib import Path
+   |
+
+E402 Module level import not at top of file
+  --> app_patched_fixed_noconsent.py:21:1
+   |
+19 | import time
+20 | import tempfile
+21 | import os
+   | ^^^^^^^^^
+22 | from pathlib import Path
+   |
+
+E402 Module level import not at top of file
+  --> app_patched_fixed_noconsent.py:22:1
+   |
+20 | import tempfile
+21 | import os
+22 | from pathlib import Path
+   | ^^^^^^^^^^^^^^^^^^^^^^^^
+23 |
+24 | CONSENT_DIR = Path.cwd() / "consent_records"
+   |
+
+E402 Module level import not at top of file
+  --> app_patched_fixed_noconsent.py:96:1
+   |
+94 | # --- end helpers ---
+95 |
+96 | from adapters.runner import AdapterRunner
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+97 | from pathlib import Path as _P
+98 | import pathlib
+   |
+
+E402 Module level import not at top of file
+  --> app_patched_fixed_noconsent.py:97:1
+   |
+96 | from adapters.runner import AdapterRunner
+97 | from pathlib import Path as _P
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+98 | import pathlib
+99 | from report_integrity_module import finalize_report_integrity
+   |
+
+E402 Module level import not at top of file
+  --> app_patched_fixed_noconsent.py:98:1
+   |
+96 | from adapters.runner import AdapterRunner
+97 | from pathlib import Path as _P
+98 | import pathlib
+   | ^^^^^^^^^^^^^^
+99 | from report_integrity_module import finalize_report_integrity
+   |
+
+E402 Module level import not at top of file
+  --> app_patched_fixed_noconsent.py:99:1
+   |
+97 | from pathlib import Path as _P
+98 | import pathlib
+99 | from report_integrity_module import finalize_report_integrity
+   | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+
+F821 Undefined name `verify_consent_id`
+   --> app_patched_fixed_noconsent.py:153:25
+    |
+151 |                 else:
+152 |                     ok, msg = (
+153 |                         verify_consent_id(consent_id)
+    |                         ^^^^^^^^^^^^^^^^^
+154 |                         if "verify_consent_id" in globals()
+155 |                         else (True, "")
+    |
+
+F821 Undefined name `verify_consent_id`
+   --> app_patched_fixed_noconsent.py:178:25
+    |
+176 |                 else:
+177 |                     ok, msg = (
+178 |                         verify_consent_id(consent_id)
+    |                         ^^^^^^^^^^^^^^^^^
+179 |                         if "verify_consent_id" in globals()
+180 |                         else (True, "")
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:247:1
+    |
+247 | import pandas as pd
+    | ^^^^^^^^^^^^^^^^^^^
+248 | import numpy as np
+249 | from sklearn.model_selection import train_test_split
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:248:1
+    |
+247 | import pandas as pd
+248 | import numpy as np
+    | ^^^^^^^^^^^^^^^^^^
+249 | from sklearn.model_selection import train_test_split
+250 | from sklearn.metrics import accuracy_score
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:249:1
+    |
+247 | import pandas as pd
+248 | import numpy as np
+249 | from sklearn.model_selection import train_test_split
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+250 | from sklearn.metrics import accuracy_score
+251 | from PIL import Image
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:250:1
+    |
+248 | import numpy as np
+249 | from sklearn.model_selection import train_test_split
+250 | from sklearn.metrics import accuracy_score
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+251 | from PIL import Image
+252 | import joblib
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:251:1
+    |
+249 | from sklearn.model_selection import train_test_split
+250 | from sklearn.metrics import accuracy_score
+251 | from PIL import Image
+    | ^^^^^^^^^^^^^^^^^^^^^
+252 | import joblib
+253 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:252:1
+    |
+250 | from sklearn.metrics import accuracy_score
+251 | from PIL import Image
+252 | import joblib
+    | ^^^^^^^^^^^^^
+253 | import datetime
+254 | import hashlib
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:253:1
+    |
+251 | from PIL import Image
+252 | import joblib
+253 | import datetime
+    | ^^^^^^^^^^^^^^^
+254 | import hashlib
+255 | from fpdf import FPDF
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:254:1
+    |
+252 | import joblib
+253 | import datetime
+254 | import hashlib
+    | ^^^^^^^^^^^^^^
+255 | from fpdf import FPDF
+256 | from io import BytesIO
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:255:1
+    |
+253 | import datetime
+254 | import hashlib
+255 | from fpdf import FPDF
+    | ^^^^^^^^^^^^^^^^^^^^^
+256 | from io import BytesIO
+257 | import pydeck as pdk
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:256:1
+    |
+254 | import hashlib
+255 | from fpdf import FPDF
+256 | from io import BytesIO
+    | ^^^^^^^^^^^^^^^^^^^^^^
+257 | import pydeck as pdk
+258 | from geopy.distance import geodesic
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:257:1
+    |
+255 | from fpdf import FPDF
+256 | from io import BytesIO
+257 | import pydeck as pdk
+    | ^^^^^^^^^^^^^^^^^^^^
+258 | from geopy.distance import geodesic
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:258:1
+    |
+256 | from io import BytesIO
+257 | import pydeck as pdk
+258 | from geopy.distance import geodesic
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+259 |
+260 | # ================== CONFIG ==================
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:626:1
+    |
+624 |             mime="application/pdf",
+625 |         )
+626 | import streamlit as st
+    | ^^^^^^^^^^^^^^^^^^^^^^
+627 | import pandas as pd
+628 | import re
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:627:1
+    |
+625 |         )
+626 | import streamlit as st
+627 | import pandas as pd
+    | ^^^^^^^^^^^^^^^^^^^
+628 | import re
+629 | import time
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:628:1
+    |
+626 | import streamlit as st
+627 | import pandas as pd
+628 | import re
+    | ^^^^^^^^^
+629 | import time
+630 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:629:1
+    |
+627 | import pandas as pd
+628 | import re
+629 | import time
+    | ^^^^^^^^^^^
+630 | import datetime
+    |
+
+E402 Module level import not at top of file
+   --> app_patched_fixed_noconsent.py:630:1
+    |
+628 | import re
+629 | import time
+630 | import datetime
+    | ^^^^^^^^^^^^^^^
+631 |
+632 | # ======================================================
+    |
+
+E722 Do not use bare `except`
+    --> app_patched_fixed_noconsent.py:1173:13
+     |
+1171 |             try:
+1172 |                 b = str(data).encode()
+1173 |             except:
+     |             ^^^^^^
+1174 |                 return "N/A"
+1175 |         return hashlib.sha256(b).hexdigest()
+     |
+
+F821 Undefined name `out_bytesio`
+    --> app_patched_fixed_noconsent.py:1557:33
+     |
+1555 |             try:
+1556 |                 updated_pdf, master_hash = finalize_report_integrity(
+1557 |                     consent_id, out_bytesio.getvalue(), investigator
+     |                                 ^^^^^^^^^^^
+1558 |                 )
+1559 |                 # replace out_bytesio content if applicable (store hash in session)
+     |
+
+F821 Undefined name `io`
+    --> app_patched_fixed_noconsent.py:1562:21
+     |
+1560 |                 st.session_state["master_report_hash"] = master_hash
+1561 |                 out_bytesio = (
+1562 |                     io.BytesIO(updated_pdf)
+     |                     ^^
+1563 |                     if isinstance(updated_pdf, (bytes, bytearray))
+1564 |                     else out_bytesio
+     |
+
+F821 Undefined name `out_bytesio`
+    --> app_patched_fixed_noconsent.py:1564:26
+     |
+1562 |                     io.BytesIO(updated_pdf)
+1563 |                     if isinstance(updated_pdf, (bytes, bytearray))
+1564 |                     else out_bytesio
+     |                          ^^^^^^^^^^^
+1565 |                 )
+1566 |             except Exception as _e:
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:1688:1
+     |
+1686 | # Comms Analyzer ML Pipeline (paste into app.py under Comms Analyzer tab)
+1687 | # ---------------------------
+1688 | import hashlib
+     | ^^^^^^^^^^^^^^
+1689 | import os
+1690 | import matplotlib.pyplot as plt
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:1689:1
+     |
+1687 | # ---------------------------
+1688 | import hashlib
+1689 | import os
+     | ^^^^^^^^^
+1690 | import matplotlib.pyplot as plt
+1691 | from collections import Counter, defaultdict
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:1690:1
+     |
+1688 | import hashlib
+1689 | import os
+1690 | import matplotlib.pyplot as plt
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1691 | from collections import Counter, defaultdict
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:1691:1
+     |
+1689 | import os
+1690 | import matplotlib.pyplot as plt
+1691 | from collections import Counter, defaultdict
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1692 |
+1693 | # NLP / ML imports with graceful failover
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:1720:1
+     |
+1718 |     HAS_BERTOPIC = False
+1719 |
+1720 | from sklearn.feature_extraction.text import TfidfVectorizer
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1721 | from sklearn.decomposition import NMF
+1722 | from sklearn.metrics.pairwise import cosine_similarity
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:1721:1
+     |
+1720 | from sklearn.feature_extraction.text import TfidfVectorizer
+1721 | from sklearn.decomposition import NMF
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1722 | from sklearn.metrics.pairwise import cosine_similarity
+1723 | import networkx as nx
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:1722:1
+     |
+1720 | from sklearn.feature_extraction.text import TfidfVectorizer
+1721 | from sklearn.decomposition import NMF
+1722 | from sklearn.metrics.pairwise import cosine_similarity
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+1723 | import networkx as nx
+1724 | import nltk
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:1723:1
+     |
+1721 | from sklearn.decomposition import NMF
+1722 | from sklearn.metrics.pairwise import cosine_similarity
+1723 | import networkx as nx
+     | ^^^^^^^^^^^^^^^^^^^^^
+1724 | import nltk
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:1724:1
+     |
+1722 | from sklearn.metrics.pairwise import cosine_similarity
+1723 | import networkx as nx
+1724 | import nltk
+     | ^^^^^^^^^^^
+1725 |
+1726 | # Ensure nltk data exists (download if not present)
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2165:1
+     |
+2163 | # Paste this after your existing Comms Analyzer pipeline in app.py
+2164 | # ---------------------------
+2165 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+2166 | from sklearn.linear_model import LogisticRegression
+2167 | from sklearn.pipeline import Pipeline
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2166:1
+     |
+2164 | # ---------------------------
+2165 | import pandas as pd
+2166 | from sklearn.linear_model import LogisticRegression
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2167 | from sklearn.pipeline import Pipeline
+2168 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2167:1
+     |
+2165 | import pandas as pd
+2166 | from sklearn.linear_model import LogisticRegression
+2167 | from sklearn.pipeline import Pipeline
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2168 | from sklearn.metrics import classification_report
+2169 | import numpy as np
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2168:1
+     |
+2166 | from sklearn.linear_model import LogisticRegression
+2167 | from sklearn.pipeline import Pipeline
+2168 | from sklearn.metrics import classification_report
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2169 | import numpy as np
+2170 | import matplotlib.pyplot as plt
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2169:1
+     |
+2167 | from sklearn.pipeline import Pipeline
+2168 | from sklearn.metrics import classification_report
+2169 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+2170 | import matplotlib.pyplot as plt
+2171 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2170:1
+     |
+2168 | from sklearn.metrics import classification_report
+2169 | import numpy as np
+2170 | import matplotlib.pyplot as plt
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2171 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2171:1
+     |
+2169 | import numpy as np
+2170 | import matplotlib.pyplot as plt
+2171 | import json
+     | ^^^^^^^^^^^
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2553:1
+     |
+2551 | # Paste into Comms Analyzer section of app.py
+2552 | # ---------------------------
+2553 | import os
+     | ^^^^^^^^^
+2554 | import time
+2555 | import json
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2554:1
+     |
+2552 | # ---------------------------
+2553 | import os
+2554 | import time
+     | ^^^^^^^^^^^
+2555 | import json
+2556 | import numpy as np
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2555:1
+     |
+2553 | import os
+2554 | import time
+2555 | import json
+     | ^^^^^^^^^^^
+2556 | import numpy as np
+2557 | import pandas as pd
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2556:1
+     |
+2554 | import time
+2555 | import json
+2556 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+2557 | import pandas as pd
+2558 | from sklearn.pipeline import Pipeline
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2557:1
+     |
+2555 | import json
+2556 | import numpy as np
+2557 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+2558 | from sklearn.pipeline import Pipeline
+2559 | from sklearn.feature_extraction.text import TfidfVectorizer
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2558:1
+     |
+2556 | import numpy as np
+2557 | import pandas as pd
+2558 | from sklearn.pipeline import Pipeline
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2559 | from sklearn.feature_extraction.text import TfidfVectorizer
+2560 | from sklearn.linear_model import LogisticRegression
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2559:1
+     |
+2557 | import pandas as pd
+2558 | from sklearn.pipeline import Pipeline
+2559 | from sklearn.feature_extraction.text import TfidfVectorizer
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2560 | from sklearn.linear_model import LogisticRegression
+2561 | from sklearn.model_selection import train_test_split
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2560:1
+     |
+2558 | from sklearn.pipeline import Pipeline
+2559 | from sklearn.feature_extraction.text import TfidfVectorizer
+2560 | from sklearn.linear_model import LogisticRegression
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2561 | from sklearn.model_selection import train_test_split
+2562 | from sklearn.metrics import (
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2561:1
+     |
+2559 | from sklearn.feature_extraction.text import TfidfVectorizer
+2560 | from sklearn.linear_model import LogisticRegression
+2561 | from sklearn.model_selection import train_test_split
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+2562 | from sklearn.metrics import (
+2563 |     classification_report,
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:2562:1
+     |
+2560 |   from sklearn.linear_model import LogisticRegression
+2561 |   from sklearn.model_selection import train_test_split
+2562 | / from sklearn.metrics import (
+2563 | |     classification_report,
+2564 | |     f1_score,
+2565 | |     precision_score,
+2566 | |     recall_score,
+2567 | | )
+     | |_^
+2568 |
+2569 |   # Try to import Transformers + datasets; set flags if available
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:3104:1
+     |
+3102 | # Paste into Comms Analyzer section in app.py (after existing classifier code)
+3103 | # ---------------------------
+3104 | import numpy as np
+     | ^^^^^^^^^^^^^^^^^^
+3105 | import pandas as pd
+3106 | import time
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:3105:1
+     |
+3103 | # ---------------------------
+3104 | import numpy as np
+3105 | import pandas as pd
+     | ^^^^^^^^^^^^^^^^^^^
+3106 | import time
+3107 | from sklearn.model_selection import train_test_split
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:3106:1
+     |
+3104 | import numpy as np
+3105 | import pandas as pd
+3106 | import time
+     | ^^^^^^^^^^^
+3107 | from sklearn.model_selection import train_test_split
+3108 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:3107:1
+     |
+3105 | import pandas as pd
+3106 | import time
+3107 | from sklearn.model_selection import train_test_split
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3108 | from sklearn.metrics import classification_report
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:3108:1
+     |
+3106 | import time
+3107 | from sklearn.model_selection import train_test_split
+3108 | from sklearn.metrics import classification_report
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+3109 |
+3110 | # Fallback trainer if not defined earlier
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:3400:1
+     |
+3399 | # ---- INSERT: Auto-parse social media databases (WhatsApp, Telegram, Messenger) ----
+3400 | import sqlite3
+     | ^^^^^^^^^^^^^^
+3401 | from PIL import ExifTags
+     |
+
+E402 Module level import not at top of file
+    --> app_patched_fixed_noconsent.py:3401:1
+     |
+3399 | # ---- INSERT: Auto-parse social media databases (WhatsApp, Telegram, Messenger) ----
+3400 | import sqlite3
+3401 | from PIL import ExifTags
+     | ^^^^^^^^^^^^^^^^^^^^^^^^
+     |
+
+E722 Do not use bare `except`
+    --> app_patched_fixed_noconsent.py:3455:17
+     |
+3453 |                     for i, r in enumerate(rows):
+3454 |                         msgs.append({"row": i, "data": str(r)})
+3455 |                 except:
+     |                 ^^^^^^
+3456 |                     pass
+3457 |         conn.close()
+     |
+
+Found 66 errors.

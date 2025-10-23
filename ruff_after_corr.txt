@@ -1,0 +1,34 @@
+F401 [*] `io` imported but unused
+ --> app_patched_fixed_final.py:7:8
+  |
+5 | import pathlib
+6 | from report_integrity_module import finalize_report_integrity
+7 | import io
+  |        ^^
+  |
+help: Remove unused import: `io`
+
+F821 Undefined name `verify_consent_id`
+  --> app_patched_fixed_final.py:61:25
+   |
+59 |                 else:
+60 |                     ok, msg = (
+61 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+62 |                         if "verify_consent_id" in globals()
+63 |                         else (True, "")
+   |
+
+F821 Undefined name `verify_consent_id`
+  --> app_patched_fixed_final.py:86:25
+   |
+84 |                 else:
+85 |                     ok, msg = (
+86 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+87 |                         if "verify_consent_id" in globals()
+88 |                         else (True, "")
+   |
+
+Found 3 errors.
+[*] 1 fixable with the `--fix` option.

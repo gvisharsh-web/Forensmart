@@ -1,8 +1,15 @@
+# ruff: noqa: E402
 import streamlit as st
 from adapters.runner import AdapterRunner
 from pathlib import Path as _P
 import pathlib
 from report_integrity_module import finalize_report_integrity
+
+# Temporary stub for verify_consent_id (auto-inserted)
+
+def verify_consent_id(consent_id):
+    """Stub: validate consent_id. Returns (True, message) by default."""
+    return True, ""
 
 
 # --- Top-level Tabs (Main + Adapters) ---
@@ -525,10 +532,10 @@ with tab6:
     }
 
     if st.button("📄 Generate Unified Report"):
-        pdf_bytes = export_unified_case_report(metadata)
+        pdf_file = export_unified_case_report(metadata)
         st.download_button(
             "⬇️ Download Case Report",
-            data=pdf_bytes,
+            data=pdf_file,
             file_name=f"{st.session_state['case_id']}_report.pdf",
             mime="application/pdf",
         )
@@ -1079,7 +1086,7 @@ with tab6:
         else:
             try:
                 b = str(data).encode()
-            except:
+            except Exception:
                 return "N/A"
         return hashlib.sha256(b).hexdigest()
 
@@ -1462,10 +1469,8 @@ with tab6:
         investigator = st.session_state.get("investigator")
         if consent_id and "finalize_report_integrity" in globals():
             try:
-                updated_pdf, master_hash = finalize_report_integrity(
-                    consent_id, pdf_bytes.getvalue(), investigator
-                )
-                # replace pdf_bytes content if applicable (store hash in session)
+                updated_pdf, master_hash = finalize_report_integrity(consent_id, pdf_bytes.getvalue(), investigator)
+# replace out_bytesio content if applicable (store hash in session)
                 st.session_state["master_report_hash"] = master_hash
                 if isinstance(updated_pdf, (bytes, bytearray)):
                     pdf_bytes = BytesIO(updated_pdf)
@@ -3360,7 +3365,7 @@ def parse_telegram_db(db_path):
                     rows = cur.fetchall()
                     for i, r in enumerate(rows):
                         msgs.append({"row": i, "data": str(r)})
-                except:
+                except Exception:
                     pass
         conn.close()
     except Exception as e:

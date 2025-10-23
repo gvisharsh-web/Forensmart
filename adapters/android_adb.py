@@ -15,7 +15,8 @@ class Adapter(AdapterBase):
             out = subprocess.check_output(
                 ["adb", "devices", "-l"], stderr=subprocess.STDOUT
             ).decode()
-            devices = [l for l in out.splitlines() if l.strip() and "device" in l]
+            # Use consistent variable name 'line' in comprehension
+            devices = [line for line in out.splitlines() if line.strip() and "device" in line]
             return {"ok": True, "raw": out, "devices": devices}
         except Exception as e:
             return {"ok": False, "error": str(e)}
@@ -80,10 +81,10 @@ class Adapter(AdapterBase):
             rows = []
             try:
                 cur.execute("SELECT _id, display_name FROM contacts")
-            except:
+            except Exception:
                 try:
                     cur.execute("SELECT _id, display_name FROM raw_contacts")
-                except:
+                except Exception:
                     # fallback: try any text fields
                     cur.execute("PRAGMA table_info(contacts)")
                     rows = []
@@ -112,10 +113,10 @@ class Adapter(AdapterBase):
             rows = []
             try:
                 cur.execute("SELECT _id, thread_id, address, body, date FROM sms")
-            except:
+            except Exception:
                 try:
                     cur.execute("SELECT _id, address, body, date FROM sms")
-                except:
+                except Exception:
                     rows = []
             for r in cur.fetchmany(5000):
                 rows.append(r)

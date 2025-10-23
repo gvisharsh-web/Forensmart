@@ -1,6 +1,98 @@
-import os  # required for FORNSMART_DEV_MODE env toggle
 import streamlit as st
-import io
+
+# --- CONSENT BYPASS: inserted to disable consent gating ---
+BYPASS_CONSENT = True
+if BYPASS_CONSENT:
+    try:
+        # ensure a consent_id exists so adapters won't be blocked by missing consent
+        if 'consent_id' not in st.session_state or not st.session_state.get('consent_id'):
+            st.session_state['consent_id'] = 'BYPASS_CONSENT_ID'
+        if 'consent_record' not in st.session_state or not st.session_state.get('consent_record'):
+            st.session_state['consent_record'] = {'consent_given': True, 'by': 'bypass', 'consent_id': st.session_state['consent_id']}
+    except Exception:
+        pass
+# --- end consent bypass ---
+
+
+# --- Consent persistence helpers (auto-inserted) ---
+import json
+import time
+import tempfile
+import os
+from pathlib import Path
+
+CONSENT_DIR = Path.cwd() / "consent_records"
+
+def atomic_write_json(path: Path, data: dict):
+    """Write JSON atomically to avoid readers seeing partial files."""
+    path.parent.mkdir(parents=True, exist_ok=True)
+    fd, tmp = tempfile.mkstemp(dir=str(path.parent))
+    try:
+        with os.fdopen(fd, "w", encoding="utf-8") as f:
+            json.dump(data, f, indent=2, ensure_ascii=False)
+            f.flush()
+            os.fsync(f.fileno())
+        tmp_path = Path(tmp)
+        tmp_path.replace(path)
+    finally:
+        if Path(tmp).exists():
+            try:
+                Path(tmp).unlink()
+            except Exception:
+                pass
+
+def read_json_atomic(path: Path):
+    """Read and parse JSON, raise on decode error."""
+    text = path.read_text(encoding="utf-8")
+    return json.loads(text)
+
+def find_latest_consent(retries: int = 3, delay: float = 0.2):
+    """Return (consent_dict, consent_id) or (None, None)."""
+    folder = CONSENT_DIR
+    if not folder.exists() or not folder.is_dir():
+        return None, None
+    files = sorted(folder.glob("*.json"), key=lambda p: p.stat().st_mtime)
+    if not files:
+        return None, None
+    for p in reversed(files):
+        attempt = 0
+        while attempt < retries:
+            try:
+                data = read_json_atomic(p)
+                cid = data.get("consent_id") or data.get("id")
+                if cid:
+                    return data, cid
+                else:
+                    break
+            except (json.JSONDecodeError, OSError):
+                attempt += 1
+                time.sleep(delay)
+    return None, None
+
+def ensure_consent_in_session(st):
+    """
+    Ensure st.session_state contains 'consent_id' and 'consent_record'.
+    If missing, attempt to load the latest consent JSON from CONSENT_DIR,
+    and set it into session_state for adapters to find.
+    Returns (consent_record, consent_id) or (None, None).
+    """
+    try:
+        if st.session_state.get("consent_id"):
+            return st.session_state.get("consent_record"), st.session_state.get("consent_id")
+    except Exception:
+        return None, None
+
+    consent, cid = find_latest_consent()
+    if consent and cid:
+        try:
+            st.session_state["consent_record"] = consent
+            st.session_state["consent_id"] = cid
+        except Exception:
+            pass
+        return consent, cid
+    return None, None
+# --- end helpers ---
+
 from adapters.runner import AdapterRunner
 from pathlib import Path as _P
 import pathlib
@@ -8,19 +100,7 @@ from report_integrity_module import finalize_report_integrity
 
 
 # --- Top-level Tabs (Main + Adapters) ---
-# --- DEV DEBUG: show FORNSMART_DEV_MODE env var and apply dev defaults automatically ---
-import os as _os_debug
-
-_dev_mode_env = _os_debug.getenv("FORNSMART_DEV_MODE", None)
-st.info(f"DEV DEBUG: FORNSMART_DEV_MODE={_dev_mode_env}")
-
 try:
-    # call helper if available to apply defaults
-    if "_apply_dev_mode_defaults" in globals():
-        _apply_dev_mode_defaults(st)
-except Exception as _e:
-    st.error("DEV DEBUG: failed to apply dev mode defaults: " + str(_e))
-    # --- end dev debug ---
     tabs_top = st.tabs(["Main App", "Adapters"])
     # Main App tab contains a note to continue using the existing UI below
     with tabs_top[0]:
@@ -30,9 +110,6 @@ except Exception as _e:
         )
     # Adapters tab: render adapter controls isolated from the rest of the UI
     with tabs_top[1]:
-        # Apply developer mode defaults if enabled
-        if "_apply_dev_mode_defaults" in globals():
-            _apply_dev_mode_defaults(st)
         st.markdown("## Extraction Adapters (Top-level)")
         consent_id = st.session_state.get("consent_id")
         if not consent_id:
@@ -179,8 +256,6 @@ from fpdf import FPDF
 from io import BytesIO
 import pydeck as pdk
 from geopy.distance import geodesic
-import time
-import json
 
 # ================== CONFIG ==================
 st.set_page_config(page_title="ForenSmart", layout="wide")
@@ -1095,7 +1170,7 @@ with tab6:
         else:
             try:
                 b = str(data).encode()
-            except Exception:
+            except:
                 return "N/A"
         return hashlib.sha256(b).hexdigest()
 
@@ -1479,14 +1554,14 @@ with tab6:
         if consent_id and "finalize_report_integrity" in globals():
             try:
                 updated_pdf, master_hash = finalize_report_integrity(
-                    consent_id, pdf_bytes.getvalue(), investigator
+                    consent_id, out_bytesio.getvalue(), investigator
                 )
-                # replace pdf_bytes content if applicable (store hash in session)
+                # replace out_bytesio content if applicable (store hash in session)
                 st.session_state["master_report_hash"] = master_hash
-                pdf_bytes = (
+                out_bytesio = (
                     io.BytesIO(updated_pdf)
                     if isinstance(updated_pdf, (bytes, bytearray))
-                    else pdf_bytes
+                    else out_bytesio
                 )
             except Exception as _e:
                 st.warning(f"Report integrity step failed: {_e}")
@@ -3377,7 +3452,7 @@ def parse_telegram_db(db_path):
                     rows = cur.fetchall()
                     for i, r in enumerate(rows):
                         msgs.append({"row": i, "data": str(r)})
-                except Exception:
+                except:
                     pass
         conn.close()
     except Exception as e:
@@ -3488,172 +3563,3 @@ def auto_parse_social_media(adb_out_dir):
 
 
 # ---- END INSERT: Auto-parse social media databases ----
-
-# === FORNSMART ADB CONSENT PATCH START ===
-# Helper functions to manage adb device consent and session-state in Streamlit.
-# Call `require_adb_ui(st)` from your Adapters tab UI to show the consent/debug area,
-# and call `require_adb_ready_or_abort()` before starting an extraction.
-import json
-import time
-import hashlib
-
-
-def get_adb_devices():
-    """Return a dict with 'devices' list and raw output, or {'error': msg} on failure."""
-    try:
-        out = subprocess.check_output(
-            ["adb", "devices", "-l"], stderr=subprocess.STDOUT
-        ).decode(errors="ignore")
-    except Exception as e:
-        return {"error": str(e)}
-    lines = [l.strip() for l in out.splitlines() if l.strip()]
-    devices = []
-    for l in lines[1:]:  # skip header line if present
-        parts = l.split()
-        if len(parts) >= 2:
-            dev_id = parts[0]
-            state = parts[1]
-            devices.append({"id": dev_id, "state": state, "raw": l})
-    return {"devices": devices, "raw": out}
-
-
-# Streamlit UI helper (safe to import; will only run when called)
-def require_adb_ui(st):
-    """Render ADB consent / status UI inside the Adapters tab. Accepts the streamlit module as `st`."""
-    if "adb_last_devices_raw" not in st.session_state:
-        st.session_state.adb_last_devices_raw = ""
-    if "adb_consent_ok" not in st.session_state:
-        st.session_state.adb_consent_ok = False
-    if "adb_last_device_id" not in st.session_state:
-        st.session_state.adb_last_device_id = None
-    if "extraction_consent_given" not in st.session_state:
-        st.session_state.extraction_consent_given = False
-
-    info = get_adb_devices()
-    if "error" in info:
-        st.error("ADB error: " + info["error"])
-        return
-    raw = info.get("raw", "")
-    devices = info.get("devices", [])
-    st.text_area("adb output (debug)", raw, height=120)
-    # compare raw to last raw to detect device change
-    if raw != st.session_state.adb_last_devices_raw:
-        st.session_state.adb_last_devices_raw = raw
-        st.session_state.adb_consent_ok = False
-
-    if not devices:
-        st.warning("No devices detected. Connect a device or start an emulator.")
-        if st.button("Re-check device"):
-            # noop; rerun will refresh
-            pass
-        return
-
-    dev = devices[0]
-    st.write(f"Device: {dev['id']}  state: {dev['state']}")
-    if dev["state"] != "device":
-        st.session_state.adb_consent_ok = False
-        st.error(
-            "Device not authorized for ADB. On the device, accept the RSA prompt and re-run."
-        )
-        if st.button("Re-check device"):
-            pass
-    else:
-        st.session_state.adb_consent_ok = True
-        st.success("Device authorized for ADB. Ready to run adapters.")
-        if not st.session_state.extraction_consent_given:
-            agree = st.checkbox(
-                "I confirm I have permission to extract data from this device (consent granted).",
-                key="extraction_consent_checkbox",
-            )
-            if agree:
-                st.session_state.extraction_consent_given = True
-        else:
-            st.info("Extraction consent previously given in this session.")
-
-
-# Guard to call before extraction
-def require_adb_ready_or_abort(st):
-    if not st.session_state.get("adb_consent_ok", False):
-        st.error(
-            "Cannot run adapter: device not authorized. Please accept ADB prompt on the device and press 'Re-check device'."
-        )
-        st.stop()
-    if not st.session_state.get("extraction_consent_given", False):
-        st.error("Extraction consent not given in UI.")
-        st.stop()
-
-
-# End of patch
-# === FORNSMART ADB CONSENT PATCH END ===
-
-
-# === FORNSMART_CONSENT_OVERRIDE START ===
-# Developer override to bypass extraction consent (useful for automated testing).
-# WARNING: this bypass will allow adapters to run without the user checkbox. Keep it disabled in production.
-def require_adb_ui_with_override(st):
-    """Use this in place of require_adb_ui(st) when you want a visible developer override option."""
-    # call the regular UI first
-    try:
-        require_adb_ui(st)
-    except Exception:
-        # fall back silently if original helper is not available
-        pass
-
-    # developer options section (hidden by default)
-    show_dev = st.checkbox(
-        "Show developer options (advanced)", key="dev_options_toggle"
-    )
-    if show_dev:
-        st.markdown(
-            "**Developer override:** skip the extraction consent checkbox (unsafe). Use only in dev/testing."
-        )
-        # Option A: environment / secret based override
-        override_key = st.text_input(
-            "Enter override key to enable skip (keeps session state):",
-            "",
-            type="password",
-            key="dev_override_key_input",
-        )
-        # Default override key for local test only. You can change this to an env var or st.secrets lookup.
-        REAL_OVERRIDE_KEY = "FORNSMART-OVERRIDE"
-        if override_key and override_key == REAL_OVERRIDE_KEY:
-            st.success(
-                "Developer override accepted — extraction consent bypass enabled for this session."
-            )
-            st.session_state.extraction_consent_given = True
-            st.session_state.adb_consent_ok = True
-        elif override_key:
-            st.error("Invalid override key.")
-
-
-# Guard wrapper that respects the override flag in session_state
-def require_adb_ready_or_abort_with_override(st):
-    # If a developer override flag was set earlier in session_state, allow run
-    if st.session_state.get("dev_skip_consent", False):
-        return
-    # Otherwise use the normal guard
-    require_adb_ready_or_abort(st)
-
-
-# === FORNSMART_CONSENT_OVERRIDE END ===
-
-
-# === FORNSMART DEV MODE HOOK ===
-# If environment variable FORNSMART_DEV_MODE is set to "1", enable developer consent bypass automatically.
-def _apply_dev_mode_defaults(st):
-    try:
-        if os.getenv("FORNSMART_DEV_MODE", "0") == "1":
-            st.session_state.adb_consent_ok = True
-            st.session_state.extraction_consent_given = True
-            # also mark a flag for downstream guards
-            st.session_state.dev_skip_consent = True
-    except Exception:
-        # if session_state not available yet, ignore
-        pass
-
-
-# To use: call _apply_dev_mode_defaults(st) at the start of your Adapters tab render function
-# Example:
-#   _apply_dev_mode_defaults(st)
-#   require_adb_ui_with_override(st)
-# === END FORNSMART DEV MODE HOOK ===

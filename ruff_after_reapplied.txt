@@ -1,0 +1,223 @@
+F821 Undefined name `l`
+  --> adapters\android_adb.py:18:24
+   |
+16 |                 ["adb", "devices", "-l"], stderr=subprocess.STDOUT
+17 |             ).decode()
+18 |             devices = [l for line in out.splitlines() if l.strip() and "device" in l]
+   |                        ^
+19 |             return {"ok": True, "raw": out, "devices": devices}
+20 |         except Exception as e:
+   |
+
+F821 Undefined name `l`
+  --> adapters\android_adb.py:18:58
+   |
+16 |                 ["adb", "devices", "-l"], stderr=subprocess.STDOUT
+17 |             ).decode()
+18 |             devices = [l for line in out.splitlines() if l.strip() and "device" in l]
+   |                                                          ^
+19 |             return {"ok": True, "raw": out, "devices": devices}
+20 |         except Exception as e:
+   |
+
+F821 Undefined name `l`
+  --> adapters\android_adb.py:18:84
+   |
+16 |                 ["adb", "devices", "-l"], stderr=subprocess.STDOUT
+17 |             ).decode()
+18 |             devices = [l for line in out.splitlines() if l.strip() and "device" in l]
+   |                                                                                    ^
+19 |             return {"ok": True, "raw": out, "devices": devices}
+20 |         except Exception as e:
+   |
+
+F821 Undefined name `l`
+  --> adapters\ios_logical.py:24:24
+   |
+22 |                 ["idevice_id", "-l"], stderr=subprocess.STDOUT
+23 |             ).decode()
+24 |             devices = [l.strip() for line in out.splitlines() if l.strip()]
+   |                        ^
+25 |             return {"ok": True, "devices": devices}
+26 |         except Exception as e:
+   |
+
+F821 Undefined name `l`
+  --> adapters\ios_logical.py:24:66
+   |
+22 |                 ["idevice_id", "-l"], stderr=subprocess.STDOUT
+23 |             ).decode()
+24 |             devices = [l.strip() for line in out.splitlines() if l.strip()]
+   |                                                                  ^
+25 |             return {"ok": True, "devices": devices}
+26 |         except Exception as e:
+   |
+
+F811 Redefinition of unused `finalize_report_integrity` from line 2
+  --> app_patched_dev_mode.py:12:37
+   |
+10 | from pathlib import Path as _P
+11 | import pathlib
+12 | from report_integrity_module import finalize_report_integrity
+   |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^ `finalize_report_integrity` redefined here
+   |
+  ::: app_patched_dev_mode.py:2:5
+   |
+ 1 | # ruff: noqa: E402
+ 2 | def finalize_report_integrity(*args, **kwargs):
+   |     ------------------------- previous definition of `finalize_report_integrity` here
+ 3 |     # stub: implement hashing/integrity logic
+ 4 |     return b'', ''
+   |
+help: Remove definition: `finalize_report_integrity`
+
+F821 Undefined name `_apply_dev_mode_defaults`
+  --> app_patched_dev_mode.py:25:9
+   |
+23 |     # call helper if available to apply defaults
+24 |     if "_apply_dev_mode_defaults" in globals():
+25 |         _apply_dev_mode_defaults(st)
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^
+26 | except Exception as _e:
+27 |     st.error("DEV DEBUG: failed to apply dev mode defaults: " + str(_e))
+   |
+
+F821 Undefined name `_apply_dev_mode_defaults`
+  --> app_patched_dev_mode.py:40:13
+   |
+38 |         # Apply developer mode defaults if enabled
+39 |         if "_apply_dev_mode_defaults" in globals():
+40 |             _apply_dev_mode_defaults(st)
+   |             ^^^^^^^^^^^^^^^^^^^^^^^^
+41 |         st.markdown("## Extraction Adapters (Top-level)")
+42 |         consent_id = st.session_state.get("consent_id")
+   |
+
+F821 Undefined name `verify_consent_id`
+  --> app_patched_dev_mode.py:81:25
+   |
+79 |                 else:
+80 |                     ok, msg = (
+81 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+82 |                         if "verify_consent_id" in globals()
+83 |                         else (True, "")
+   |
+
+F821 Undefined name `verify_consent_id`
+   --> app_patched_dev_mode.py:106:25
+    |
+104 |                 else:
+105 |                     ok, msg = (
+106 |                         verify_consent_id(consent_id)
+    |                         ^^^^^^^^^^^^^^^^^
+107 |                         if "verify_consent_id" in globals()
+108 |                         else (True, "")
+    |
+
+F821 Undefined name `subprocess`
+    --> app_patched_dev_mode.py:3509:15
+     |
+3507 |     """Return a dict with 'devices' list and raw output, or {'error': msg} on failure."""
+3508 |     try:
+3509 |         out = subprocess.check_output(
+     |               ^^^^^^^^^^
+3510 |             ["adb", "devices", "-l"], stderr=subprocess.STDOUT
+3511 |         ).decode(errors="ignore")
+     |
+
+F821 Undefined name `subprocess`
+    --> app_patched_dev_mode.py:3510:46
+     |
+3508 |     try:
+3509 |         out = subprocess.check_output(
+3510 |             ["adb", "devices", "-l"], stderr=subprocess.STDOUT
+     |                                              ^^^^^^^^^^
+3511 |         ).decode(errors="ignore")
+3512 |     except Exception as e:
+     |
+
+F821 Undefined name `l`
+    --> app_patched_dev_mode.py:3514:14
+     |
+3512 |     except Exception as e:
+3513 |         return {"error": str(e)}
+3514 |     lines = [l.strip() for line in out.splitlines() if l.strip()]
+     |              ^
+3515 |     devices = []
+3516 |     for line in lines[1:]:  # skip header line if present
+     |
+
+F821 Undefined name `l`
+    --> app_patched_dev_mode.py:3514:56
+     |
+3512 |     except Exception as e:
+3513 |         return {"error": str(e)}
+3514 |     lines = [l.strip() for line in out.splitlines() if l.strip()]
+     |                                                        ^
+3515 |     devices = []
+3516 |     for line in lines[1:]:  # skip header line if present
+     |
+
+F821 Undefined name `l`
+    --> app_patched_dev_mode.py:3517:17
+     |
+3515 |     devices = []
+3516 |     for line in lines[1:]:  # skip header line if present
+3517 |         parts = l.split()
+     |                 ^
+3518 |         if len(parts) >= 2:
+3519 |             dev_id = parts[0]
+     |
+
+F821 Undefined name `l`
+    --> app_patched_dev_mode.py:3521:66
+     |
+3519 |             dev_id = parts[0]
+3520 |             state = parts[1]
+3521 |             devices.append({"id": dev_id, "state": state, "raw": l})
+     |                                                                  ^
+3522 |     return {"devices": devices, "raw": out}
+     |
+
+F811 Redefinition of unused `finalize_report_integrity` from line 2
+  --> app_patched_fixed.py:10:37
+   |
+ 8 | from pathlib import Path as _P
+ 9 | import pathlib
+10 | from report_integrity_module import finalize_report_integrity
+   |                                     ^^^^^^^^^^^^^^^^^^^^^^^^^ `finalize_report_integrity` redefined here
+   |
+  ::: app_patched_fixed.py:2:5
+   |
+ 1 | # ruff: noqa: E402
+ 2 | def finalize_report_integrity(*args, **kwargs):
+   |     ------------------------- previous definition of `finalize_report_integrity` here
+ 3 |     # stub: implement hashing/integrity logic
+ 4 |     return b'', ''
+   |
+help: Remove definition: `finalize_report_integrity`
+
+F821 Undefined name `verify_consent_id`
+  --> app_patched_fixed.py:64:25
+   |
+62 |                 else:
+63 |                     ok, msg = (
+64 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+65 |                         if "verify_consent_id" in globals()
+66 |                         else (True, "")
+   |
+
+F821 Undefined name `verify_consent_id`
+  --> app_patched_fixed.py:89:25
+   |
+87 |                 else:
+88 |                     ok, msg = (
+89 |                         verify_consent_id(consent_id)
+   |                         ^^^^^^^^^^^^^^^^^
+90 |                         if "verify_consent_id" in globals()
+91 |                         else (True, "")
+   |
+
+Found 19 errors.

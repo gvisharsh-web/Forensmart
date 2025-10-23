@@ -1,0 +1,14 @@
+F401 [*] `io` imported but unused
+ --> app_patched_fixed_final.py:7:8
+  |
+5 | import pathlib
+6 | from report_integrity_module import finalize_report_integrity
+7 | import io
+  |        ^^
+8 |
+9 | # Temporary stub for verify_consent_id (auto-inserted)
+  |
+help: Remove unused import: `io`
+
+Found 1 error.
+[*] 1 fixable with the `--fix` option.
