@@ -1,0 +1,26 @@
+# Ignore virtual environment
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+*.sqlite3
+*.db
+<<<<<<< HEAD
+<<<<<<< HEAD
+=======
+>>>>>>> 25c39066 (chore: ensure .venv and caches are ignored)
+# Ignore virtual environment and cache
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+*.log
+*.db
+<<<<<<< HEAD
+=======
+>>>>>>> 9f55d777 (chore: remove .venv and ignore local environment)
+=======
+>>>>>>> 25c39066 (chore: ensure .venv and caches are ignored)
