@@ -1,0 +1,1472 @@
+{
+  "case_id": "CASE-viszzzz-20251113170030",
+  "device_id": "SCYLX46LKRS8WCIF",
+  "extraction_started": "2025-11-13T17:06:22.018103",
+  "status": "completed",
+  "modules_requested": [
+    "location"
+  ],
+  "unlock_status": {
+    "code": "680655",
+    "requested_at": "2025-11-13T17:02:11.114026",
+    "expires_at": "2025-11-13T17:12:11.114026",
+    "status": "verified",
+    "attempts": 1,
+    "last_error": null,
+    "verified_at": "2025-11-13T17:02:16.756807"
+  },
+  "retry_attempts": {
+    "device_info": 3,
+    "communications": 3,
+    "location": 3,
+    "security": 3,
+    "media": 3,
+    "system": 3
+  },
+  "module_logs": {
+    "device_info": [
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:02:53.995609",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:02:55.008935",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:02:57.009559",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:02:53.995609",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:02:55.008935",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:02:57.009559",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      }
+    ],
+    "communications": [
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:02:57.009559",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:02:58.009879",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:00.010410",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:02:57.009559",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:02:58.009879",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:00.010410",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      }
+    ],
+    "location": [
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:03:00.010410",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:03:01.010893",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:03.011428",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:03:00.010410",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:03:01.010893",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:03.011428",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:06:22.018103",
+        "event": "start"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:06:22.344461",
+        "event": "success"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:06:22.018103",
+        "event": "start"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:06:22.344461",
+        "event": "success"
+      }
+    ],
+    "security": [
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:03:03.011428",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:03:04.011824",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:06.012417",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:03:03.011428",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:03:04.011824",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:06.012417",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      }
+    ],
+    "media": [
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:03:06.012417",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:03:07.013307",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:09.013772",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:03:06.012417",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:03:07.013307",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:09.013772",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      }
+    ],
+    "system": [
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:03:09.013772",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:03:10.014476",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:12.015141",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 1,
+        "timestamp": "2025-11-13T17:03:09.013772",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 2,
+        "timestamp": "2025-11-13T17:03:10.014476",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      },
+      {
+        "attempt": 3,
+        "timestamp": "2025-11-13T17:03:12.015141",
+        "event": "error",
+        "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+      }
+    ]
+  },
+  "ui_events": [
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:53.995609",
+      "attempt": 1
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:55.008935",
+      "attempt": 2
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 3
+    },
+    {
+      "module": "device_info",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 1
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:58.009879",
+      "attempt": 2
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 3
+    },
+    {
+      "module": "communications",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 1
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:01.010893",
+      "attempt": 2
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 3
+    },
+    {
+      "module": "location",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 1
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:04.011824",
+      "attempt": 2
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 3
+    },
+    {
+      "module": "security",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 1
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:07.013307",
+      "attempt": 2
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 3
+    },
+    {
+      "module": "media",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 1
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:10.014476",
+      "attempt": 2
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:12.015141",
+      "attempt": 3
+    },
+    {
+      "module": "system",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:12.015141",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:53.995609",
+      "attempt": 1
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:55.008935",
+      "attempt": 2
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 3
+    },
+    {
+      "module": "device_info",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 1
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:58.009879",
+      "attempt": 2
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 3
+    },
+    {
+      "module": "communications",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 1
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:01.010893",
+      "attempt": 2
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 3
+    },
+    {
+      "module": "location",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 1
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:04.011824",
+      "attempt": 2
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 3
+    },
+    {
+      "module": "security",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 1
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:07.013307",
+      "attempt": 2
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 3
+    },
+    {
+      "module": "media",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 1
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:10.014476",
+      "attempt": 2
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:12.015141",
+      "attempt": 3
+    },
+    {
+      "module": "system",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:12.015141",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "location",
+      "message": "Starting attempt 1",
+      "severity": "info",
+      "timestamp": "2025-11-13T17:06:22.018103",
+      "attempt": 1
+    },
+    {
+      "module": "location",
+      "message": "Module completed successfully",
+      "severity": "info",
+      "timestamp": "2025-11-13T17:06:22.344461",
+      "attempt": 1,
+      "final": true
+    },
+    {
+      "module": "location",
+      "message": "Starting attempt 1",
+      "severity": "info",
+      "timestamp": "2025-11-13T17:06:22.018103",
+      "attempt": 1
+    },
+    {
+      "module": "location",
+      "message": "Module completed successfully",
+      "severity": "info",
+      "timestamp": "2025-11-13T17:06:22.344461",
+      "attempt": 1,
+      "final": true
+    }
+  ],
+  "errors": [
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:53.995609",
+      "attempt": 1
+    },
+    {
+      "module": "device_info",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:02:53.995609"
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:55.008935",
+      "attempt": 2
+    },
+    {
+      "module": "device_info",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:02:55.008935"
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 3
+    },
+    {
+      "module": "device_info",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:02:57.009559"
+    },
+    {
+      "module": "device_info",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:02:57.009559"
+    },
+    {
+      "module": "device_info",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 1
+    },
+    {
+      "module": "communications",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:02:57.009559"
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:58.009879",
+      "attempt": 2
+    },
+    {
+      "module": "communications",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:02:58.009879"
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 3
+    },
+    {
+      "module": "communications",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:00.010410"
+    },
+    {
+      "module": "communications",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:00.010410"
+    },
+    {
+      "module": "communications",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 1
+    },
+    {
+      "module": "location",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:03:00.010410"
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:01.010893",
+      "attempt": 2
+    },
+    {
+      "module": "location",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:03:01.010893"
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 3
+    },
+    {
+      "module": "location",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:03.011428"
+    },
+    {
+      "module": "location",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:03.011428"
+    },
+    {
+      "module": "location",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 1
+    },
+    {
+      "module": "security",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:03:03.011428"
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:04.011824",
+      "attempt": 2
+    },
+    {
+      "module": "security",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:03:04.011824"
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 3
+    },
+    {
+      "module": "security",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:06.012417"
+    },
+    {
+      "module": "security",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:06.012417"
+    },
+    {
+      "module": "security",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 1
+    },
+    {
+      "module": "media",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:03:06.012417"
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:07.013307",
+      "attempt": 2
+    },
+    {
+      "module": "media",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:03:07.013307"
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 3
+    },
+    {
+      "module": "media",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:09.013772"
+    },
+    {
+      "module": "media",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:09.013772"
+    },
+    {
+      "module": "media",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 1
+    },
+    {
+      "module": "system",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:03:09.013772"
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:10.014476",
+      "attempt": 2
+    },
+    {
+      "module": "system",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:03:10.014476"
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:12.015141",
+      "attempt": 3
+    },
+    {
+      "module": "system",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:12.015141"
+    },
+    {
+      "module": "system",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:12.015141"
+    },
+    {
+      "module": "system",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:12.015141",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:53.995609",
+      "attempt": 1
+    },
+    {
+      "module": "device_info",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:02:53.995609"
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:55.008935",
+      "attempt": 2
+    },
+    {
+      "module": "device_info",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:02:55.008935"
+    },
+    {
+      "module": "device_info",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 3
+    },
+    {
+      "module": "device_info",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:02:57.009559"
+    },
+    {
+      "module": "device_info",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:02:57.009559"
+    },
+    {
+      "module": "device_info",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:57.009559",
+      "attempt": 1
+    },
+    {
+      "module": "communications",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:02:57.009559"
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:02:58.009879",
+      "attempt": 2
+    },
+    {
+      "module": "communications",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:02:58.009879"
+    },
+    {
+      "module": "communications",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 3
+    },
+    {
+      "module": "communications",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:00.010410"
+    },
+    {
+      "module": "communications",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:00.010410"
+    },
+    {
+      "module": "communications",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:00.010410",
+      "attempt": 1
+    },
+    {
+      "module": "location",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:03:00.010410"
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:01.010893",
+      "attempt": 2
+    },
+    {
+      "module": "location",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:03:01.010893"
+    },
+    {
+      "module": "location",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 3
+    },
+    {
+      "module": "location",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:03.011428"
+    },
+    {
+      "module": "location",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:03.011428"
+    },
+    {
+      "module": "location",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:03.011428",
+      "attempt": 1
+    },
+    {
+      "module": "security",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:03:03.011428"
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:04.011824",
+      "attempt": 2
+    },
+    {
+      "module": "security",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:03:04.011824"
+    },
+    {
+      "module": "security",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 3
+    },
+    {
+      "module": "security",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:06.012417"
+    },
+    {
+      "module": "security",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:06.012417"
+    },
+    {
+      "module": "security",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:06.012417",
+      "attempt": 1
+    },
+    {
+      "module": "media",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:03:06.012417"
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:07.013307",
+      "attempt": 2
+    },
+    {
+      "module": "media",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:03:07.013307"
+    },
+    {
+      "module": "media",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 3
+    },
+    {
+      "module": "media",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:09.013772"
+    },
+    {
+      "module": "media",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:09.013772"
+    },
+    {
+      "module": "media",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 3,
+      "final": true
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:09.013772",
+      "attempt": 1
+    },
+    {
+      "module": "system",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 1,
+      "timestamp": "2025-11-13T17:03:09.013772"
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:10.014476",
+      "attempt": 2
+    },
+    {
+      "module": "system",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 2,
+      "timestamp": "2025-11-13T17:03:10.014476"
+    },
+    {
+      "module": "system",
+      "message": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "error",
+      "timestamp": "2025-11-13T17:03:12.015141",
+      "attempt": 3
+    },
+    {
+      "module": "system",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempt": 3,
+      "timestamp": "2025-11-13T17:03:12.015141"
+    },
+    {
+      "module": "system",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "timestamp": "2025-11-13T17:03:12.015141"
+    },
+    {
+      "module": "system",
+      "message": "Module failed after 3 attempts: module 'streamlit' has no attribute 'experimental_rerun'",
+      "severity": "fatal",
+      "timestamp": "2025-11-13T17:03:12.015141",
+      "attempt": 3,
+      "final": true
+    },
+    "module 'streamlit' has no attribute 'experimental_rerun'"
+  ],
+  "modules_run": [
+    {
+      "name": "device_info",
+      "status": "error",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "logs": [
+        {
+          "attempt": 1,
+          "timestamp": "2025-11-13T17:02:53.995609",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 2,
+          "timestamp": "2025-11-13T17:02:55.008935",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 3,
+          "timestamp": "2025-11-13T17:02:57.009559",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        }
+      ]
+    },
+    {
+      "name": "communications",
+      "status": "error",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "logs": [
+        {
+          "attempt": 1,
+          "timestamp": "2025-11-13T17:02:57.009559",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 2,
+          "timestamp": "2025-11-13T17:02:58.009879",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 3,
+          "timestamp": "2025-11-13T17:03:00.010410",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        }
+      ]
+    },
+    {
+      "name": "location",
+      "status": "success",
+      "attempts": 1,
+      "extracted_at": "2025-11-13T17:06:22.344461",
+      "logs": [
+        {
+          "attempt": 1,
+          "timestamp": "2025-11-13T17:06:22.018103",
+          "event": "start"
+        },
+        {
+          "attempt": 1,
+          "timestamp": "2025-11-13T17:06:22.344461",
+          "event": "success"
+        }
+      ]
+    },
+    {
+      "name": "security",
+      "status": "error",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "logs": [
+        {
+          "attempt": 1,
+          "timestamp": "2025-11-13T17:03:03.011428",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 2,
+          "timestamp": "2025-11-13T17:03:04.011824",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 3,
+          "timestamp": "2025-11-13T17:03:06.012417",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        }
+      ]
+    },
+    {
+      "name": "media",
+      "status": "error",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "logs": [
+        {
+          "attempt": 1,
+          "timestamp": "2025-11-13T17:03:06.012417",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 2,
+          "timestamp": "2025-11-13T17:03:07.013307",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 3,
+          "timestamp": "2025-11-13T17:03:09.013772",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        }
+      ]
+    },
+    {
+      "name": "system",
+      "status": "error",
+      "error": "module 'streamlit' has no attribute 'experimental_rerun'",
+      "attempts": 3,
+      "logs": [
+        {
+          "attempt": 1,
+          "timestamp": "2025-11-13T17:03:09.013772",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 2,
+          "timestamp": "2025-11-13T17:03:10.014476",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        },
+        {
+          "attempt": 3,
+          "timestamp": "2025-11-13T17:03:12.015141",
+          "event": "error",
+          "details": "module 'streamlit' has no attribute 'experimental_rerun'"
+        }
+      ]
+    }
+  ],
+  "extraction_completed": "2025-11-13T17:06:22.351215",
+  "duration_seconds": 0.333112,
+  "total_modules": 1,
+  "successful_modules": 1,
+  "failed_modules": 0,
+  "data": {
+    "location": {
+      "gps_coordinates": [],
+      "wifi_networks": [],
+      "cell_towers": [],
+      "artifacts": {
+        "gps_coordinates": "artifacts\\CASE-viszzzz-20251113170030\\android\\location\\gps_locations.json",
+        "wifi_networks": "artifacts\\CASE-viszzzz-20251113170030\\android\\location\\wifi_networks.json",
+        "cell_towers": "artifacts\\CASE-viszzzz-20251113170030\\android\\location\\cell_towers.json"
+      },
+      "artifact_counts": {
+        "gps_coordinates": 1,
+        "wifi_networks": 1,
+        "cell_towers": 1
+      },
+      "extracted_at": "2025-11-13T17:06:22.344461",
+      "extraction_method": "adb_dumpsys",
+      "errors": [
+        "No location artifacts retrieved from device. Enable GPS/location permissions and re-run."
+      ]
+    }
+  }
+}
