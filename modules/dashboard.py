@@ -65,7 +65,7 @@ from modules.app_error_checker import AppErrorChecker
 from modules.approval_sync import ApprovalSync
 from modules.device_manager import DeviceManager
 from modules.extraction_validator import ExtractionValidator
-from modules.extraction_progress import ProgressManager
+from modules.extraction_progress import ProgressManager, ExtractionProgressTracker
 from modules.consent_portal_enhanced import ConsentPortalEnhancer
 
 try:  # Streamlit internal helper (best-effort import)
@@ -697,7 +697,7 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
         # Extraction progress tracking with ProgressManager
         if case_id:
             st.markdown("### 📊 Extraction Progress")
-            progress_data = ProgressManager.load_progress(case_id, 'android')
+            progress_data = ExtractionProgressTracker.load_progress(case_id, 'android')
             if progress_data:
                 st.info(f"Last extraction: {progress_data.get('status', 'unknown')}")
                 st.metric("Overall Progress", f"{progress_data.get('overall_progress', 0)}%")
@@ -929,7 +929,7 @@ def render_consent(cm: ConsentManager):
     # Show extraction progress with ProgressManager
     st.divider()
     st.markdown("### 📊 Last Extraction Progress")
-    progress_data = ProgressManager.load_progress(case_id, 'android')
+    progress_data = ExtractionProgressTracker.load_progress(case_id, 'android')
     if progress_data:
         st.info(f"Status: {progress_data.get('status', 'unknown')}")
         st.metric("Overall Progress", f"{progress_data.get('overall_progress', 0)}%")
@@ -1532,7 +1532,7 @@ def render_intelligence(cm: ConsentManager, orchestrator: DataExtractionOrchestr
     # Show extraction progress with ProgressManager
     st.divider()
     st.markdown("### 📊 Last Extraction Progress")
-    progress_data = ProgressManager.load_progress(case_id, 'android')
+    progress_data = ExtractionProgressTracker.load_progress(case_id, 'android')
     if progress_data:
         st.info(f"Status: {progress_data.get('status', 'unknown')}")
         st.metric("Overall Progress", f"{progress_data.get('overall_progress', 0)}%")
