@@ -59,6 +59,9 @@ from modules.shared_utils import ( # pyright: ignore[reportMissingImports]
 from modules.storage_manager import StorageManager, StorageAnalytics # pyright: ignore[reportMissingImports]
 from modules.storage_ui import render_storage_dashboard # pyright: ignore[reportMissingImports]
 from modules.error_checker import ErrorChecker # pyright: ignore[reportMissingImports]
+from modules.approval_utils import get_approval_decision
+from modules.device_detector import DeviceDetector
+from modules.app_error_checker import AppErrorChecker
 
 try:  # Streamlit internal helper (best-effort import)
     from streamlit.web.server.websocket_headers import _get_websocket_headers  # type: ignore
@@ -501,14 +504,15 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
 
     # Main tabs
     (tab_case, tab_extraction, tab_intelligence, tab_media,
-     tab_consent, tab_reports, tab_storage) = st.tabs([
+     tab_consent, tab_reports, tab_storage, tab_diagnostics) = st.tabs([
         "🗂️ Case Management",
         "📱 Extraction",
         "🧠 Intelligence",
         "🖼️ Media Viewer",
         "🔐 Consent",
         "📑 Reports",
-        "💾 Storage"
+        "💾 Storage",
+        "🔧 Diagnostics"
     ])
 
     with tab_case:
@@ -559,6 +563,62 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
     # ========================================================================
     with tab_storage:
         render_storage_dashboard()
+
+    # ========================================================================
+    # Diagnostics Tab
+    # ========================================================================
+    with tab_diagnostics:
+        st.markdown("## 🔧 System Diagnostics & Device Detection")
+        
+        # Device detection section
+        st.markdown("### 📱 Device Detection")
+        if st.button("🔄 Refresh Device Detection", key="diag_refresh_devices"):
+            st.session_state['diag_refresh_ts'] = datetime.now().isoformat()
+            st.rerun()
+        
+        diagnosis = DeviceDetector.diagnose()
+        
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("ADB Found", "✅ Yes" if diagnosis["adb_found"] else "❌ No")
+        with col2:
+            st.metric("Devices Connected", len(diagnosis["devices"]))
+        with col3:
+            st.metric("Authorized Device", "✅ Yes" if diagnosis["authorized_device"] else "❌ No")
+        
+        if diagnosis["adb_path"]:
+            st.caption(f"ADB Path: `{diagnosis['adb_path']}`")
+        
+        if diagnosis["devices"]:
+            st.markdown("**Connected Devices:**")
+            for device in diagnosis["devices"]:
+                status_icon = "✅" if device["status"] == "device" else "⚠️" if device["status"] == "unauthorized" else "❌"
+                st.write(f"{status_icon} `{device['serial']}` - {device['status']}")
+                
+                if device["status"] == "device":
+                    device_info = DeviceDetector.get_device_info(device["serial"], diagnosis.get("adb_path"))
+                    if "model" in device_info:
+                        st.caption(f"Model: {device_info['model']}")
+                    if "android_version" in device_info:
+                        st.caption(f"Android: {device_info['android_version']}")
+        
+        if diagnosis["errors"]:
+            st.error("**Errors:**")
+            for error in diagnosis["errors"]:
+                st.write(f"- {error}")
+        
+        if diagnosis["warnings"]:
+            st.warning("**Warnings:**")
+            for warning in diagnosis["warnings"]:
+                st.write(f"- {warning}")
+        
+        st.divider()
+        
+        # Full system check
+        st.markdown("### 🔍 Full System Check")
+        if st.button("Run All Checks", key="diag_run_all_checks"):
+            with st.spinner("Running diagnostics..."):
+                AppErrorChecker.render_diagnostics_ui()
 
 
 def render_consent_status_sidebar(cm: ConsentManager):
@@ -620,40 +680,6 @@ def _get_default_approval_base_url() -> str:
         cached = _detect_streamlit_base_url()
         st.session_state[cache_key] = cached
     return cached or ''
-
-
-def _get_approval_decision(case_id: str) -> Optional[str]:
-    """Check if there's a saved approval decision for this case."""
-    # First check local file
-    try:
-        from pathlib import Path
-        # Check same locations as consent_portal
-        shared_paths = [
-            Path.home() / '.forensmart' / 'approvals.json',
-            Path('/tmp/forensmart_approvals.json'),
-            Path('C:\\ProgramData\\ForenSmart\\approvals.json'),
-            Path('.forensmart_approvals.json')
-        ]
-        
-        for path in shared_paths:
-            if path.exists():
-                try:
-                    approvals = json.loads(path.read_text())
-                    if case_id in approvals:
-                        return approvals[case_id].get('decision')
-                except Exception:
-                    continue
-    except Exception:
-        pass
-    
-    # Check session state (for local testing)
-    if 'approval_decisions' not in st.session_state:
-        st.session_state['approval_decisions'] = {}
-    
-    if case_id in st.session_state['approval_decisions']:
-        return st.session_state['approval_decisions'][case_id]
-    
-    return None
 
 
 def _build_approval_link(base_url: str, token: str, approval_data: Optional[Dict[str, Any]] = None) -> str:
@@ -747,7 +773,7 @@ def render_consent(cm: ConsentManager):
         unlock_status = unlock_fn(case_id)
     
     # Check for approval decision from consent portal
-    approval_decision = _get_approval_decision(case_id)
+    approval_decision = get_approval_decision(case_id)
     
     col_approval, col_refresh = st.columns([3, 1])
     with col_approval:
@@ -781,6 +807,23 @@ def render_consent(cm: ConsentManager):
             st.rerun()
     with refresh_col2:
         st.caption("Click refresh after connecting/authorising a device to update detection.")
+    
+    # Manual device ID override
+    with st.expander("📱 Manual Device ID (if auto-detection fails)"):
+        st.caption("If ADB isn't detecting your device, enter the serial manually:")
+        manual_device_id = st.text_input(
+            "Device Serial/ID",
+            value=detected_device if detected_device and detected_device != 'UNKNOWN_DEVICE' else '',
+            key=f'{case_id}_manual_device_id',
+            placeholder="e.g., SCYLX46LKRS8WCIF or emulator-5554"
+        )
+        if manual_device_id and manual_device_id.strip():
+            if st.button('✅ Use this device ID', key=f'{case_id}_use_manual_device'):
+                session.device_id = manual_device_id.strip()
+                cm.persist_session(case_id)
+                st.success(f"Device ID set to: {manual_device_id.strip()}")
+                st.rerun()
+    
     st.caption("Ask the nominee to confirm the device identifier above matches their handset before approving.")
 
     st.markdown('### Unlock Approval Workflow')
