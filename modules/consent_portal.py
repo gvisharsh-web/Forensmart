@@ -55,22 +55,29 @@ def _decode_approval_data(encoded: str) -> Optional[Dict[str, Any]]:
 
 
 def _get_approvals_file() -> Path:
-    """Get path to shared approvals file."""
-    # Try to use a shared location accessible from both apps
-    shared_paths = [
-        Path.home() / '.forensmart' / 'approvals.json',  # User home
+    """Get path to shared approvals file - uses user home directory for accessibility."""
+    # Primary: User home directory (most reliable across platforms)
+    approvals_dir = Path.home() / '.forensmart'
+    try:
+        approvals_dir.mkdir(parents=True, exist_ok=True)
+        return approvals_dir / 'approvals.json'
+    except Exception:
+        pass
+    
+    # Fallback paths
+    fallback_paths = [
         Path('/tmp/forensmart_approvals.json'),  # Linux/Mac temp
         Path('C:\\ProgramData\\ForenSmart\\approvals.json'),  # Windows shared
     ]
     
-    for path in shared_paths:
+    for path in fallback_paths:
         try:
             path.parent.mkdir(parents=True, exist_ok=True)
             return path
         except Exception:
             continue
     
-    # Fallback to current directory
+    # Last resort: current directory
     return Path('.forensmart_approvals.json')
 
 

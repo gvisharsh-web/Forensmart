@@ -624,6 +624,7 @@ def _get_default_approval_base_url() -> str:
 
 def _get_approval_decision(case_id: str) -> Optional[str]:
     """Check if there's a saved approval decision for this case."""
+    # First check local file
     try:
         from pathlib import Path
         # Check same locations as consent_portal
@@ -644,6 +645,14 @@ def _get_approval_decision(case_id: str) -> Optional[str]:
                     continue
     except Exception:
         pass
+    
+    # Check session state (for local testing)
+    if 'approval_decisions' not in st.session_state:
+        st.session_state['approval_decisions'] = {}
+    
+    if case_id in st.session_state['approval_decisions']:
+        return st.session_state['approval_decisions'][case_id]
+    
     return None
 
 
@@ -739,10 +748,18 @@ def render_consent(cm: ConsentManager):
     
     # Check for approval decision from consent portal
     approval_decision = _get_approval_decision(case_id)
-    if approval_decision == 'approved':
-        st.success(f"✅ **Nominee Approved** - Extraction is now unlocked!")
-    elif approval_decision == 'denied':
-        st.error(f"❌ **Nominee Denied** - Extraction request was rejected.")
+    
+    col_approval, col_refresh = st.columns([3, 1])
+    with col_approval:
+        if approval_decision == 'approved':
+            st.success(f"✅ **Nominee Approved** - Extraction is now unlocked!")
+        elif approval_decision == 'denied':
+            st.error(f"❌ **Nominee Denied** - Extraction request was rejected.")
+    
+    with col_refresh:
+        if st.button('🔄 Check approval', key=f'{case_id}_check_approval'):
+            st.session_state['approval_check_ts'] = datetime.now().isoformat()
+            st.rerun()
 
     detected_device = cm.ensure_device_id(case_id)
     device_label = cm.get_device_label(detected_device)
