@@ -22,10 +22,10 @@ class ApprovalSync:
     @staticmethod
     def _is_cache_valid(case_id: str) -> bool:
         """Check if cached approval is still valid."""
-        if case_id not in _cache_timestamp:
+        if case_id not in ApprovalSync._cache_timestamp:
             return False
         
-        age = time.time() - _cache_timestamp[case_id]
+        age = time.time() - ApprovalSync._cache_timestamp[case_id]
         return age < ApprovalSync._cache_ttl
 
     @staticmethod
