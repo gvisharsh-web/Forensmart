@@ -19,27 +19,37 @@ class ExtractionValidator:
         errors = []
 
         if not device_id or device_id == "UNKNOWN_DEVICE":
-            errors.append("Device ID not set or unknown")
+            errors.append("❌ Device ID not set or unknown - Connect device via USB and enable USB Debugging")
             return False, errors
 
         try:
             from modules.device_detector import DeviceDetector
             
             devices = DeviceDetector.list_devices()
+            
+            if not devices:
+                errors.append("❌ No devices found - Ensure device is connected via USB and ADB is installed")
+                return False, errors
+            
             device_found = any(d["serial"] == device_id for d in devices)
             
             if not device_found:
-                errors.append(f"Device {device_id} not found in ADB devices list")
+                available = ", ".join([d["serial"] for d in devices])
+                errors.append(f"❌ Device {device_id} not found. Available: {available}")
                 return False, errors
             
             # Check if authorized
             auth_device = DeviceDetector.get_authorized_device()
-            if not auth_device or auth_device["serial"] != device_id:
-                errors.append(f"Device {device_id} is not authorized")
+            if not auth_device:
+                errors.append(f"❌ Device {device_id} is not authorized - Accept RSA prompt on device")
+                return False, errors
+            
+            if auth_device["serial"] != device_id:
+                errors.append(f"❌ Device {device_id} is not authorized - Use authorized device: {auth_device['serial']}")
                 return False, errors
                 
         except Exception as e:
-            errors.append(f"Device check failed: {e}")
+            errors.append(f"❌ Device check failed: {str(e)} - Check ADB installation and device connection")
             return False, errors
 
         return True, []
@@ -101,18 +111,18 @@ class ExtractionValidator:
             decision = get_approval_decision(case_id)
             
             if decision == "denied":
-                errors.append("Nominee denied extraction request")
+                errors.append("❌ Nominee denied extraction request - Generate a new approval link in the Consent tab")
                 return False, errors
             
             if decision != "approved":
-                errors.append("Awaiting nominee approval for extraction")
+                errors.append("⏳ Awaiting nominee approval for extraction - Share approval link from Consent tab")
                 return False, errors
 
             logger.info("Approval check passed")
             return True, []
 
         except Exception as e:
-            errors.append(f"Approval check failed: {e}")
+            errors.append(f"❌ Approval check failed: {str(e)} - Check approval system and try again")
             return False, errors
 
     @staticmethod
