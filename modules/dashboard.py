@@ -716,6 +716,19 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
                 st.info("No extraction progress data available yet")
             st.divider()
         
+        # Show approval delivery options with ConsentPortalEnhancer if case selected
+        if case_id and session_diag:
+            st.markdown("### 📤 Approval Delivery")
+            if st.button("Show Approval Delivery Options", key="diag_show_approval_options"):
+                ConsentPortalEnhancer.render_delivery_ui(
+                    approval_link=f"https://forensmart-consent.streamlit.app?case={case_id}",
+                    nominee_phone=session_diag.nominee_phone if session_diag else "",
+                    nominee_email="",
+                    nominee_name="",
+                    case_id=case_id
+                )
+            st.divider()
+        
         # Full system check
         st.markdown("### 🔍 Full System Check")
         if st.button("Run All Checks", key="diag_run_all_checks"):
@@ -1501,6 +1514,32 @@ def render_intelligence(cm: ConsentManager, orchestrator: DataExtractionOrchestr
         if device_health.get("warnings"):
             for warning in device_health["warnings"]:
                 st.warning(f"⚠️ {warning}")
+    
+    # Validate extraction readiness with ExtractionValidator
+    validation_result = ExtractionValidator.validate_extraction_ready(
+        case_id=case_id,
+        device_id=device_id or 'UNKNOWN_DEVICE',
+        session=session,
+        required_level=ConsentLevel.STANDARD
+    )
+    
+    if not validation_result["ready"]:
+        st.warning("⚠️ Intelligence analysis prerequisites not met:")
+        for error in validation_result["errors"]:
+            st.write(f"- {error}")
+        return
+    
+    # Show extraction progress with ProgressManager
+    st.divider()
+    st.markdown("### 📊 Last Extraction Progress")
+    progress_data = ProgressManager.load_progress(case_id, 'android')
+    if progress_data:
+        st.info(f"Status: {progress_data.get('status', 'unknown')}")
+        st.metric("Overall Progress", f"{progress_data.get('overall_progress', 0)}%")
+        st.metric("Total Artifacts", progress_data.get('total_artifacts', 0))
+    else:
+        st.info("No extraction progress data available yet")
+    st.divider()
 
     # Load cached intelligence data
     intel_data = _load_intelligence_data(case_id)
