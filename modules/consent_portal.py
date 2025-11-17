@@ -85,7 +85,7 @@ def main() -> None:
         )
         return
 
-    # If we have embedded approval data, create a temporary session
+    # If we have embedded approval data, show approval form
     if approval_data:
         cm = get_consent_manager()
         case_id = approval_data.get('case_id')
@@ -115,9 +115,20 @@ def main() -> None:
         st.markdown("### Purpose")
         st.write(purpose)
         
-        st.markdown("### Decision")
-        st.info("✅ **Approval Granted** - Thank you for your consent. The investigator has been notified.")
-        st.caption(f"Nominee: {nominee_name or 'Not specified'}")
+        st.markdown("### Your Decision")
+        st.caption("Please confirm whether you approve or deny this extraction request.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button('✅ Yes, Approve', key='approve_btn', use_container_width=True):
+                st.success("✅ **Approval Granted** - Thank you for your consent. The investigator has been notified.")
+                st.caption(f"Nominee: {nominee_name or 'Not specified'}")
+                st.info("You can close this page now.")
+        with col2:
+            if st.button('❌ No, Deny', key='deny_btn', use_container_width=True):
+                st.error("❌ **Request Denied** - Your decision has been recorded and the investigator has been notified.")
+                st.caption(f"Nominee: {nominee_name or 'Not specified'}")
+                st.info("You can close this page now.")
         return
 
     # Fallback to token-based lookup
