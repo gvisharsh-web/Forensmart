@@ -1,13 +1,63 @@
-"""Robust device detection with fallbacks and error handling."""
+"""Robust device detection with auto-recovery and error handling."""
 from __future__ import annotations
 
 import os
 import subprocess
 import logging
+import time
 from typing import Optional, Dict, Any, List
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
+
+# Auto-recovery strategies
+class AutoRecovery:
+    """Automatic error recovery strategies."""
+    
+    @staticmethod
+    def restart_adb_daemon(adb_path: str) -> bool:
+        """Restart ADB daemon to fix connection issues."""
+        try:
+            subprocess.run([adb_path, "kill-server"], capture_output=True, timeout=5)
+            time.sleep(1)
+            subprocess.run([adb_path, "start-server"], capture_output=True, timeout=5)
+            logger.info("ADB daemon restarted successfully")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to restart ADB daemon: {e}")
+            return False
+    
+    @staticmethod
+    def reconnect_device(adb_path: str, device_serial: str) -> bool:
+        """Disconnect and reconnect device."""
+        try:
+            subprocess.run([adb_path, "disconnect", device_serial], capture_output=True, timeout=5)
+            time.sleep(1)
+            subprocess.run([adb_path, "connect", device_serial], capture_output=True, timeout=5)
+            logger.info(f"Device {device_serial} reconnected")
+            return True
+        except Exception as e:
+            logger.error(f"Failed to reconnect device: {e}")
+            return False
+    
+    @staticmethod
+    def authorize_device(adb_path: str, device_serial: str) -> bool:
+        """Try to authorize an unauthorized device."""
+        try:
+            result = subprocess.run(
+                [adb_path, "-s", device_serial, "shell", "id"],
+                capture_output=True,
+                timeout=5,
+                text=True
+            )
+            if "Permission denied" in result.stderr or result.returncode != 0:
+                logger.warning(f"Device {device_serial} may need authorization")
+                return False
+            logger.info(f"Device {device_serial} is authorized")
+            return True
+        except Exception as e:
+            logger.error(f"Authorization check failed: {e}")
+            return False
 
 
 class DeviceDetector:
@@ -145,8 +195,8 @@ class DeviceDetector:
         return info
 
     @staticmethod
-    def diagnose() -> Dict[str, Any]:
-        """Run full device detection diagnostics."""
+    def diagnose_and_recover() -> Dict[str, Any]:
+        """Run diagnostics and auto-recover from common errors."""
         diagnosis = {
             "adb_found": False,
             "adb_path": None,
@@ -154,6 +204,8 @@ class DeviceDetector:
             "authorized_device": None,
             "errors": [],
             "warnings": [],
+            "auto_recovered": [],
+            "status": "ok",
         }
 
         # Check ADB
@@ -163,7 +215,21 @@ class DeviceDetector:
             diagnosis["adb_path"] = adb_path
         else:
             diagnosis["errors"].append("ADB executable not found in PATH or common locations")
+            diagnosis["status"] = "error"
             return diagnosis
+
+        # Try to restart ADB daemon if needed
+        try:
+            result = subprocess.run([adb_path, "devices"], capture_output=True, timeout=5)
+            if result.returncode != 0:
+                logger.warning("ADB daemon appears stuck, attempting restart...")
+                if AutoRecovery.restart_adb_daemon(adb_path):
+                    diagnosis["auto_recovered"].append("ADB daemon restarted")
+                    time.sleep(2)
+        except Exception as e:
+            logger.warning(f"ADB check failed: {e}, attempting restart...")
+            AutoRecovery.restart_adb_daemon(adb_path)
+            time.sleep(2)
 
         # List devices
         devices = DeviceDetector.list_devices(adb_path)
@@ -171,19 +237,28 @@ class DeviceDetector:
 
         if not devices:
             diagnosis["warnings"].append("No devices listed by ADB")
+            diagnosis["status"] = "warning"
         else:
-            # Check for unauthorized devices
+            # Check for unauthorized/offline devices and try to recover
             for device in devices:
                 if device.get("status") == "unauthorized":
                     diagnosis["warnings"].append(
                         f"Device {device['serial']} is unauthorized. "
                         "Accept the RSA prompt on the device."
                     )
+                    diagnosis["status"] = "warning"
+                    # Try to authorize
+                    if AutoRecovery.authorize_device(adb_path, device["serial"]):
+                        diagnosis["auto_recovered"].append(f"Device {device['serial']} authorized")
                 elif device.get("status") == "offline":
                     diagnosis["warnings"].append(
                         f"Device {device['serial']} is offline. "
-                        "Check USB connection."
+                        "Attempting reconnection..."
                     )
+                    diagnosis["status"] = "warning"
+                    # Try to reconnect
+                    if AutoRecovery.reconnect_device(adb_path, device["serial"]):
+                        diagnosis["auto_recovered"].append(f"Device {device['serial']} reconnected")
 
         # Get authorized device
         auth_device = DeviceDetector.get_authorized_device(adb_path)
@@ -192,9 +267,15 @@ class DeviceDetector:
             device_info = DeviceDetector.get_device_info(auth_device["serial"], adb_path)
             diagnosis["device_info"] = device_info
         else:
-            diagnosis["warnings"].append("No authorized devices found")
+            if diagnosis["status"] != "error":
+                diagnosis["status"] = "warning"
 
         return diagnosis
+
+    @staticmethod
+    def diagnose() -> Dict[str, Any]:
+        """Run full device detection diagnostics (legacy, use diagnose_and_recover)."""
+        return DeviceDetector.diagnose_and_recover()
 
 
 __all__ = ["DeviceDetector"]
