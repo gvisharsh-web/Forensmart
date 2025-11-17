@@ -100,7 +100,7 @@ def render_extraction_tab(
     st.markdown("# 📱 Data Extraction")
     
     # Get ConsentManager and check consent level
-    from modules.dashboard import get_consent_manager
+    from modules.dashboard import get_consent_manager, _get_approval_decision
     cm = get_consent_manager()
     session = cm.get_session(case_id)
 
@@ -108,9 +108,19 @@ def render_extraction_tab(
     if not consent_ok:
         st.warning("⚠️ Insufficient consent. Please obtain at least STANDARD consent from the 'Consent' tab before extraction.")
 
+    # Check both old and new approval methods
     unlock_status = cm.get_unlock_status(case_id) if session else {}
     unlock_verified = unlock_status.get('status') == 'verified'
-    if consent_ok and not unlock_verified:
+    
+    # Also check for new approval decision from consent portal
+    approval_decision = _get_approval_decision(case_id)
+    if approval_decision == 'approved':
+        unlock_verified = True
+        st.success("✅ **Nominee Approved** - Extraction is unlocked!")
+    elif approval_decision == 'denied':
+        unlock_verified = False
+        st.error("🔐 Nominee denied the unlock request. Generate a new approval link in the Consent tab.")
+    elif consent_ok and not unlock_verified:
         status = unlock_status.get('status', 'pending')
         if status == 'denied':
             st.error("🔐 Nominee denied the unlock request. Generate a new approval link in the Consent tab.")
