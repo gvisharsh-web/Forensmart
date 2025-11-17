@@ -1359,6 +1359,21 @@ def render_intelligence(cm: ConsentManager, orchestrator: DataExtractionOrchestr
     if not session:
         st.warning('No consent session found. Initialize consent from the Consent tab.')
         return
+    
+    # Check approval status with ApprovalSync
+    if not ApprovalSync.is_approved(case_id):
+        st.warning("⏳ Awaiting nominee approval for intelligence analysis. Share approval link from Consent tab.")
+        return
+    
+    # Check device health with DeviceManager
+    device_id = cm.ensure_device_id(case_id)
+    if device_id and device_id != 'UNKNOWN_DEVICE':
+        device_health = DeviceManager.get_device_health(device_id)
+        if device_health.get("issues"):
+            st.warning(f"⚠️ Device issues detected: {', '.join(device_health['issues'])}")
+        if device_health.get("warnings"):
+            for warning in device_health["warnings"]:
+                st.warning(f"⚠️ {warning}")
 
     # Load cached intelligence data
     intel_data = _load_intelligence_data(case_id)
