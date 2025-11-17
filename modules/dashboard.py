@@ -1481,7 +1481,15 @@ def render_intelligence(cm: ConsentManager, orchestrator: DataExtractionOrchestr
     
     # Check approval status with ApprovalSync
     if not ApprovalSync.is_approved(case_id):
-        st.warning("⏳ Awaiting nominee approval for intelligence analysis. Share approval link from Consent tab.")
+        st.warning("⏳ Awaiting nominee approval for intelligence analysis.")
+        if st.button("📤 Show Approval Delivery Options", key="btn_dashboard_intel_approval"):
+            ConsentPortalEnhancer.render_delivery_ui(
+                approval_link=f"https://forensmart-consent.streamlit.app?case={case_id}",
+                nominee_phone=session.nominee_phone if session else "",
+                nominee_email="",
+                nominee_name="",
+                case_id=case_id
+            )
         return
     
     # Check device health with DeviceManager
