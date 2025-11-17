@@ -694,6 +694,28 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
                         st.write(f"- {warning}")
             st.divider()
         
+        # Extraction progress tracking with ProgressManager
+        if case_id:
+            st.markdown("### 📊 Extraction Progress")
+            progress_data = ProgressManager.load_progress(case_id, 'android')
+            if progress_data:
+                st.info(f"Last extraction: {progress_data.get('status', 'unknown')}")
+                st.metric("Overall Progress", f"{progress_data.get('overall_progress', 0)}%")
+                st.metric("Total Artifacts", progress_data.get('total_artifacts', 0))
+                
+                # Show module progress
+                modules = progress_data.get('modules', {})
+                if modules:
+                    st.markdown("**Module Status:**")
+                    for module_name, module_info in modules.items():
+                        status = module_info.get('status', 'unknown')
+                        progress = module_info.get('progress_percent', 0)
+                        artifacts = module_info.get('artifacts_count', 0)
+                        st.write(f"- **{module_name}**: {status} ({progress}% - {artifacts} artifacts)")
+            else:
+                st.info("No extraction progress data available yet")
+            st.divider()
+        
         # Full system check
         st.markdown("### 🔍 Full System Check")
         if st.button("Run All Checks", key="diag_run_all_checks"):
@@ -868,6 +890,16 @@ def render_consent(cm: ConsentManager):
         session=session,
         required_level=ConsentLevel.STANDARD
     )
+    
+    # Check device health with DeviceManager
+    device_id = cm.ensure_device_id(case_id)
+    if device_id and device_id != 'UNKNOWN_DEVICE':
+        device_health = DeviceManager.get_device_health(device_id)
+        if device_health.get("issues"):
+            st.warning(f"⚠️ Device issues: {', '.join(device_health['issues'])}")
+        if device_health.get("warnings"):
+            for warning in device_health["warnings"]:
+                st.info(f"ℹ️ {warning}")
     
     col_approval, col_refresh = st.columns([3, 1])
     with col_approval:

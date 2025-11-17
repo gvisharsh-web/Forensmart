@@ -430,6 +430,20 @@ def render_intelligence_tab(
             for warning in device_health["warnings"]:
                 st.warning(f"⚠️ {warning}")
     
+    # Validate extraction readiness with ExtractionValidator
+    validation_result = ExtractionValidator.validate_extraction_ready(
+        case_id=case_id,
+        device_id=device_id or 'UNKNOWN_DEVICE',
+        session=session,
+        required_level=ConsentLevel.STANDARD
+    )
+    
+    if not validation_result["ready"]:
+        st.warning("⚠️ Intelligence analysis prerequisites not met:")
+        for error in validation_result["errors"]:
+            st.write(f"- {error}")
+        return
+    
     # Initialize session state for intelligence analysis
     if 'intelligence_started' not in st.session_state:
         st.session_state.intelligence_started = False
