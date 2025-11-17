@@ -390,7 +390,7 @@ def render_intelligence_tab(
     consent_id: Optional[str] = None
 ) -> None:
     """
-    Render the intelligence analysis tab with modern progress tracking.
+    Render the intelligence analysis tab with modern progress tracking and enhancements.
     
     Args:
         case_id: Case ID for analysis
@@ -398,6 +398,10 @@ def render_intelligence_tab(
     """
     from modules.progress_ui import render_progress_bar, ProgressStatus
     from modules.dashboard import get_consent_manager
+    from modules.extraction_validator import ExtractionValidator
+    from modules.approval_sync import ApprovalSync
+    from modules.device_manager import DeviceManager
+    from modules.extraction_progress import ProgressManager
     import time
     import threading
     
@@ -410,6 +414,21 @@ def render_intelligence_tab(
     if not session or session.level.value < ConsentLevel.STANDARD.value:
         st.warning("⚠️ Insufficient consent. Please obtain at least STANDARD consent before analysis.")
         return
+    
+    # Check approval status with ApprovalSync
+    if not ApprovalSync.is_approved(case_id):
+        st.warning("⏳ Awaiting nominee approval for intelligence analysis. Share approval link from Consent tab.")
+        return
+    
+    # Check device health
+    device_id = cm.ensure_device_id(case_id)
+    if device_id and device_id != 'UNKNOWN_DEVICE':
+        device_health = DeviceManager.get_device_health(device_id)
+        if device_health.get("issues"):
+            st.warning(f"⚠️ Device issues detected: {', '.join(device_health['issues'])}")
+        if device_health.get("warnings"):
+            for warning in device_health["warnings"]:
+                st.warning(f"⚠️ {warning}")
     
     # Initialize session state for intelligence analysis
     if 'intelligence_started' not in st.session_state:
@@ -460,11 +479,16 @@ def render_intelligence_tab(
         tracker = ProgressTracker(total_steps=len(features) * 100)
         tracker.start()
         st.session_state.intelligence_tracker = tracker
+        
+        # Create progress tracker for intelligence analysis
+        progress_tracker = ProgressManager.create_tracker(case_id, 'intelligence_analysis')
+        st.session_state.intelligence_progress_tracker = progress_tracker
         st.rerun()
     
     # Show analysis progress if running
     if st.session_state.intelligence_started:
         progress_placeholder = st.empty()
+        progress_tracker = st.session_state.get('intelligence_progress_tracker')
         
         # Start analysis in a separate thread if not already started
         if 'intelligence_thread' not in st.session_state or not st.session_state.intelligence_thread.is_alive():
@@ -476,9 +500,15 @@ def render_intelligence_tab(
                             steps_per_feature = 100 // len(features)
                             start_step = (feature_idx - 1) * steps_per_feature
                             
+                            # Track feature analysis
+                            if progress_tracker:
+                                progress_tracker.start_module(feature)
+                            
                             for i in range(steps_per_feature + 1):
                                 if st.session_state.get('stop_intelligence', False):
                                     tracker.error("Analysis cancelled by user")
+                                    if progress_tracker:
+                                        progress_tracker.error_module(feature, "Cancelled by user")
                                     break
                                     
                                 current_step = start_step + i
@@ -486,17 +516,35 @@ def render_intelligence_tab(
                                     current_step, 
                                     f"Analyzing {feature}... {int((i / steps_per_feature) * 100)}%"
                                 )
+                                
+                                # Update progress tracker
+                                if progress_tracker:
+                                    progress_tracker.update_module_progress(
+                                        feature,
+                                        int((i / steps_per_feature) * 100),
+                                        artifacts_count=0
+                                    )
+                                
                                 time.sleep(0.05)
+                            
+                            # Complete feature analysis
+                            if progress_tracker and not st.session_state.get('stop_intelligence', False):
+                                progress_tracker.complete_module(feature, artifacts_count=0)
                         
                         if not st.session_state.get('stop_intelligence', False):
                             tracker.complete()
                             tracker.message = "Analysis completed successfully!"
+                            if progress_tracker:
+                                progress_tracker.complete_extraction()
+                                progress_tracker.save_progress()
                         
                         st.session_state.intelligence_completed = True
                         st.rerun()
                             
                     except Exception as e:
                         tracker.error(f"Analysis failed: {str(e)}")
+                        if progress_tracker:
+                            progress_tracker.error_extraction(str(e))
                         st.session_state.intelligence_completed = True
                         st.rerun()
             
