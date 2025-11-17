@@ -572,11 +572,15 @@ def render_consent_status_sidebar(cm: ConsentManager):
 def _detect_streamlit_base_url() -> str:
     """Best-effort detection of the public Streamlit app URL via request headers."""
     headers = None
-    if callable(_get_websocket_headers):
-        try:
-            headers = _get_websocket_headers()
-        except Exception:  # pragma: no cover - safety net
-            headers = None
+    try:
+        # Use modern st.context.headers API (Streamlit >=1.30)
+        headers = st.context.headers
+    except Exception:  # pragma: no cover - fallback for older versions
+        if callable(_get_websocket_headers):
+            try:
+                headers = _get_websocket_headers()
+            except Exception:
+                headers = None
     if not headers:
         return ''
 
@@ -618,11 +622,23 @@ def _get_default_approval_base_url() -> str:
     return cached or ''
 
 
-def _build_approval_link(base_url: str, token: str) -> str:
+def _build_approval_link(base_url: str, token: str, approval_data: Optional[Dict[str, Any]] = None) -> str:
+    """Build approval link with embedded data (preferred) or token fallback."""
+    import json
+    import base64
+    from urllib.parse import quote
+    
     base = (base_url or '').strip() or _get_default_approval_base_url().strip()
     if not base:
+        if approval_data:
+            encoded = quote(base64.b64encode(json.dumps(approval_data).encode()).decode())
+            return f"?data={encoded}"
         return f"?unlock_token={token}"
+    
     separator = '&' if '?' in base else '?'
+    if approval_data:
+        encoded = quote(base64.b64encode(json.dumps(approval_data).encode()).decode())
+        return f"{base}{separator}data={encoded}"
     return f"{base}{separator}unlock_token={token}"
 
 
@@ -724,18 +740,27 @@ def render_consent(cm: ConsentManager):
     status = unlock_status.get('status')
 
     auto_base_url = _get_default_approval_base_url()
+    
+    # Initialize session state before creating widget
     if 'approval_base_url' not in st.session_state:
         st.session_state['approval_base_url'] = auto_base_url
-    base_url = st.text_input('Approval base URL (optional)', key='approval_base_url')
-    st.caption(
-        f"Detected app URL: {auto_base_url or 'Unavailable (enter manually)'}"
-        if auto_base_url
-        else 'Provide the publicly reachable Streamlit URL to build shareable links.'
-    )
-    if auto_base_url and st.button('Use detected app URL', key=f'{case_id}_use_detected_url'):
+    
+    st.markdown('**Approval Portal URL**')
+    st.warning('⚠️ **IMPORTANT:** Enter your PUBLIC Streamlit consent portal URL (e.g., https://forensmart-xxx.streamlit.app). Do NOT use localhost—nominees cannot access it on their phones.')
+    
+    # Callback to update session state before widget is instantiated
+    def _use_detected_url():
         st.session_state['approval_base_url'] = auto_base_url
-        base_url = auto_base_url
-        st.success('Approval links will now use the detected Streamlit URL.')
+    
+    base_url = st.text_input('Approval base URL', key='approval_base_url', placeholder='https://forensmart-xxx.streamlit.app')
+    
+    if auto_base_url and auto_base_url != 'http://localhost:8501':
+        st.caption(f"✅ Detected app URL: {auto_base_url}")
+        if st.button('Use detected URL', key=f'{case_id}_use_detected_url'):
+            st.session_state['approval_base_url'] = auto_base_url
+            st.rerun()
+    else:
+        st.caption('💡 Tip: Paste your public Streamlit consent portal URL above (from https://share.streamlit.io)')
 
     purpose = st.text_area('Purpose / Notes for nominee', value='Unlock required to proceed with communications extraction.')
     requested_level = st.selectbox(
@@ -758,7 +783,15 @@ def render_consent(cm: ConsentManager):
         result = cm.create_unlock_approval(case_id, requested_level, purpose, nominee_name)
         if result.get('status') == 'pending':
             token = result.get('token')
-            approval_link = _build_approval_link(base_url.strip(), token)
+            # Build link with embedded approval data for better UX
+            approval_data = {
+                'case_id': case_id,
+                'device_id': detected_device or 'UNKNOWN_DEVICE',
+                'purpose': purpose,
+                'requested_level': requested_level.name,
+                'nominee_name': nominee_name
+            }
+            approval_link = _build_approval_link(base_url.strip(), token, approval_data)
             st.session_state['latest_approval_link'] = approval_link
             st.success('Approval request created. Share the link below with the nominee.')
         else:
