@@ -21,7 +21,8 @@ class Adapter(AdapterBase):
             out = subprocess.check_output(
                 ["idevice_id", "-l"], stderr=subprocess.STDOUT
             ).decode()
-            devices = [l.strip() for l in out.splitlines() if l.strip()]
+            # Use consistent variable name 'line'
+            devices = [line.strip() for line in out.splitlines() if line.strip()]
             return {"ok": True, "devices": devices}
         except Exception as e:
             return {"ok": False, "error": str(e)}
