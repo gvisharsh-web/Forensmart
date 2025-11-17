@@ -913,6 +913,17 @@ def render_consent(cm: ConsentManager):
             st.session_state['approval_check_ts'] = datetime.now().isoformat()
             st.rerun()
     
+    # Show extraction progress with ProgressManager
+    st.divider()
+    st.markdown("### 📊 Last Extraction Progress")
+    progress_data = ProgressManager.load_progress(case_id, 'android')
+    if progress_data:
+        st.info(f"Status: {progress_data.get('status', 'unknown')}")
+        st.metric("Overall Progress", f"{progress_data.get('overall_progress', 0)}%")
+        st.metric("Total Artifacts", progress_data.get('total_artifacts', 0))
+    else:
+        st.info("No extraction progress data available yet")
+    
     # Show validation warnings
     st.divider()
     st.markdown("### ✅ Extraction Readiness Check")

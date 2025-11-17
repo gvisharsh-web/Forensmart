@@ -106,6 +106,7 @@ def render_extraction_tab(
     from modules.approval_sync import ApprovalSync
     from modules.device_manager import DeviceManager
     from modules.extraction_progress import ProgressManager
+    from modules.consent_portal_enhanced import ConsentPortalEnhancer
     
     cm = get_consent_manager()
     session = cm.get_session(case_id)
@@ -152,6 +153,20 @@ def render_extraction_tab(
         st.warning("⚠️ No device connected. Please connect a device and ensure it's recognized before starting extraction.")
 
     buttons_disabled = not (consent_ok and device_ok and unlock_verified)
+    
+    # Show approval delivery options with ConsentPortalEnhancer if not approved yet
+    if consent_ok and not unlock_verified:
+        st.divider()
+        st.markdown("### 📤 Need Approval?")
+        if st.button("Show Approval Delivery Options", key="btn_show_approval_options"):
+            ConsentPortalEnhancer.render_delivery_ui(
+                approval_link=f"https://forensmart-consent.streamlit.app?case={case_id}",
+                nominee_phone=session.nominee_phone if session else "",
+                nominee_email="",
+                nominee_name="",
+                case_id=case_id
+            )
+        st.divider()
     
     # Extraction type selection
     col1, col2, col3 = st.columns(3)
@@ -402,6 +417,7 @@ def render_intelligence_tab(
     from modules.approval_sync import ApprovalSync
     from modules.device_manager import DeviceManager
     from modules.extraction_progress import ProgressManager
+    from modules.consent_portal_enhanced import ConsentPortalEnhancer
     import time
     import threading
     
@@ -417,7 +433,15 @@ def render_intelligence_tab(
     
     # Check approval status with ApprovalSync
     if not ApprovalSync.is_approved(case_id):
-        st.warning("⏳ Awaiting nominee approval for intelligence analysis. Share approval link from Consent tab.")
+        st.warning("⏳ Awaiting nominee approval for intelligence analysis.")
+        if st.button("📤 Show Approval Delivery Options", key="btn_intel_approval_options"):
+            ConsentPortalEnhancer.render_delivery_ui(
+                approval_link=f"https://forensmart-consent.streamlit.app?case={case_id}",
+                nominee_phone=session.nominee_phone if session else "",
+                nominee_email="",
+                nominee_name="",
+                case_id=case_id
+            )
         return
     
     # Check device health
