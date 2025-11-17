@@ -575,6 +575,27 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
     with tab_diagnostics:
         st.markdown("## 🔧 System Diagnostics & Device Detection")
         
+        # Get current case for validation checks
+        case_id = st.session_state.get('case_id')
+        cm_diag = get_consent_manager()
+        session_diag = cm_diag.get_session(case_id) if case_id else None
+        
+        # Show approval status with ApprovalSync
+        if case_id and session_diag:
+            st.markdown("### 📋 Approval Status")
+            col_app1, col_app2, col_app3 = st.columns(3)
+            with col_app1:
+                is_approved = ApprovalSync.is_approved(case_id)
+                st.metric("Approved", "✅ Yes" if is_approved else "❌ No")
+            with col_app2:
+                is_expired = ApprovalSync.is_approval_expired(case_id)
+                st.metric("Expired", "❌ Yes" if is_expired else "✅ No")
+            with col_app3:
+                age = ApprovalSync.get_approval_age_seconds(case_id)
+                age_str = f"{age}s ago" if age else "N/A"
+                st.metric("Age", age_str)
+            st.divider()
+        
         # Device detection section
         st.markdown("### 📱 Device Detection")
         if st.button("🔄 Refresh Device Detection", key="diag_refresh_devices"):
@@ -647,6 +668,31 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
             st.warning("⚠️ No authorized devices found")
         
         st.divider()
+        
+        # Extraction readiness check with ExtractionValidator
+        if case_id and session_diag:
+            st.markdown("### 📦 Extraction Readiness")
+            device_id = cm_diag.ensure_device_id(case_id)
+            validation_result = ExtractionValidator.validate_extraction_ready(
+                case_id=case_id,
+                device_id=device_id or 'UNKNOWN_DEVICE',
+                session=session_diag,
+                required_level=ConsentLevel.STANDARD
+            )
+            
+            if validation_result["ready"]:
+                st.success("✅ **Ready for Extraction** - All prerequisites met!")
+            else:
+                st.error("❌ **Not Ready for Extraction**")
+                if validation_result["errors"]:
+                    st.error("**Errors:**")
+                    for error in validation_result["errors"]:
+                        st.write(f"- {error}")
+                if validation_result["warnings"]:
+                    st.warning("**Warnings:**")
+                    for warning in validation_result["warnings"]:
+                        st.write(f"- {warning}")
+            st.divider()
         
         # Full system check
         st.markdown("### 🔍 Full System Check")
@@ -806,8 +852,22 @@ def render_consent(cm: ConsentManager):
     if callable(unlock_fn):
         unlock_status = unlock_fn(case_id)
     
-    # Check for approval decision from consent portal
+    # Check for approval decision from consent portal with ApprovalSync
     approval_decision = get_approval_decision(case_id)
+    
+    # Use ApprovalSync for real-time approval status
+    if ApprovalSync.is_approved(case_id):
+        approval_decision = 'approved'
+    elif ApprovalSync.is_denied(case_id):
+        approval_decision = 'denied'
+    
+    # Validate extraction readiness with ExtractionValidator
+    validation_result = ExtractionValidator.validate_extraction_ready(
+        case_id=case_id,
+        device_id=session.device_id or 'UNKNOWN_DEVICE',
+        session=session,
+        required_level=ConsentLevel.STANDARD
+    )
     
     col_approval, col_refresh = st.columns([3, 1])
     with col_approval:
@@ -820,6 +880,22 @@ def render_consent(cm: ConsentManager):
         if st.button('🔄 Check approval', key=f'{case_id}_check_approval'):
             st.session_state['approval_check_ts'] = datetime.now().isoformat()
             st.rerun()
+    
+    # Show validation warnings
+    st.divider()
+    st.markdown("### ✅ Extraction Readiness Check")
+    if validation_result["ready"]:
+        st.success("✅ **Ready for Extraction** - All prerequisites met!")
+    else:
+        st.error("❌ **Not Ready for Extraction**")
+        if validation_result["errors"]:
+            st.error("**Errors:**")
+            for error in validation_result["errors"]:
+                st.write(f"- {error}")
+        if validation_result["warnings"]:
+            st.warning("**Warnings:**")
+            for warning in validation_result["warnings"]:
+                st.write(f"- {warning}")
 
     detected_device = cm.ensure_device_id(case_id)
     device_label = cm.get_device_label(detected_device)

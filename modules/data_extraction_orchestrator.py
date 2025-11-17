@@ -1189,6 +1189,15 @@ class DataExtractionOrchestrator:
                 results['errors'].append(message)
                 logger.info(f"Extraction pending approval for {case_id}")
                 return results
+            
+            # Check device health with DeviceManager
+            device_health = DeviceManager.get_device_health(device_id)
+            if device_health.get("issues"):
+                message = f"Device issues detected: {', '.join(device_health['issues'])}"
+                results['status'] = 'blocked'
+                results['errors'].append(message)
+                logger.warning(f"Device health check failed for {device_id}: {message}")
+                return results
 
             unlock_status = self.consent_manager.get_unlock_status(case_id)
             results['unlock_status'] = unlock_status
