@@ -622,6 +622,31 @@ def _get_default_approval_base_url() -> str:
     return cached or ''
 
 
+def _get_approval_decision(case_id: str) -> Optional[str]:
+    """Check if there's a saved approval decision for this case."""
+    try:
+        from pathlib import Path
+        # Check same locations as consent_portal
+        shared_paths = [
+            Path.home() / '.forensmart' / 'approvals.json',
+            Path('/tmp/forensmart_approvals.json'),
+            Path('C:\\ProgramData\\ForenSmart\\approvals.json'),
+            Path('.forensmart_approvals.json')
+        ]
+        
+        for path in shared_paths:
+            if path.exists():
+                try:
+                    approvals = json.loads(path.read_text())
+                    if case_id in approvals:
+                        return approvals[case_id].get('decision')
+                except Exception:
+                    continue
+    except Exception:
+        pass
+    return None
+
+
 def _build_approval_link(base_url: str, token: str, approval_data: Optional[Dict[str, Any]] = None) -> str:
     """Build approval link with embedded data (preferred) or token fallback."""
     import json
@@ -711,6 +736,13 @@ def render_consent(cm: ConsentManager):
     unlock_fn = getattr(cm, 'get_unlock_status', None)
     if callable(unlock_fn):
         unlock_status = unlock_fn(case_id)
+    
+    # Check for approval decision from consent portal
+    approval_decision = _get_approval_decision(case_id)
+    if approval_decision == 'approved':
+        st.success(f"✅ **Nominee Approved** - Extraction is now unlocked!")
+    elif approval_decision == 'denied':
+        st.error(f"❌ **Nominee Denied** - Extraction request was rejected.")
 
     detected_device = cm.ensure_device_id(case_id)
     device_label = cm.get_device_label(detected_device)

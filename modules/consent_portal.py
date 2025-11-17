@@ -7,6 +7,7 @@ import base64
 from pathlib import Path
 from typing import Optional, Dict, Any
 from urllib.parse import unquote
+from datetime import datetime
 
 import streamlit as st
 
@@ -51,6 +52,52 @@ def _decode_approval_data(encoded: str) -> Optional[Dict[str, Any]]:
         return json.loads(decoded)
     except Exception:
         return None
+
+
+def _get_approvals_file() -> Path:
+    """Get path to shared approvals file."""
+    # Try to use a shared location accessible from both apps
+    shared_paths = [
+        Path.home() / '.forensmart' / 'approvals.json',  # User home
+        Path('/tmp/forensmart_approvals.json'),  # Linux/Mac temp
+        Path('C:\\ProgramData\\ForenSmart\\approvals.json'),  # Windows shared
+    ]
+    
+    for path in shared_paths:
+        try:
+            path.parent.mkdir(parents=True, exist_ok=True)
+            return path
+        except Exception:
+            continue
+    
+    # Fallback to current directory
+    return Path('.forensmart_approvals.json')
+
+
+def _save_approval(case_id: str, decision: str, nominee_name: Optional[str] = None, message: Optional[str] = None) -> bool:
+    """Save approval decision to shared file."""
+    try:
+        approvals_file = _get_approvals_file()
+        approvals = {}
+        
+        if approvals_file.exists():
+            try:
+                approvals = json.loads(approvals_file.read_text())
+            except Exception:
+                approvals = {}
+        
+        approvals[case_id] = {
+            'decision': decision,
+            'timestamp': datetime.now().isoformat(),
+            'nominee_name': nominee_name,
+            'message': message
+        }
+        
+        approvals_file.write_text(json.dumps(approvals, indent=2))
+        return True
+    except Exception as e:
+        st.error(f"Failed to save approval: {e}")
+        return False
 
 
 def main() -> None:
@@ -121,14 +168,20 @@ def main() -> None:
         col1, col2 = st.columns(2)
         with col1:
             if st.button('✅ Yes, Approve', key='approve_btn', use_container_width=True):
-                st.success("✅ **Approval Granted** - Thank you for your consent. The investigator has been notified.")
-                st.caption(f"Nominee: {nominee_name or 'Not specified'}")
-                st.info("You can close this page now.")
+                if _save_approval(case_id, 'approved', nominee_name):
+                    st.success("✅ **Approval Granted** - Thank you for your consent. The investigator has been notified.")
+                    st.caption(f"Nominee: {nominee_name or 'Not specified'}")
+                    st.info("You can close this page now.")
+                else:
+                    st.error("Failed to save approval. Please try again.")
         with col2:
             if st.button('❌ No, Deny', key='deny_btn', use_container_width=True):
-                st.error("❌ **Request Denied** - Your decision has been recorded and the investigator has been notified.")
-                st.caption(f"Nominee: {nominee_name or 'Not specified'}")
-                st.info("You can close this page now.")
+                if _save_approval(case_id, 'denied', nominee_name):
+                    st.error("❌ **Request Denied** - Your decision has been recorded and the investigator has been notified.")
+                    st.caption(f"Nominee: {nominee_name or 'Not specified'}")
+                    st.info("You can close this page now.")
+                else:
+                    st.error("Failed to save denial. Please try again.")
         return
 
     # Fallback to token-based lookup
