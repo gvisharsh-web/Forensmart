@@ -62,6 +62,11 @@ from modules.error_checker import ErrorChecker # pyright: ignore[reportMissingIm
 from modules.approval_utils import get_approval_decision
 from modules.device_detector import DeviceDetector
 from modules.app_error_checker import AppErrorChecker
+from modules.approval_sync import ApprovalSync
+from modules.device_manager import DeviceManager
+from modules.extraction_validator import ExtractionValidator
+from modules.extraction_progress import ProgressManager
+from modules.consent_portal_enhanced import ConsentPortalEnhancer
 
 try:  # Streamlit internal helper (best-effort import)
     from streamlit.web.server.websocket_headers import _get_websocket_headers  # type: ignore
@@ -614,6 +619,35 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
         
         st.divider()
         
+        # Enhanced device manager section
+        st.markdown("### 🎯 Enhanced Device Manager")
+        authorized_devices = DeviceManager.get_authorized_devices()
+        
+        if authorized_devices:
+            st.success(f"✅ {len(authorized_devices)} authorized device(s) available")
+            for device in authorized_devices:
+                with st.expander(f"📱 {device.serial}"):
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.metric("Model", device.model or "Unknown")
+                    with col2:
+                        st.metric("Android", device.android_version or "Unknown")
+                    with col3:
+                        st.metric("Root", "✅ Yes" if device.has_root else "❌ No")
+                    
+                    # Device health
+                    health = DeviceManager.get_device_health(device.serial)
+                    if health.get("issues"):
+                        st.error(f"Issues: {', '.join(health['issues'])}")
+                    if health.get("warnings"):
+                        st.warning(f"Warnings: {', '.join(health['warnings'])}")
+                    if not health.get("issues") and not health.get("warnings"):
+                        st.success("✅ Device is healthy")
+        else:
+            st.warning("⚠️ No authorized devices found")
+        
+        st.divider()
+        
         # Full system check
         st.markdown("### 🔍 Full System Check")
         if st.button("Run All Checks", key="diag_run_all_checks"):
@@ -891,7 +925,20 @@ def render_consent(cm: ConsentManager):
 
     approval_link = approval_link or st.session_state.get('latest_approval_link')
     if approval_link:
-        st.markdown('**Approval Link**')
+        st.markdown('**Approval Link & Delivery Options**')
+        
+        # Show delivery options with enhanced portal
+        nominee_email = st.text_input('Nominee Email (optional)', key=f'{case_id}_nominee_email')
+        
+        if st.button('📤 Show Delivery Options', key=f'{case_id}_show_delivery'):
+            # Render delivery UI with QR code, WhatsApp, SMS, Email options
+            ConsentPortalEnhancer.render_delivery_ui(
+                approval_link=approval_link,
+                nominee_phone=nominee_contact,
+                nominee_email=nominee_email,
+                nominee_name=nominee_name,
+                case_id=case_id
+            )
         st.text_input('Copyable link', value=approval_link, key=f'{case_id}_link_display', disabled=True)
         if approval_link.startswith('http://') or approval_link.startswith('https://'):
             st.link_button('🔗 Open approval link', approval_link, type='secondary')

@@ -100,7 +100,13 @@ def render_extraction_tab(
     st.markdown("# 📱 Data Extraction")
     
     # Get ConsentManager and check consent level
-    from modules.dashboard import get_consent_manager, _get_approval_decision
+    from modules.dashboard import get_consent_manager
+    from modules.approval_utils import get_approval_decision
+    from modules.extraction_validator import ExtractionValidator
+    from modules.approval_sync import ApprovalSync
+    from modules.device_manager import DeviceManager
+    from modules.extraction_progress import ProgressManager
+    
     cm = get_consent_manager()
     session = cm.get_session(case_id)
 
@@ -108,18 +114,20 @@ def render_extraction_tab(
     if not consent_ok:
         st.warning("⚠️ Insufficient consent. Please obtain at least STANDARD consent from the 'Consent' tab before extraction.")
 
-    # Check both old and new approval methods
+    # Check both old and new approval methods with ApprovalSync
     unlock_status = cm.get_unlock_status(case_id) if session else {}
     unlock_verified = unlock_status.get('status') == 'verified'
     
-    # Also check for new approval decision from consent portal
-    approval_decision = _get_approval_decision(case_id)
-    if approval_decision == 'approved':
+    # Use ApprovalSync for real-time approval status
+    if ApprovalSync.is_approved(case_id):
         unlock_verified = True
         st.success("✅ **Nominee Approved** - Extraction is unlocked!")
-    elif approval_decision == 'denied':
+    elif ApprovalSync.is_denied(case_id):
         unlock_verified = False
         st.error("🔐 Nominee denied the unlock request. Generate a new approval link in the Consent tab.")
+    elif ApprovalSync.is_approval_expired(case_id):
+        st.warning("⏳ Approval expired. Request new approval from the Consent tab.")
+        unlock_verified = False
     elif consent_ok and not unlock_verified:
         status = unlock_status.get('status', 'pending')
         if status == 'denied':
@@ -127,10 +135,20 @@ def render_extraction_tab(
         else:
             st.info("⏳ Waiting for nominee approval. Share the approval link from the Consent tab.")
 
-    # Check for device connection
+    # Check for device connection with DeviceManager
     device_id = cm.ensure_device_id(case_id)
     device_ok = device_id and device_id != 'UNKNOWN_DEVICE'
-    if not device_ok:
+    
+    if device_ok:
+        # Validate device health
+        device_health = DeviceManager.get_device_health(device_id)
+        if device_health.get("issues"):
+            st.warning(f"⚠️ Device issues: {', '.join(device_health['issues'])}")
+            device_ok = False
+        if device_health.get("warnings"):
+            for warning in device_health["warnings"]:
+                st.warning(f"⚠️ {warning}")
+    else:
         st.warning("⚠️ No device connected. Please connect a device and ensure it's recognized before starting extraction.")
 
     buttons_disabled = not (consent_ok and device_ok and unlock_verified)
@@ -163,7 +181,28 @@ def render_extraction_tab(
         extraction_type = st.session_state.get('extraction_type', 'android')
         manager = get_extraction_ui_manager()
         
-        # Get or create tracker
+        # Validate extraction readiness BEFORE starting
+        validation_result = ExtractionValidator.validate_extraction_ready(
+            case_id=case_id,
+            device_id=device_id,
+            session=session,
+            required_level=ConsentLevel.STANDARD
+        )
+        
+        if not validation_result["ready"]:
+            st.error("❌ **Extraction Cannot Start**")
+            st.error("**Errors:**")
+            for error in validation_result["errors"]:
+                st.write(f"- {error}")
+            if validation_result["warnings"]:
+                st.warning("**Warnings:**")
+                for warning in validation_result["warnings"]:
+                    st.write(f"- {warning}")
+            st.session_state['start_extraction'] = False
+            st.stop()
+        
+        # Get or create tracker with progress manager
+        progress_tracker = ProgressManager.create_tracker(case_id, extraction_type)
         tracker = manager.get_extraction_tracker(case_id, extraction_type)
         if not tracker:
             tracker = manager.start_extraction(case_id, extraction_type)
@@ -179,6 +218,7 @@ def render_extraction_tab(
         # Check if we need to start the extraction
         if tracker.status != ProgressStatus.RUNNING and not st.session_state.extraction_thread:
             tracker.start()
+            progress_tracker.start_module("initialization")
             
             def progress_callback(progress, message):
                 tracker.update(int(progress), message)
