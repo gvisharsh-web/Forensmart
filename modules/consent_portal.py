@@ -21,8 +21,8 @@ if str(parent) not in sys.path:
 
 from modules.consent import ConsentManager, ConsentLevel  # noqa: E402  (loaded after sys.path tweak)
 from modules.approval_utils import get_approvals_file, save_approval_decision  # noqa: E402
-from modules.consent_audit_trail import ConsentAuditTrail  # noqa: E402
 import logging  # noqa: E402
+import logging.handlers  # noqa: E402
 
 try:
     from modules.dashboard import render_nominee_approval  # noqa: E402
@@ -31,6 +31,141 @@ except Exception as exc:  # pragma: no cover - safety net for partial deployment
     IMPORT_ERROR = exc
 else:
     IMPORT_ERROR = None
+
+
+# ============================================================================
+# INTEGRATED LOGGING & AUDIT TRAIL CLASSES
+# ============================================================================
+
+class ConsentPortalLogger:
+    """Persistent logging for consent portal."""
+    
+    _instance = None
+    _logger = None
+    
+    def __new__(cls):
+        if cls._instance is None:
+            cls._instance = super().__new__(cls)
+            cls._instance._initialize()
+        return cls._instance
+    
+    def _initialize(self):
+        """Initialize logger with file handlers."""
+        self._logger = logging.getLogger('consent_portal')
+        self._logger.setLevel(logging.DEBUG)
+        
+        # Clear existing handlers
+        self._logger.handlers = []
+        
+        # Create audit directory
+        audit_dir = Path('audit/consent_portal')
+        audit_dir.mkdir(parents=True, exist_ok=True)
+        
+        # File handler (text log)
+        log_file = audit_dir / f'portal_{datetime.now().strftime("%Y%m%d")}.log'
+        file_handler = logging.FileHandler(log_file)
+        file_handler.setLevel(logging.DEBUG)
+        file_formatter = logging.Formatter(
+            '%(asctime)s | %(levelname)-8s | %(name)s | %(message)s',
+            datefmt='%Y-%m-%d %H:%M:%S'
+        )
+        file_handler.setFormatter(file_formatter)
+        self._logger.addHandler(file_handler)
+        
+        # Rotating file handler
+        rotating_handler = logging.handlers.RotatingFileHandler(
+            audit_dir / 'portal_current.log',
+            maxBytes=10*1024*1024,  # 10 MB
+            backupCount=5
+        )
+        rotating_handler.setLevel(logging.INFO)
+        rotating_handler.setFormatter(file_formatter)
+        self._logger.addHandler(rotating_handler)
+    
+    def get_logger(self):
+        """Get the configured logger."""
+        return self._logger
+
+
+class ConsentAuditTrail:
+    """Structured audit trail for consent portal approvals."""
+    
+    AUDIT_FILE = Path('audit/consent_portal/audit_trail.json')
+    
+    @classmethod
+    def initialize(cls):
+        """Create audit file if needed."""
+        cls.AUDIT_FILE.parent.mkdir(parents=True, exist_ok=True)
+        if not cls.AUDIT_FILE.exists():
+            cls.AUDIT_FILE.write_text(json.dumps([], indent=2))
+    
+    @classmethod
+    def record_approval(cls,
+                       case_id: str,
+                       decision: str,
+                       nominee_name: str,
+                       device_id: str,
+                       purpose: str = "Not specified") -> bool:
+        """Record approval decision to audit trail."""
+        try:
+            cls.initialize()
+            
+            # Read existing trail
+            trail = json.loads(cls.AUDIT_FILE.read_text())
+            
+            # Create new entry
+            entry = {
+                'id': len(trail) + 1,
+                'timestamp': datetime.now().isoformat(),
+                'case_id': case_id,
+                'decision': decision,
+                'nominee_name': nominee_name,
+                'device_id': device_id,
+                'purpose': purpose,
+                'status': 'recorded'
+            }
+            
+            trail.append(entry)
+            
+            # Write back
+            cls.AUDIT_FILE.write_text(json.dumps(trail, indent=2))
+            return True
+        except Exception as e:
+            print(f"Failed to record audit trail: {e}")
+            return False
+    
+    @classmethod
+    def get_audit_trail(cls, case_id: Optional[str] = None) -> list:
+        """Retrieve audit trail, optionally filtered by case_id."""
+        try:
+            cls.initialize()
+            trail = json.loads(cls.AUDIT_FILE.read_text())
+            
+            if case_id:
+                return [entry for entry in trail if entry['case_id'] == case_id]
+            return trail
+        except Exception:
+            return []
+    
+    @classmethod
+    def get_statistics(cls) -> Dict[str, Any]:
+        """Get audit trail statistics."""
+        trail = cls.get_audit_trail()
+        
+        return {
+            'total_records': len(trail),
+            'approvals': len([e for e in trail if e['decision'] == 'approved']),
+            'denials': len([e for e in trail if e['decision'] == 'denied']),
+            'cases': len(set(e['case_id'] for e in trail)),
+            'first_record': trail[0]['timestamp'] if trail else None,
+            'last_record': trail[-1]['timestamp'] if trail else None
+        }
+    
+    @classmethod
+    def export_audit_trail(cls, case_id: Optional[str] = None) -> str:
+        """Export audit trail as JSON string."""
+        trail = cls.get_audit_trail(case_id)
+        return json.dumps(trail, indent=2)
 
 
 @st.cache_resource(show_spinner=False)
