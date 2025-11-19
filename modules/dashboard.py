@@ -60,14 +60,14 @@ from modules.shared_utils import ( # pyright: ignore[reportMissingImports]
 from modules.storage_manager import StorageManager, StorageAnalytics # pyright: ignore[reportMissingImports]
 from modules.storage_ui import render_storage_dashboard # pyright: ignore[reportMissingImports]
 from modules.error_checker import ErrorChecker # pyright: ignore[reportMissingImports]
-from modules.approval_utils import get_approval_decision
-from modules.device_detector import DeviceDetector
-from modules.app_error_checker import AppErrorChecker
-from modules.approval_sync import ApprovalSync
-from modules.device_manager import DeviceManager
-from modules.extraction_validator import ExtractionValidator
-from modules.extraction_progress import ProgressManager, ExtractionProgressTracker
-from modules.consent_portal_enhanced import ConsentPortalEnhancer
+from modules.approval_utils import get_approval_decision # pyright: ignore[reportMissingImports]
+from modules.device_detector import DeviceDetector # pyright: ignore[reportMissingImports]
+from modules.app_error_checker import AppErrorChecker # pyright: ignore[reportMissingImports]
+from modules.approval_sync import ApprovalSync # pyright: ignore[reportMissingImports]
+from modules.device_manager import DeviceManager # pyright: ignore[reportMissingImports]
+from modules.extraction_validator import ExtractionValidator # pyright: ignore[reportMissingImports]
+from modules.extraction_progress import ProgressManager, ExtractionProgressTracker # pyright: ignore[reportMissingImports]
+from modules.consent_portal_enhanced import ConsentPortalEnhancer # pyright: ignore[reportMissingImports]
 
 try:  # Streamlit internal helper (best-effort import)
     from streamlit.web.server.websocket_headers import _get_websocket_headers  # type: ignore
