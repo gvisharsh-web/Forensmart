@@ -2,8 +2,12 @@
 from __future__ import annotations
 
 import sys
+import json
+import base64
 from pathlib import Path
-from typing import Optional
+from typing import Optional, Dict, Any
+from urllib.parse import unquote
+from datetime import datetime
 
 import streamlit as st
 
@@ -15,7 +19,8 @@ parent = PROJECT_ROOT.parent
 if str(parent) not in sys.path:
     sys.path.append(str(parent))
 
-from modules.consent import ConsentManager  # noqa: E402  (loaded after sys.path tweak)
+from modules.consent import ConsentManager, ConsentLevel  # noqa: E402  (loaded after sys.path tweak)
+from modules.approval_utils import get_approvals_file, save_approval_decision  # noqa: E402
 
 try:
     from modules.dashboard import render_nominee_approval  # noqa: E402
@@ -32,23 +37,290 @@ def get_consent_manager() -> ConsentManager:
     return ConsentManager()
 
 
-def _extract_unlock_token() -> Optional[str]:
-    """Read ?unlock_token=... from Streamlit's query params API."""
+def _extract_query_params() -> Dict[str, Any]:
+    """Read query parameters from Streamlit's query params API."""
     try:
         params = st.query_params  # Streamlit >=1.30 API
     except AttributeError:  # pragma: no cover - legacy fallback
         params = st.experimental_get_query_params()
-    if not params:
+    return dict(params) if params else {}
+
+
+def _decode_approval_data(encoded: str) -> Optional[Dict[str, Any]]:
+    """Decode base64-encoded approval data from URL."""
+    try:
+        decoded = base64.b64decode(unquote(encoded)).decode('utf-8')
+        return json.loads(decoded)
+    except Exception:
         return None
-    token = params.get("unlock_token")
-    if isinstance(token, list):
-        return token[-1]
-    return token
+
+
+def _save_approval(case_id: str, decision: str, nominee_name: Optional[str] = None, message: Optional[str] = None, approval_link: Optional[str] = None) -> bool:
+    """Save approval decision to shared file using unified approval_utils."""
+    try:
+        # Use the unified approval_utils to save decision
+        success = save_approval_decision(case_id, decision, nominee_name, message)
+        
+        if success:
+            # Also save the approval link separately for tracking
+            approvals_file = get_approvals_file()
+            approvals = {}
+            
+            if approvals_file.exists():
+                try:
+                    approvals = json.loads(approvals_file.read_text())
+                except Exception:
+                    approvals = {}
+            
+            # Update with link info
+            if case_id in approvals:
+                approvals[case_id]['approval_link'] = approval_link
+                approvals_file.write_text(json.dumps(approvals, indent=2))
+            
+            # Log and display success with file details
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.info(f"✅ Approval saved for case {case_id} to {approvals_file}")
+            
+            st.success(f"✅ Approval saved successfully for case {case_id}")
+            st.info(f"📁 Saved to: `{approvals_file}`")
+            st.caption(f"⏰ Time: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            return True
+        else:
+            st.error(f"Failed to save approval for case {case_id}")
+            return False
+    except Exception as e:
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to save approval: {e}")
+        st.error(f"Failed to save approval: {e}")
+        return False
+
+
+def _save_approval_link(case_id: str, approval_link: str, nominee_name: Optional[str] = None) -> bool:
+    """Save approval link for future reference and tracking."""
+    try:
+        # Get the approvals file path
+        approvals_file = get_approvals_file()
+        approvals = {}
+        
+        if approvals_file.exists():
+            try:
+                approvals = json.loads(approvals_file.read_text())
+            except Exception:
+                approvals = {}
+        
+        # Create or update the approval link record
+        if case_id not in approvals:
+            approvals[case_id] = {}
+        
+        approvals[case_id].update({
+            'approval_link': approval_link,
+            'link_created_at': datetime.now().isoformat(),
+            'nominee_name': nominee_name,
+            'status': 'pending'  # pending, approved, denied
+        })
+        
+        approvals_file.write_text(json.dumps(approvals, indent=2))
+        return True
+    except Exception as e:
+        st.error(f"Failed to save approval link: {e}")
+        return False
+
+
+def _get_approval_links() -> Dict[str, Any]:
+    """Retrieve all saved approval links."""
+    try:
+        approvals_file = get_approvals_file()
+        if approvals_file.exists():
+            return json.loads(approvals_file.read_text())
+        return {}
+    except Exception as e:
+        st.error(f"Failed to retrieve approval links: {e}")
+        return {}
+
+
+def _display_approval_link_info(case_id: str, approval_data: Dict[str, Any]) -> None:
+    """Display approval link information in the UI."""
+    st.markdown("### 📋 Approval Link Information")
+    
+    col1, col2 = st.columns(2)
+    with col1:
+        st.metric("Case ID", case_id)
+        st.metric("Status", approval_data.get('status', 'N/A').upper())
+    with col2:
+        st.metric("Nominee", approval_data.get('nominee_name', 'Not specified'))
+        st.metric("Created", approval_data.get('link_created_at', 'N/A')[:10])
+    
+    if approval_data.get('approval_link'):
+        st.markdown("#### Approval Link")
+        st.code(approval_data.get('approval_link'), language='text')
+        
+        # Copy button
+        if st.button("📋 Copy Link", key=f"copy_{case_id}"):
+            st.success("Link copied to clipboard!")
+    
+    if approval_data.get('decision'):
+        st.markdown(f"#### Decision: **{approval_data.get('decision').upper()}**")
+        st.metric("Decision Time", approval_data.get('timestamp', 'N/A')[:19])
 
 
 def main() -> None:
+    st.set_page_config(page_title="ForenSmart Consent Portal", layout="wide")
     st.markdown("## 🔐 ForenSmart Consent Portal")
+    
+    # Sidebar for viewing saved approval links
+    with st.sidebar:
+        st.markdown("### 📊 Approval History")
+        if st.button("🔄 Refresh Links"):
+            st.rerun()
+        
+        approval_links = _get_approval_links()
+        if approval_links:
+            st.markdown(f"**Total Cases: {len(approval_links)}**")
+            
+            # Filter by status
+            status_filter = st.selectbox("Filter by Status", ["All", "pending", "approved", "denied"])
+            
+            for case_id, data in approval_links.items():
+                status = data.get('status', 'unknown')
+                
+                # Apply filter
+                if status_filter != "All" and status != status_filter:
+                    continue
+                
+                # Display case in sidebar
+                status_emoji = "⏳" if status == "pending" else "✅" if status == "approved" else "❌"
+                with st.expander(f"{status_emoji} {case_id}"):
+                    st.write(f"**Nominee:** {data.get('nominee_name', 'Not specified')}")
+                    st.write(f"**Status:** {status.upper()}")
+                    st.write(f"**Created:** {data.get('link_created_at', 'N/A')[:10]}")
+                    if data.get('decision'):
+                        st.write(f"**Decision:** {data.get('decision').upper()}")
+                    if data.get('timestamp'):
+                        st.write(f"**Decided:** {data.get('timestamp', 'N/A')[:10]}")
+        else:
+            st.info("No approval links saved yet.")
 
+    params = _extract_query_params()
+    
+    # Support both old token-based and new data-based approaches
+    approval_data = None
+    token = None
+    
+    # Try to get approval data from URL (new approach)
+    if 'data' in params:
+        data_param = params.get('data')
+        if isinstance(data_param, list):
+            data_param = data_param[-1]
+        approval_data = _decode_approval_data(data_param)
+    
+    # Fallback to token-based lookup (old approach)
+    if not approval_data:
+        token = params.get("unlock_token")
+        if isinstance(token, list):
+            token = token[-1]
+
+    if not approval_data and not token:
+        st.warning(
+            "No approval data supplied. This page must be opened via the secure link "
+            "shared by the investigator."
+        )
+        st.info(
+            "Example: https://your-consent-app.streamlit.app/?unlock_token=TOKEN_HERE"
+        )
+        return
+
+    # If we have embedded approval data, show approval form
+    if approval_data:
+        cm = get_consent_manager()
+        case_id = approval_data.get('case_id')
+        device_id = approval_data.get('device_id', 'UNKNOWN_DEVICE')
+        purpose = approval_data.get('purpose', 'Investigator did not provide details.')
+        requested_level_name = approval_data.get('requested_level', 'STANDARD')
+        nominee_name = approval_data.get('nominee_name')
+        
+        # Attempt to detect device if not provided or unknown
+        if device_id == 'UNKNOWN_DEVICE' or not device_id:
+            try:
+                detected = cm.ensure_device_id(case_id)
+                if detected:
+                    device_id = detected
+                    st.info(f"✅ Device auto-detected: {device_id}")
+                else:
+                    st.warning("⚠️ Could not auto-detect device. Please verify manually.")
+            except Exception as e:
+                st.warning(f"⚠️ Device detection failed: {e}")
+        
+        # Create a temporary session for display
+        try:
+            requested_level = ConsentLevel[requested_level_name]
+        except (KeyError, TypeError):
+            requested_level = ConsentLevel.STANDARD
+        
+        st.markdown("# 🔐 ForenSmart Consent Approval")
+        st.info("Review the request details below and choose whether to unlock data extraction.")
+        
+        st.markdown("### Case Information")
+        col_a, col_b = st.columns(2)
+        with col_a:
+            st.metric("Case ID", case_id or "N/A")
+            st.metric("Device ID", device_id)
+        with col_b:
+            st.metric("Requested Level", requested_level.name)
+            st.metric("Current Level", "NONE")
+        
+        st.markdown("### Purpose")
+        st.write(purpose)
+        
+        st.markdown("### Your Decision")
+        st.caption("Please confirm whether you approve or deny this extraction request.")
+        
+        col1, col2 = st.columns(2)
+        with col1:
+            if st.button('✅ Yes, Approve', key='approve_btn', use_container_width=True):
+                # Get current URL as the approval link
+                current_url = st.query_params.get('_url', 'N/A')
+                if _save_approval(case_id, 'approved', nominee_name, approval_link=str(st.query_params)):
+                    # Also save the link separately for tracking
+                    _save_approval_link(case_id, str(st.query_params), nominee_name)
+                    
+                    # Clear cache to ensure dashboard sees the approval immediately
+                    try:
+                        from modules.approval_sync import ApprovalSync
+                        ApprovalSync.clear_cache(case_id)
+                    except Exception:
+                        pass
+                    
+                    st.success("✅ **Approval Granted** - Thank you for your consent. The investigator has been notified.")
+                    st.caption(f"Nominee: {nominee_name or 'Not specified'}")
+                    st.info("You can close this page now.")
+                    st.balloons()
+                else:
+                    st.error("Failed to save approval. Please try again.")
+        with col2:
+            if st.button('❌ No, Deny', key='deny_btn', use_container_width=True):
+                # Get current URL as the approval link
+                current_url = st.query_params.get('_url', 'N/A')
+                if _save_approval(case_id, 'denied', nominee_name, approval_link=str(st.query_params)):
+                    # Also save the link separately for tracking
+                    _save_approval_link(case_id, str(st.query_params), nominee_name)
+                    
+                    # Clear cache to ensure dashboard sees the denial immediately
+                    try:
+                        from modules.approval_sync import ApprovalSync
+                        ApprovalSync.clear_cache(case_id)
+                    except Exception:
+                        pass
+                    
+                    st.error("❌ **Request Denied** - Your decision has been recorded and the investigator has been notified.")
+                    st.caption(f"Nominee: {nominee_name or 'Not specified'}")
+                    st.info("You can close this page now.")
+                else:
+                    st.error("Failed to save denial. Please try again.")
+        return
+
+    # Fallback to token-based lookup
     if IMPORT_ERROR or not callable(render_nominee_approval):
         st.error(
             "Consent portal is missing the main dashboard UI components. "
@@ -56,17 +328,6 @@ def main() -> None:
         )
         if IMPORT_ERROR:
             st.code(str(IMPORT_ERROR))
-        return
-
-    token = _extract_unlock_token()
-    if not token:
-        st.warning(
-            "No approval token supplied. This page must be opened via the secure link "
-            "shared by the investigator."
-        )
-        st.info(
-            "Example: https://your-consent-app.streamlit.app/?unlock_token=TOKEN_HERE"
-        )
         return
 
     cm = get_consent_manager()
