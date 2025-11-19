@@ -158,10 +158,6 @@ EXTRACTION_SCOPES = {
 
 @dataclass
 class ConsentSession:
-    def generate_verification_code(self) -> str:
-        """Generate a random 6-digit verification code."""
-        import random
-        return f"{random.randint(100000, 999999)}"
     """Tracks all consent details for a case"""
     case_id: str
     device_id: str
@@ -175,6 +171,16 @@ class ConsentSession:
     sms_attempts: int = 0  # Track SMS verification attempts
     # Allows infinite attempts for primary evidence cases
     primary_evidence: bool = False
+    # FIX #1: Add approval tracking fields
+    approval_status: Optional[str] = None  # 'pending', 'approved', 'denied'
+    approval_timestamp: Optional[str] = None
+    approval_link: Optional[str] = None
+    nominee_name: Optional[str] = None
+
+    def generate_verification_code(self) -> str:
+        """Generate a random 6-digit verification code."""
+        import random
+        return f"{random.randint(100000, 999999)}"
 
 
 class ConsentAuditLogger:
@@ -1297,6 +1303,54 @@ class ConsentManager:
         session.last_verified = datetime.now()
         self._write_consent_snapshot(case_id)
         return True
+
+    # FIX #5: Add device detection method
+    def get_or_detect_device(self, case_id: str) -> Optional[str]:
+        """Get device ID from session or detect it."""
+        session = self.sessions.get(case_id)
+        if not session:
+            return None
+        
+        if session.device_id and session.device_id != 'UNKNOWN_DEVICE':
+            return session.device_id
+        
+        detected = self.ensure_device_id(case_id)
+        if detected:
+            session.device_id = detected
+            self._write_consent_snapshot(case_id)
+        
+        return detected
+
+    # FIX #6: Add approval retrieval methods
+    def get_approval_history(self, case_id: str) -> List[Dict[str, Any]]:
+        """Get approval history for a case."""
+        try:
+            from modules.approval_utils import get_approvals_file
+            approvals_file = get_approvals_file()
+            if not approvals_file.exists():
+                return []
+            approvals = json.loads(approvals_file.read_text())
+            if case_id in approvals:
+                return approvals[case_id].get('history', [])
+        except Exception as e:
+            logger.error(f"Failed to get approval history: {e}")
+        return []
+
+    def get_latest_approval_link(self, case_id: str) -> Optional[str]:
+        """Get the latest approval link for a case."""
+        session = self.sessions.get(case_id)
+        if session and session.approval_link:
+            return session.approval_link
+        try:
+            from modules.approval_utils import get_approvals_file
+            approvals_file = get_approvals_file()
+            if approvals_file.exists():
+                approvals = json.loads(approvals_file.read_text())
+                if case_id in approvals:
+                    return approvals[case_id].get('approval_link')
+        except Exception as e:
+            logger.error(f"Failed to get approval link: {e}")
+        return None
 
     def get_opencellid_key(self, case_id: str) -> Optional[str]:
         """Get the OpenCellID API key for a case."""

@@ -21,6 +21,8 @@ if str(parent) not in sys.path:
 
 from modules.consent import ConsentManager, ConsentLevel  # noqa: E402  (loaded after sys.path tweak)
 from modules.approval_utils import get_approvals_file, save_approval_decision  # noqa: E402
+from modules.consent_audit_trail import ConsentAuditTrail  # noqa: E402
+import logging  # noqa: E402
 
 try:
     from modules.dashboard import render_nominee_approval  # noqa: E402
@@ -77,8 +79,28 @@ def _save_approval(case_id: str, decision: str, nominee_name: Optional[str] = No
                 approvals[case_id]['approval_link'] = approval_link
                 approvals_file.write_text(json.dumps(approvals, indent=2))
             
+            # FIX #2: Sync approval to ConsentSession
+            cm = get_consent_manager()
+            session = cm.get_session(case_id)
+            if session:
+                session.approval_status = decision
+                session.approval_timestamp = datetime.now().isoformat()
+                session.nominee_name = nominee_name
+                session.approval_link = approval_link
+                cm.persist_session(case_id)
+            
+            # Record to audit trail
+            device_id = approvals.get(case_id, {}).get('device_id', 'UNKNOWN')
+            purpose = approvals.get(case_id, {}).get('purpose', 'Not specified')
+            ConsentAuditTrail.record_approval(
+                case_id=case_id,
+                decision=decision,
+                nominee_name=nominee_name or 'Unknown',
+                device_id=device_id,
+                purpose=purpose
+            )
+            
             # Log and display success with file details
-            import logging
             logger = logging.getLogger(__name__)
             logger.info(f"✅ Approval saved for case {case_id} to {approvals_file}")
             
@@ -90,7 +112,6 @@ def _save_approval(case_id: str, decision: str, nominee_name: Optional[str] = No
             st.error(f"Failed to save approval for case {case_id}")
             return False
     except Exception as e:
-        import logging
         logger = logging.getLogger(__name__)
         logger.error(f"Failed to save approval: {e}")
         st.error(f"Failed to save approval: {e}")
@@ -169,9 +190,22 @@ def main() -> None:
     st.set_page_config(page_title="ForenSmart Consent Portal", layout="wide")
     st.markdown("## 🔐 ForenSmart Consent Portal")
     
-    # Sidebar for viewing saved approval links
+    # Sidebar for viewing saved approval links and audit trail
     with st.sidebar:
-        st.markdown("### 📊 Approval History")
+        st.markdown("### 📊 Audit Trail & History")
+        
+        # Audit trail statistics
+        stats = ConsentAuditTrail.get_statistics()
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Total Records", stats['total_records'])
+        with col2:
+            st.metric("Approvals", stats['approvals'])
+        with col3:
+            st.metric("Denials", stats['denials'])
+        
+        st.divider()
+        st.markdown("### 📋 Approval History")
         if st.button("🔄 Refresh Links"):
             st.rerun()
         
@@ -201,6 +235,28 @@ def main() -> None:
                         st.write(f"**Decided:** {data.get('timestamp', 'N/A')[:10]}")
         else:
             st.info("No approval links saved yet.")
+        
+        # Audit trail viewer
+        st.divider()
+        if st.checkbox("📊 View Audit Trail"):
+            trail = ConsentAuditTrail.get_audit_trail()
+            if trail:
+                st.markdown("#### Recent Entries")
+                for entry in trail[-10:]:  # Last 10
+                    with st.expander(f"{entry['timestamp'][:10]} - {entry['case_id']} ({entry['decision'].upper()})"):
+                        st.json(entry)
+            else:
+                st.info("No audit trail records yet")
+        
+        # Export audit trail
+        if st.button("📥 Export Audit Trail"):
+            trail = ConsentAuditTrail.get_audit_trail()
+            st.download_button(
+                label="Download as JSON",
+                data=ConsentAuditTrail.export_audit_trail(),
+                file_name=f"audit_trail_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                mime="application/json"
+            )
 
     params = _extract_query_params()
     
@@ -240,10 +296,10 @@ def main() -> None:
         requested_level_name = approval_data.get('requested_level', 'STANDARD')
         nominee_name = approval_data.get('nominee_name')
         
-        # Attempt to detect device if not provided or unknown
+        # Attempt to detect device if not provided or unknown (FIX #5: Use shared method)
         if device_id == 'UNKNOWN_DEVICE' or not device_id:
             try:
-                detected = cm.ensure_device_id(case_id)
+                detected = cm.get_or_detect_device(case_id)
                 if detected:
                     device_id = detected
                     st.info(f"✅ Device auto-detected: {device_id}")
