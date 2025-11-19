@@ -263,7 +263,8 @@ class DeviceDetector:
         # Get authorized device
         auth_device = DeviceDetector.get_authorized_device(adb_path)
         if auth_device:
-            diagnosis["authorized_device"] = auth_device
+            # Extract only the serial string, not the entire dict
+            diagnosis["authorized_device"] = auth_device["serial"]
             device_info = DeviceDetector.get_device_info(auth_device["serial"], adb_path)
             diagnosis["device_info"] = device_info
         else:
