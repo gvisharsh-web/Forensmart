@@ -101,6 +101,13 @@ def render_extraction_tab(
     
     # Get ConsentManager and check consent level
     from modules.dashboard import get_consent_manager
+    from modules.approval_utils import get_approval_decision
+    from modules.extraction_validator import ExtractionValidator
+    from modules.approval_sync import ApprovalSync
+    from modules.device_manager import DeviceManager
+    from modules.extraction_progress import ProgressManager
+    from modules.consent_portal_enhanced import ConsentPortalEnhancer
+    
     cm = get_consent_manager()
     session = cm.get_session(case_id)
 
@@ -108,22 +115,58 @@ def render_extraction_tab(
     if not consent_ok:
         st.warning("⚠️ Insufficient consent. Please obtain at least STANDARD consent from the 'Consent' tab before extraction.")
 
+    # Check both old and new approval methods with ApprovalSync
     unlock_status = cm.get_unlock_status(case_id) if session else {}
     unlock_verified = unlock_status.get('status') == 'verified'
-    if consent_ok and not unlock_verified:
+    
+    # Use ApprovalSync for real-time approval status
+    if ApprovalSync.is_approved(case_id):
+        unlock_verified = True
+        st.success("✅ **Nominee Approved** - Extraction is unlocked!")
+    elif ApprovalSync.is_denied(case_id):
+        unlock_verified = False
+        st.error("🔐 Nominee denied the unlock request. Generate a new approval link in the Consent tab.")
+    elif ApprovalSync.is_approval_expired(case_id):
+        st.warning("⏳ Approval expired. Request new approval from the Consent tab.")
+        unlock_verified = False
+    elif consent_ok and not unlock_verified:
         status = unlock_status.get('status', 'pending')
         if status == 'denied':
             st.error("🔐 Nominee denied the unlock request. Generate a new approval link in the Consent tab.")
         else:
             st.info("⏳ Waiting for nominee approval. Share the approval link from the Consent tab.")
 
-    # Check for device connection
+    # Check for device connection with DeviceManager
     device_id = cm.ensure_device_id(case_id)
     device_ok = device_id and device_id != 'UNKNOWN_DEVICE'
-    if not device_ok:
+    
+    if device_ok:
+        # Validate device health
+        device_health = DeviceManager.get_device_health(device_id)
+        if device_health.get("issues"):
+            st.warning(f"⚠️ Device issues: {', '.join(device_health['issues'])}")
+            device_ok = False
+        if device_health.get("warnings"):
+            for warning in device_health["warnings"]:
+                st.warning(f"⚠️ {warning}")
+    else:
         st.warning("⚠️ No device connected. Please connect a device and ensure it's recognized before starting extraction.")
 
     buttons_disabled = not (consent_ok and device_ok and unlock_verified)
+    
+    # Show approval delivery options with ConsentPortalEnhancer if not approved yet
+    if consent_ok and not unlock_verified:
+        st.divider()
+        st.markdown("### 📤 Need Approval?")
+        if st.button("Show Approval Delivery Options", key="btn_show_approval_options"):
+            ConsentPortalEnhancer.render_delivery_ui(
+                approval_link=f"https://forensmart-consent.streamlit.app?case={case_id}",
+                nominee_phone=session.nominee_phone if session else "",
+                nominee_email="",
+                nominee_name="",
+                case_id=case_id
+            )
+        st.divider()
     
     # Extraction type selection
     col1, col2, col3 = st.columns(3)
@@ -153,7 +196,28 @@ def render_extraction_tab(
         extraction_type = st.session_state.get('extraction_type', 'android')
         manager = get_extraction_ui_manager()
         
-        # Get or create tracker
+        # Validate extraction readiness BEFORE starting
+        validation_result = ExtractionValidator.validate_extraction_ready(
+            case_id=case_id,
+            device_id=device_id,
+            session=session,
+            required_level=ConsentLevel.STANDARD
+        )
+        
+        if not validation_result["ready"]:
+            st.error("❌ **Extraction Cannot Start**")
+            st.error("**Errors:**")
+            for error in validation_result["errors"]:
+                st.write(f"- {error}")
+            if validation_result["warnings"]:
+                st.warning("**Warnings:**")
+                for warning in validation_result["warnings"]:
+                    st.write(f"- {warning}")
+            st.session_state['start_extraction'] = False
+            st.stop()
+        
+        # Get or create tracker with progress manager
+        progress_tracker = ProgressManager.create_tracker(case_id, extraction_type)
         tracker = manager.get_extraction_tracker(case_id, extraction_type)
         if not tracker:
             tracker = manager.start_extraction(case_id, extraction_type)
@@ -169,6 +233,7 @@ def render_extraction_tab(
         # Check if we need to start the extraction
         if tracker.status != ProgressStatus.RUNNING and not st.session_state.extraction_thread:
             tracker.start()
+            progress_tracker.start_module("initialization")
             
             def progress_callback(progress, message):
                 tracker.update(int(progress), message)
@@ -340,7 +405,7 @@ def render_intelligence_tab(
     consent_id: Optional[str] = None
 ) -> None:
     """
-    Render the intelligence analysis tab with modern progress tracking.
+    Render the intelligence analysis tab with modern progress tracking and enhancements.
     
     Args:
         case_id: Case ID for analysis
@@ -348,6 +413,11 @@ def render_intelligence_tab(
     """
     from modules.progress_ui import render_progress_bar, ProgressStatus
     from modules.dashboard import get_consent_manager
+    from modules.extraction_validator import ExtractionValidator
+    from modules.approval_sync import ApprovalSync
+    from modules.device_manager import DeviceManager
+    from modules.extraction_progress import ProgressManager
+    from modules.consent_portal_enhanced import ConsentPortalEnhancer
     import time
     import threading
     
@@ -359,6 +429,43 @@ def render_intelligence_tab(
 
     if not session or session.level.value < ConsentLevel.STANDARD.value:
         st.warning("⚠️ Insufficient consent. Please obtain at least STANDARD consent before analysis.")
+        return
+    
+    # Check approval status with ApprovalSync
+    if not ApprovalSync.is_approved(case_id):
+        st.warning("⏳ Awaiting nominee approval for intelligence analysis.")
+        if st.button("📤 Show Approval Delivery Options", key="btn_intel_approval_options"):
+            ConsentPortalEnhancer.render_delivery_ui(
+                approval_link=f"https://forensmart-consent.streamlit.app?case={case_id}",
+                nominee_phone=session.nominee_phone if session else "",
+                nominee_email="",
+                nominee_name="",
+                case_id=case_id
+            )
+        return
+    
+    # Check device health
+    device_id = cm.ensure_device_id(case_id)
+    if device_id and device_id != 'UNKNOWN_DEVICE':
+        device_health = DeviceManager.get_device_health(device_id)
+        if device_health.get("issues"):
+            st.warning(f"⚠️ Device issues detected: {', '.join(device_health['issues'])}")
+        if device_health.get("warnings"):
+            for warning in device_health["warnings"]:
+                st.warning(f"⚠️ {warning}")
+    
+    # Validate extraction readiness with ExtractionValidator
+    validation_result = ExtractionValidator.validate_extraction_ready(
+        case_id=case_id,
+        device_id=device_id or 'UNKNOWN_DEVICE',
+        session=session,
+        required_level=ConsentLevel.STANDARD
+    )
+    
+    if not validation_result["ready"]:
+        st.warning("⚠️ Intelligence analysis prerequisites not met:")
+        for error in validation_result["errors"]:
+            st.write(f"- {error}")
         return
     
     # Initialize session state for intelligence analysis
@@ -410,11 +517,16 @@ def render_intelligence_tab(
         tracker = ProgressTracker(total_steps=len(features) * 100)
         tracker.start()
         st.session_state.intelligence_tracker = tracker
+        
+        # Create progress tracker for intelligence analysis
+        progress_tracker = ProgressManager.create_tracker(case_id, 'intelligence_analysis')
+        st.session_state.intelligence_progress_tracker = progress_tracker
         st.rerun()
     
     # Show analysis progress if running
     if st.session_state.intelligence_started:
         progress_placeholder = st.empty()
+        progress_tracker = st.session_state.get('intelligence_progress_tracker')
         
         # Start analysis in a separate thread if not already started
         if 'intelligence_thread' not in st.session_state or not st.session_state.intelligence_thread.is_alive():
@@ -426,9 +538,15 @@ def render_intelligence_tab(
                             steps_per_feature = 100 // len(features)
                             start_step = (feature_idx - 1) * steps_per_feature
                             
+                            # Track feature analysis
+                            if progress_tracker:
+                                progress_tracker.start_module(feature)
+                            
                             for i in range(steps_per_feature + 1):
                                 if st.session_state.get('stop_intelligence', False):
                                     tracker.error("Analysis cancelled by user")
+                                    if progress_tracker:
+                                        progress_tracker.error_module(feature, "Cancelled by user")
                                     break
                                     
                                 current_step = start_step + i
@@ -436,17 +554,35 @@ def render_intelligence_tab(
                                     current_step, 
                                     f"Analyzing {feature}... {int((i / steps_per_feature) * 100)}%"
                                 )
+                                
+                                # Update progress tracker
+                                if progress_tracker:
+                                    progress_tracker.update_module_progress(
+                                        feature,
+                                        int((i / steps_per_feature) * 100),
+                                        artifacts_count=0
+                                    )
+                                
                                 time.sleep(0.05)
+                            
+                            # Complete feature analysis
+                            if progress_tracker and not st.session_state.get('stop_intelligence', False):
+                                progress_tracker.complete_module(feature, artifacts_count=0)
                         
                         if not st.session_state.get('stop_intelligence', False):
                             tracker.complete()
                             tracker.message = "Analysis completed successfully!"
+                            if progress_tracker:
+                                progress_tracker.complete_extraction()
+                                progress_tracker.save_progress()
                         
                         st.session_state.intelligence_completed = True
                         st.rerun()
                             
                     except Exception as e:
                         tracker.error(f"Analysis failed: {str(e)}")
+                        if progress_tracker:
+                            progress_tracker.error_extraction(str(e))
                         st.session_state.intelligence_completed = True
                         st.rerun()
             

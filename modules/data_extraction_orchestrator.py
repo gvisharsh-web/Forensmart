@@ -38,6 +38,10 @@ from .shared_utils import (
     parse_calls_dump,
 )
 from modules.file_handler import file_handler
+from modules.extraction_validator import ExtractionValidator
+from modules.extraction_progress import ProgressManager
+from modules.approval_sync import ApprovalSync
+from modules.device_manager import DeviceManager
 
 try:
     from adapters.android_adb import AndroidADB  # type: ignore
@@ -1123,7 +1127,7 @@ class DataExtractionOrchestrator:
         progress_callback=None,
         modules_override: Optional[List[str]] = None
     ) -> Dict[str, Any]:
-        """One-click extraction with retry mechanism"""
+        """One-click extraction with retry mechanism and enhanced validation"""
         start_time = datetime.now()
         results = {
             'case_id': case_id,
@@ -1144,6 +1148,21 @@ class DataExtractionOrchestrator:
             if not session:
                 raise ValueError(f"No consent session for case {case_id}")
 
+            # Validate extraction readiness with enhanced validator
+            validation_result = ExtractionValidator.validate_extraction_ready(
+                case_id=case_id,
+                device_id=device_id,
+                session=session,
+                required_level=ConsentLevel.STANDARD
+            )
+            
+            if not validation_result["ready"]:
+                results['status'] = 'blocked'
+                results['errors'].extend(validation_result["errors"])
+                results['validation_checks'] = validation_result["checks"]
+                logger.warning(f"Extraction blocked for {case_id}: {validation_result['errors']}")
+                return results
+
             # Determine which modules to run
             modules_for_level = self.consent_level_modules.get(session.level, [])
             if modules_override:
@@ -1162,6 +1181,23 @@ class DataExtractionOrchestrator:
 
             results['modules_requested'] = modules_to_run
             module_logs: Dict[str, List[Dict[str, Any]]] = {module: [] for module in modules_to_run}
+
+            # Check approval status with ApprovalSync
+            if not ApprovalSync.is_approved(case_id):
+                message = 'Awaiting nominee approval for extraction'
+                results['status'] = 'pending_approval'
+                results['errors'].append(message)
+                logger.info(f"Extraction pending approval for {case_id}")
+                return results
+            
+            # Check device health with DeviceManager
+            device_health = DeviceManager.get_device_health(device_id)
+            if device_health.get("issues"):
+                message = f"Device issues detected: {', '.join(device_health['issues'])}"
+                results['status'] = 'blocked'
+                results['errors'].append(message)
+                logger.warning(f"Device health check failed for {device_id}: {message}")
+                return results
 
             unlock_status = self.consent_manager.get_unlock_status(case_id)
             results['unlock_status'] = unlock_status
@@ -1192,6 +1228,9 @@ class DataExtractionOrchestrator:
                 except Exception:
                     logger.warning('Failed to record extraction_blocked audit event for case %s', case_id)
                 return results
+            
+            # Create progress tracker for real-time monitoring
+            progress_tracker = ProgressManager.create_tracker(case_id, 'full_extraction')
 
             vault_pending = False
             pending_payload: Optional[Dict[str, Any]] = None

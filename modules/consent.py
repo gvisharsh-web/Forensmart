@@ -727,10 +727,41 @@ class ConsentManager:
         }
 
     def ensure_device_id(self, case_id: str) -> Optional[str]:
+        """Ensure device ID with enhanced detection and auto-recovery."""
         session = self.sessions.get(case_id)
         if not session:
             return None
 
+        # First, try enhanced device detector with auto-recovery
+        try:
+            from modules.device_detector import DeviceDetector
+            
+            # Use enhanced diagnostics with auto-recovery
+            diagnosis = DeviceDetector.diagnose_and_recover()
+            
+            # Check if we have an authorized device
+            if diagnosis.get("authorized_device"):
+                detected = diagnosis["authorized_device"]
+                if session.device_id != detected:
+                    session.device_id = detected
+                    self._write_consent_snapshot(case_id)
+                    logger.info(f"Device detected and set for {case_id}: {detected}")
+                return detected
+            
+            # If no authorized device, try to get any connected device
+            if diagnosis.get("devices"):
+                for device in diagnosis["devices"]:
+                    if device.get("status") == "device":  # Authorized device
+                        detected = device.get("serial")
+                        if detected and session.device_id != detected:
+                            session.device_id = detected
+                            self._write_consent_snapshot(case_id)
+                            logger.info(f"Device detected from list for {case_id}: {detected}")
+                        return detected
+        except Exception as e:
+            logger.debug(f"Enhanced device detection failed: {e}")
+
+        # Fallback to basic detection if enhanced detection fails
         if session.device_id and self._device_connected(session.device_id):
             return session.device_id
 
