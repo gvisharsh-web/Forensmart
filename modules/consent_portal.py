@@ -490,11 +490,14 @@ def _save_approval_link(case_id: str, approval_link: str, nominee_name: Optional
         if case_id not in approvals:
             approvals[case_id] = {}
         
+        # FIX: Preserve existing status if it exists (don't reset to pending)
+        current_status = approvals[case_id].get('status', 'pending')
+        
         approvals[case_id].update({
             'approval_link': approval_link,
             'link_created_at': datetime.now().isoformat(),
             'nominee_name': nominee_name,
-            'status': 'pending'  # pending, approved, denied
+            'status': current_status  # Preserve existing status
         })
         
         approvals_file.write_text(json.dumps(approvals, indent=2))

@@ -17,7 +17,7 @@ class ApprovalSync:
     # Local cache
     _cache: Dict[str, Dict[str, Any]] = {}
     _cache_timestamp: Dict[str, float] = {}
-    _cache_ttl = 300  # 5 minutes
+    _cache_ttl = 30  # 30 seconds - faster approval reflection (was 5 minutes)
 
     @staticmethod
     def _is_cache_valid(case_id: str) -> bool:
