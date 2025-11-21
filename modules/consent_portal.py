@@ -813,10 +813,10 @@ def main() -> None:
                         If you're not redirected automatically, you can close this page.
                         """)
                         
-                        # Use Streamlit's redirect mechanism (desktop only)
+                        # Use JavaScript redirect to Dashboard on port 8502 (more reliable)
                         # Redirect to Dashboard on port 8502 with case_id parameter
                         import time
-                        time.sleep(2)
+                        time.sleep(1)
                         
                         # Determine the dashboard URL
                         dashboard_url = "http://localhost:8502"
@@ -830,10 +830,19 @@ def main() -> None:
                         except Exception:
                             pass
                         
+                        # Use JavaScript redirect (more reliable than meta refresh)
+                        redirect_url = f"{dashboard_url}?case_id={case_id}&auto_extract=true"
                         st.markdown(
-                            f'<meta http-equiv="refresh" content="0; url={dashboard_url}?case_id={case_id}&auto_extract=true" />',
+                            f"""
+                            <script>
+                            window.location.href = "{redirect_url}";
+                            </script>
+                            """,
                             unsafe_allow_html=True
                         )
+                        
+                        # Also provide a clickable link as fallback
+                        st.markdown(f"[Click here if not redirected automatically]({redirect_url})")
                     else:
                         st.info("📱 **Approval saved successfully!**")
                         st.markdown("""
