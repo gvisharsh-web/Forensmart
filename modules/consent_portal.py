@@ -814,10 +814,24 @@ def main() -> None:
                         """)
                         
                         # Use Streamlit's redirect mechanism (desktop only)
+                        # Redirect to Dashboard on port 8502 with case_id parameter
                         import time
                         time.sleep(2)
+                        
+                        # Determine the dashboard URL
+                        dashboard_url = "http://localhost:8502"
+                        try:
+                            # Try to get the current host from headers for network access
+                            headers = st.context.headers if hasattr(st, 'context') else {}
+                            host = headers.get('host', 'localhost:8501')
+                            if host and ':' in host:
+                                host_ip = host.split(':')[0]
+                                dashboard_url = f"http://{host_ip}:8502"
+                        except Exception:
+                            pass
+                        
                         st.markdown(
-                            f'<meta http-equiv="refresh" content="0; url=/?case_id={case_id}&auto_extract=true" />',
+                            f'<meta http-equiv="refresh" content="0; url={dashboard_url}?case_id={case_id}&auto_extract=true" />',
                             unsafe_allow_html=True
                         )
                     else:
