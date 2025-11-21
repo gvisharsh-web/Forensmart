@@ -11,6 +11,12 @@ from urllib.parse import urlencode, quote
 
 logger = logging.getLogger(__name__)
 
+# NEW: Import ApprovalSync for approval verification
+try:
+    from modules.approval_sync import ApprovalSync
+except ImportError:
+    ApprovalSync = None  # Optional dependency
+
 
 class ApprovalRedirect:
     """Handle approval redirects and auto-extraction triggers."""
@@ -28,6 +34,13 @@ class ApprovalRedirect:
     def trigger_extraction(case_id: str, device_id: str, extraction_type: str = "android") -> bool:
         """Trigger extraction for a case after approval."""
         try:
+            # NEW: Check approval status with ApprovalSync
+            if ApprovalSync:
+                if not ApprovalSync.is_approved(case_id):
+                    logger.warning(f"Extraction not approved for {case_id}")
+                    return False
+            
+            # Check if callback is registered
             if case_id in ApprovalRedirect._extraction_callbacks:
                 callback = ApprovalRedirect._extraction_callbacks[case_id]
                 callback(case_id, device_id, extraction_type)
