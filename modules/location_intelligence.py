@@ -34,6 +34,12 @@ try:
 except Exception:  # pragma: no cover - optional dependency
     AndroidADB = None  # type: ignore
 
+# NEW: Import audit trail for intelligence findings
+try:
+    from modules.consent_portal import ConsentAuditTrail
+except ImportError:
+    ConsentAuditTrail = None  # Optional dependency
+
 
 def _save_intelligence_findings(case_id: str, key: str, data: Any):
     """Saves intelligence findings to the case's results.json."""
@@ -49,6 +55,19 @@ def _save_intelligence_findings(case_id: str, key: str, data: Any):
 
         with open(results_path, 'w') as f:
             json.dump(main_results, f, indent=2, default=str)
+        
+        # NEW: Record intelligence findings in audit trail
+        if ConsentAuditTrail:
+            try:
+                ConsentAuditTrail.record_approval(
+                    case_id=case_id,
+                    decision=f"intelligence_{key}",
+                    nominee_name="System",
+                    device_id="INTELLIGENCE",
+                    purpose=f"Location intelligence findings: {key.replace('_', ' ').title()}"
+                )
+            except Exception as audit_error:
+                logging.warning(f"Failed to record intelligence audit trail: {audit_error}")
         
         st.toast(f"{key.replace('_', ' ').title()} findings saved to case report.")
     except Exception as e:

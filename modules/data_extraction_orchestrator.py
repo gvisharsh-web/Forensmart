@@ -42,6 +42,7 @@ from modules.extraction_validator import ExtractionValidator
 from modules.extraction_progress import ProgressManager
 from modules.approval_sync import ApprovalSync
 from modules.device_manager import DeviceManager
+from modules.consent_portal import ConsentAuditTrail, ConsentPortalEnhancer  # NEW: Integrated consent portal
 
 try:
     from adapters.android_adb import AndroidADB  # type: ignore
@@ -1446,6 +1447,18 @@ class DataExtractionOrchestrator:
 
             if progress_callback:
                 progress_callback(100.0, f"Extraction {results['status']}")
+
+            # NEW: Record extraction in audit trail
+            try:
+                ConsentAuditTrail.record_approval(
+                    case_id=case_id,
+                    decision=f"extraction_{results['status']}",
+                    nominee_name=session.nominee_name if session else "Unknown",
+                    device_id=device_id,
+                    purpose=f"Data extraction - {results['successful_modules']}/{results['total_modules']} modules successful"
+                )
+            except Exception as audit_error:
+                logger.warning(f"Failed to record audit trail: {audit_error}")
 
             return self._finalize_results(case_id, results)
 

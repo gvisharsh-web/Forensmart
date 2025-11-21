@@ -34,6 +34,7 @@ from modules.shared_utils import ArtifactPathBuilder
 from modules.data_extraction_orchestrator import DataExtractionOrchestrator
 from modules.consent import ConsentManager
 from modules.consent import ConsentLevel
+from modules.consent_portal import ConsentAuditTrail  # NEW: Audit trail for extraction history
 print(ConsentLevel)
 
 

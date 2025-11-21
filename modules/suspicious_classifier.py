@@ -20,6 +20,12 @@ try:
 except Exception:
     joblib = None
 
+# NEW: Import audit trail for suspicious classifications
+try:
+    from modules.consent_portal import ConsentAuditTrail
+except ImportError:
+    ConsentAuditTrail = None  # Optional dependency
+
 
 def _load_results_messages(case_id: str) -> List[Dict[str, Any]]:
     path = os.path.join('reports', case_id, 'results.json')

@@ -19,6 +19,12 @@ except Exception:  # Streamlit not available outside app runtime
 # Initialize logger
 logger = logging.getLogger(__name__)
 
+# NEW: Import audit trail for consent tracking
+try:
+    from modules.consent_portal import ConsentAuditTrail
+except ImportError:
+    ConsentAuditTrail = None  # Optional dependency
+
 
 class ConsentLevel(Enum):
     """Defines all consent levels for forensic access"""
@@ -1243,6 +1249,20 @@ class ConsentManager:
             'level': new_level.name,
             'reason': reason
         })
+        
+        # NEW: Record consent level change in audit trail
+        if ConsentAuditTrail:
+            try:
+                ConsentAuditTrail.record_approval(
+                    case_id=case_id,
+                    decision=f"consent_level_{new_level.name}",
+                    nominee_name=session.nominee_name,
+                    device_id=session.device_id or "UNKNOWN",
+                    purpose=f"Consent level updated to {new_level.name}: {reason}"
+                )
+            except Exception as e:
+                logger.warning(f"Failed to record consent audit trail: {e}")
+        
         return {'status': 'updated', 'message': f'Consent level set to {new_level.name}.'}
 
     def maybe_expire_consent(self, case_id: str, expiry_hours: int = 12) -> Optional[Dict[str, Any]]:

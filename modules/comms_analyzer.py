@@ -32,6 +32,11 @@ try:
 except ImportError:
     Network = None
 
+# NEW: Import audit trail for communications analysis
+try:
+    from modules.consent_portal import ConsentAuditTrail
+except ImportError:
+    ConsentAuditTrail = None  # Optional dependency
 
 from modules.shared_utils import (
     ArtifactPathBuilder,
@@ -60,6 +65,19 @@ def _save_intelligence_findings(case_id: str, key: str, data: Any):
 
         with open(results_path, 'w') as f:
             json.dump(main_results, f, indent=2, default=str)
+        
+        # NEW: Record communications analysis in audit trail
+        if ConsentAuditTrail:
+            try:
+                ConsentAuditTrail.record_approval(
+                    case_id=case_id,
+                    decision=f"comms_analysis_{key}",
+                    nominee_name="System",
+                    device_id="ANALYSIS",
+                    purpose=f"Communications analysis: {key.replace('_', ' ').title()}"
+                )
+            except Exception as audit_error:
+                logging.warning(f"Failed to record comms analysis audit trail: {audit_error}")
         
         st.toast(f"{key.replace('_', ' ').title()} findings saved to case report.")
     except Exception as e:

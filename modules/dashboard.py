@@ -67,7 +67,7 @@ from modules.approval_sync import ApprovalSync # pyright: ignore[reportMissingIm
 from modules.device_manager import DeviceManager # pyright: ignore[reportMissingImports]
 from modules.extraction_validator import ExtractionValidator # pyright: ignore[reportMissingImports]
 from modules.extraction_progress import ProgressManager, ExtractionProgressTracker # pyright: ignore[reportMissingImports]
-from modules.consent_portal_enhanced import ConsentPortalEnhancer # pyright: ignore[reportMissingImports]
+from modules.consent_portal import ConsentPortalEnhancer, ConsentAuditTrail, ConsentPortalLogger # pyright: ignore[reportMissingImports]
 
 try:  # Streamlit internal helper (best-effort import)
     from streamlit.web.server.websocket_headers import _get_websocket_headers  # type: ignore
