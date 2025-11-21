@@ -455,6 +455,9 @@ def _save_approval(case_id: str, decision: str, nominee_name: Optional[str] = No
                 extraction_type="android"
             )
             
+            # NEW: Log approval activity for activity display on main page
+            _log_approval_activity(case_id, decision, nominee_name)
+            
             # Log and display success with file details
             logger = logging.getLogger(__name__)
             logger.info(f"✅ Approval saved for case {case_id} to {approvals_file}")
@@ -470,6 +473,39 @@ def _save_approval(case_id: str, decision: str, nominee_name: Optional[str] = No
         logger = logging.getLogger(__name__)
         logger.error(f"Failed to save approval: {e}")
         st.error(f"Failed to save approval: {e}")
+        return False
+
+
+def _log_approval_activity(case_id: str, decision: str, nominee_name: Optional[str] = None) -> bool:
+    """Log approval activity to activity log for display on main page."""
+    try:
+        activity_log_file = Path('audit/consent_portal/activity_log.json')
+        activity_log_file.parent.mkdir(parents=True, exist_ok=True)
+        
+        activities = {}
+        if activity_log_file.exists():
+            try:
+                activities = json.loads(activity_log_file.read_text())
+            except Exception:
+                activities = {}
+        
+        # Add new activity with unique ID
+        activity_id = f"{case_id}_{datetime.now().isoformat()}"
+        activities[activity_id] = {
+            'case_id': case_id,
+            'decision': decision,
+            'nominee_name': nominee_name or 'Unknown',
+            'timestamp': datetime.now().isoformat(),
+            'status': 'completed'
+        }
+        
+        activity_log_file.write_text(json.dumps(activities, indent=2))
+        logger = logging.getLogger(__name__)
+        logger.info(f"Activity logged: {case_id} - {decision} by {nominee_name}")
+        return True
+    except Exception as e:
+        logger = logging.getLogger(__name__)
+        logger.error(f"Failed to log activity: {e}")
         return False
 
 
@@ -542,6 +578,44 @@ def _display_approval_link_info(case_id: str, approval_data: Dict[str, Any]) -> 
     if approval_data.get('decision'):
         st.markdown(f"#### Decision: **{approval_data.get('decision').upper()}**")
         st.metric("Decision Time", approval_data.get('timestamp', 'N/A')[:19])
+
+
+def _render_approval_activity_log() -> None:
+    """Display recent approval activity on consent portal main page."""
+    st.markdown("## 📋 Recent Approval Activity")
+    
+    try:
+        activity_log_file = Path('audit/consent_portal/activity_log.json')
+        
+        if activity_log_file.exists():
+            activities = json.loads(activity_log_file.read_text())
+            
+            if activities:
+                # Sort by timestamp (newest first)
+                sorted_activities = sorted(
+                    activities.items(),
+                    key=lambda x: x[1].get('timestamp', ''),
+                    reverse=True
+                )
+                
+                # Display in table format
+                activity_data = []
+                for activity_id, activity in sorted_activities[:10]:  # Show last 10
+                    decision_emoji = "✅" if activity.get('decision') == 'approved' else "❌"
+                    activity_data.append({
+                        'Case ID': activity.get('case_id'),
+                        'Decision': f"{decision_emoji} {activity.get('decision', 'unknown').upper()}",
+                        'Nominee': activity.get('nominee_name', 'Unknown'),
+                        'Time': activity.get('timestamp', 'N/A')[:19]
+                    })
+                
+                st.dataframe(activity_data, use_container_width=True, hide_index=True)
+            else:
+                st.info("No approval activity yet")
+        else:
+            st.info("No approval activity yet")
+    except Exception as e:
+        st.error(f"Failed to load activity log: {e}")
 
 
 def main() -> None:
@@ -643,6 +717,10 @@ def main() -> None:
         st.info(
             "Example: https://your-consent-app.streamlit.app/?unlock_token=TOKEN_HERE"
         )
+        
+        # NEW: Display recent approval activity on main page
+        st.divider()
+        _render_approval_activity_log()
         return
 
     # If we have embedded approval data, show approval form
@@ -709,24 +787,41 @@ def main() -> None:
                     st.success("✅ **Approval Granted** - Thank you for your consent. The investigator has been notified.")
                     st.caption(f"Nominee: {nominee_name or 'Not specified'}")
                     
-                    # NEW: Show redirect message
-                    st.info("🔄 **Redirecting to dashboard for automatic extraction...**")
-                    st.markdown("""
-                    The dashboard will automatically:
-                    1. Recognize your approval
-                    2. Start the extraction process
-                    3. Display results in real-time
+                    # NEW: Detect device type (desktop vs mobile)
+                    import re
+                    user_agent = st.query_params.get('user_agent', '')
+                    is_mobile = bool(re.search(r'Mobile|Android|iPhone|iPad|iPod', user_agent)) if user_agent else False
                     
-                    If you're not redirected automatically, you can close this page.
-                    """)
+                    # Only redirect on desktop, not on mobile
+                    if not is_mobile:
+                        st.info("🔄 **Redirecting to dashboard for automatic extraction...**")
+                        st.markdown("""
+                        The dashboard will automatically:
+                        1. Recognize your approval
+                        2. Start the extraction process
+                        3. Display results in real-time
+                        
+                        If you're not redirected automatically, you can close this page.
+                        """)
+                        
+                        # Use Streamlit's redirect mechanism (desktop only)
+                        import time
+                        time.sleep(2)
+                        st.markdown(
+                            f'<meta http-equiv="refresh" content="0; url=/?case_id={case_id}&auto_extract=true" />',
+                            unsafe_allow_html=True
+                        )
+                    else:
+                        st.info("📱 **Approval saved successfully!**")
+                        st.markdown("""
+                        Your approval has been recorded. The investigator can now:
+                        1. View your approval in the dashboard
+                        2. Start the extraction process
+                        3. Monitor progress in real-time
+                        
+                        You can close this page now.
+                        """)
                     
-                    # Use Streamlit's redirect mechanism
-                    import time
-                    time.sleep(2)
-                    st.markdown(
-                        f'<meta http-equiv="refresh" content="0; url=/?case_id={case_id}&auto_extract=true" />',
-                        unsafe_allow_html=True
-                    )
                     st.balloons()
                 else:
                     st.error("Failed to save approval. Please try again.")
@@ -747,7 +842,19 @@ def main() -> None:
                     
                     st.error("❌ **Request Denied** - Your decision has been recorded and the investigator has been notified.")
                     st.caption(f"Nominee: {nominee_name or 'Not specified'}")
-                    st.info("You can close this page now.")
+                    
+                    # NEW: Detect device type (desktop vs mobile)
+                    import re
+                    user_agent = st.query_params.get('user_agent', '')
+                    is_mobile = bool(re.search(r'Mobile|Android|iPhone|iPad|iPod', user_agent)) if user_agent else False
+                    
+                    if is_mobile:
+                        st.info("📱 **Denial recorded. You can close this page now.**")
+                    else:
+                        st.info("You can close this page now.")
+                        # Optional: redirect on desktop
+                        import time
+                        time.sleep(1)
                 else:
                     st.error("Failed to save denial. Please try again.")
         return

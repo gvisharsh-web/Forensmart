@@ -1888,6 +1888,37 @@ def main():
         # Initialize session state
         if 'case_id' not in st.session_state:
             st.session_state['case_id'] = None
+        
+        # ========================================================================
+        # AUTO-REFRESH POLLING FOR APPROVAL DETECTION
+        # ========================================================================
+        # Poll approval file every 5 seconds for real-time approval detection
+        if 'last_approval_poll' not in st.session_state:
+            st.session_state['last_approval_poll'] = 0
+        
+        current_time = time.time()
+        case_id = st.session_state.get('case_id')
+        
+        # Auto-poll approval file every 5 seconds
+        if case_id and (current_time - st.session_state['last_approval_poll'] > 5):
+            try:
+                # Get approval status without cache (force fresh read from file)
+                approval_status = ApprovalSync.get_approval_status(case_id, use_cache=False)
+                
+                # Check if approval changed
+                if approval_status:
+                    current_decision = approval_status.get('decision')
+                    previous_decision = st.session_state.get(f'{case_id}_approval_decision')
+                    
+                    # If approval changed, refresh UI automatically
+                    if current_decision != previous_decision:
+                        st.session_state[f'{case_id}_approval_decision'] = current_decision
+                        logger.info(f"Approval detected for {case_id}: {current_decision} - Auto-refreshing UI")
+                        st.rerun()  # Auto-refresh UI
+                
+                st.session_state['last_approval_poll'] = current_time
+            except Exception as e:
+                logger.error(f"Auto-refresh polling failed: {e}")
 
 
 
