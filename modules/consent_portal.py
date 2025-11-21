@@ -787,10 +787,19 @@ def main() -> None:
                     st.success("✅ **Approval Granted** - Thank you for your consent. The investigator has been notified.")
                     st.caption(f"Nominee: {nominee_name or 'Not specified'}")
                     
-                    # NEW: Detect device type (desktop vs mobile)
+                    # NEW: Detect device type from browser headers (desktop vs mobile)
                     import re
-                    user_agent = st.query_params.get('user_agent', '')
-                    is_mobile = bool(re.search(r'Mobile|Android|iPhone|iPad|iPod', user_agent)) if user_agent else False
+                    is_mobile = False
+                    try:
+                        # Try to get User-Agent from Streamlit context headers
+                        headers = st.context.headers if hasattr(st, 'context') else {}
+                        user_agent = headers.get('user-agent', '').lower()
+                        # Detect mobile devices
+                        is_mobile = bool(re.search(r'mobile|android|iphone|ipad|ipod|windows phone', user_agent))
+                    except Exception:
+                        # Fallback: check if user_agent in query params
+                        user_agent = st.query_params.get('user_agent', '').lower()
+                        is_mobile = bool(re.search(r'mobile|android|iphone|ipad|ipod|windows phone', user_agent))
                     
                     # Only redirect on desktop, not on mobile
                     if not is_mobile:
@@ -843,18 +852,24 @@ def main() -> None:
                     st.error("❌ **Request Denied** - Your decision has been recorded and the investigator has been notified.")
                     st.caption(f"Nominee: {nominee_name or 'Not specified'}")
                     
-                    # NEW: Detect device type (desktop vs mobile)
+                    # NEW: Detect device type from browser headers (desktop vs mobile)
                     import re
-                    user_agent = st.query_params.get('user_agent', '')
-                    is_mobile = bool(re.search(r'Mobile|Android|iPhone|iPad|iPod', user_agent)) if user_agent else False
+                    is_mobile = False
+                    try:
+                        # Try to get User-Agent from Streamlit context headers
+                        headers = st.context.headers if hasattr(st, 'context') else {}
+                        user_agent = headers.get('user-agent', '').lower()
+                        # Detect mobile devices
+                        is_mobile = bool(re.search(r'mobile|android|iphone|ipad|ipod|windows phone', user_agent))
+                    except Exception:
+                        # Fallback: check if user_agent in query params
+                        user_agent = st.query_params.get('user_agent', '').lower()
+                        is_mobile = bool(re.search(r'mobile|android|iphone|ipad|ipod|windows phone', user_agent))
                     
                     if is_mobile:
                         st.info("📱 **Denial recorded. You can close this page now.**")
                     else:
                         st.info("You can close this page now.")
-                        # Optional: redirect on desktop
-                        import time
-                        time.sleep(1)
                 else:
                     st.error("Failed to save denial. Please try again.")
         return
