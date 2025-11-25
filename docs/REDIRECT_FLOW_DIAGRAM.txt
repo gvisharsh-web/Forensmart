@@ -1,0 +1,197 @@
+================================================================================
+APPROVAL REDIRECT FLOW - VISUAL DIAGRAM
+================================================================================
+
+THE COMPLETE FLOW (WHAT HAPPENS STEP BY STEP)
+================================================================================
+
+Step 1: Investigator Creates Case
+┌─────────────────────────────────────────────────────────────────┐
+│ Dashboard (Port 8502)                                           │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Case Management Tab                                         │ │
+│ │ - Create Case: CASE_001                                    │ │
+│ │ - Device ID: ABC123                                        │ │
+│ │ - Nominee Email: nominee@example.com                       │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+
+Step 2: Generate Approval Link
+┌─────────────────────────────────────────────────────────────────┐
+│ Dashboard (Port 8502)                                           │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Consent Tab                                                 │ │
+│ │ - Click "Generate Approval Link"                           │ │
+│ │ - Link: http://localhost:8501/consent?case_id=CASE_001     │ │
+│ │ - Send link to nominee (email/SMS)                         │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+
+Step 3: Nominee Opens Approval Link
+┌─────────────────────────────────────────────────────────────────┐
+│ Consent Portal (Port 8501)                                      │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Approval Page                                               │ │
+│ │ - Shows case details                                       │ │
+│ │ - Shows purpose of extraction                              │ │
+│ │ - Two buttons: [✅ Approve] [❌ Deny]                       │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+
+Step 4: Nominee Clicks Approve
+┌─────────────────────────────────────────────────────────────────┐
+│ Consent Portal (Port 8501)                                      │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Approval Processing                                         │ │
+│ │ 1. Save approval to file: audit/approvals.json              │ │
+│ │ 2. Clear cache: ApprovalSync.clear_cache(CASE_001)          │ │
+│ │ 3. Prepare redirect URL:                                    │ │
+│ │    http://localhost:8502?case_id=CASE_001&auto_extract=true │ │
+│ │ 4. Execute JavaScript redirect                              │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+
+Step 5: Browser Redirects to Dashboard
+┌─────────────────────────────────────────────────────────────────┐
+│ Browser                                                         │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ URL Changes:                                                │ │
+│ │ FROM: http://localhost:8501/consent?case_id=CASE_001        │ │
+│ │ TO:   http://localhost:8502?case_id=CASE_001&auto_extract=true
+│ └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+
+Step 6: Dashboard Receives Redirect (NEW CODE)
+┌─────────────────────────────────────────────────────────────────┐
+│ Dashboard main() function (Lines 1876-1885)                     │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ URL Parameter Handling:                                     │ │
+│ │ 1. Read case_id from URL: "CASE_001"                       │ │
+│ │ 2. Read auto_extract from URL: "true"                      │ │
+│ │ 3. Set session_state['case_id'] = 'CASE_001'               │ │
+│ │ 4. Set session_state['auto_extract_triggered'] = True       │ │
+│ │ 5. Set session_state['nav'] = 'Extraction'                 │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+
+Step 7: Dashboard Renders with Extraction Tab (NEW CODE)
+┌─────────────────────────────────────────────────────────────────┐
+│ Dashboard render_dashboard_home() (Lines 512-552)               │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Tab Navigation:                                             │ │
+│ │ 1. Check nav state: 'Extraction'                           │ │
+│ │ 2. Select Extraction tab (index 1)                         │ │
+│ │ 3. Load case: CASE_001                                     │ │
+│ │ 4. Show message: "Auto-extraction triggered!"              │ │
+│ │ 5. Display extraction options                              │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+
+Step 8: User Sees Dashboard Ready for Extraction
+┌─────────────────────────────────────────────────────────────────┐
+│ Dashboard (Port 8502)                                           │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Extraction Tab (SELECTED)                                   │ │
+│ │ ┌─────────────────────────────────────────────────────────┐ │
+│ │ │ 🔄 Auto-extraction triggered from approval!             │ │
+│ │ │                                                         │ │
+│ │ │ Case: CASE_001                                          │ │
+│ │ │ Device: ABC123                                          │ │
+│ │ │ Status: ✅ Approved                                      │ │
+│ │ │                                                         │ │
+│ │ │ [Start Extraction] [View History] [Settings]            │ │
+│ │ └─────────────────────────────────────────────────────────┘ │
+│ └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+
+Step 9: User Starts Extraction
+┌─────────────────────────────────────────────────────────────────┐
+│ Dashboard (Port 8502)                                           │
+│ ┌─────────────────────────────────────────────────────────────┐ │
+│ │ Extraction Progress                                         │ │
+│ │ ████████████░░░░░░░░ 60% Complete                           │ │
+│ │ - Extracting messages...                                   │ │
+│ │ - Extracting location data...                              │ │
+│ │ - Extracting media files...                                │ │
+│ └─────────────────────────────────────────────────────────────┘ │
+└─────────────────────────────────────────────────────────────────┘
+
+================================================================================
+WHAT CHANGED IN THE CODE
+================================================================================
+
+BEFORE (BROKEN):
+┌─────────────────────────────────────────────────────────────────┐
+│ Dashboard main()                                                │
+│ ├─ Check unlock_token parameter                               │
+│ └─ Initialize session state                                   │
+│    └─ DOESN'T check case_id or auto_extract parameters!       │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+         Dashboard doesn't know what case to load
+         Dashboard doesn't know to go to Extraction tab
+         User is confused and stuck
+
+AFTER (FIXED):
+┌─────────────────────────────────────────────────────────────────┐
+│ Dashboard main()                                                │
+│ ├─ Check unlock_token parameter                               │
+│ ├─ NEW: Check case_id parameter                               │
+│ ├─ NEW: Check auto_extract parameter                          │
+│ ├─ NEW: Set session_state['case_id']                          │
+│ ├─ NEW: Set session_state['auto_extract_triggered']           │
+│ └─ NEW: Set session_state['nav'] = 'Extraction'               │
+└─────────────────────────────────────────────────────────────────┘
+                              ↓
+         Dashboard knows which case to load
+         Dashboard knows to go to Extraction tab
+         Dashboard shows auto-extract message
+         User sees everything ready to go!
+
+================================================================================
+KEY POINTS
+================================================================================
+
+1. URL PARAMETERS PASSED BY CONSENT PORTAL:
+   ?case_id=CASE_001&auto_extract=true
+
+2. DASHBOARD READS THESE PARAMETERS:
+   case_id_param = params.get('case_id')
+   auto_extract_param = params.get('auto_extract')
+
+3. DASHBOARD SETS SESSION STATE:
+   st.session_state['case_id'] = case_id_param
+   st.session_state['auto_extract_triggered'] = True
+   st.session_state['nav'] = 'Extraction'
+
+4. DASHBOARD RENDERS WITH EXTRACTION TAB SELECTED:
+   Shows message: "🔄 Auto-extraction triggered from approval!"
+   Loads the case
+   Shows extraction options
+
+5. USER SEES:
+   Dashboard with Extraction tab already selected
+   Case loaded and ready
+   Message confirming auto-extraction was triggered
+
+================================================================================
+THAT'S THE COMPLETE FLOW!
+================================================================================
+
+The fix is simple but powerful:
+- Consent portal sends URL parameters
+- Dashboard reads URL parameters
+- Dashboard loads case and navigates to extraction tab
+- User sees everything ready to go
+
+No more confusion, no more stuck users!
+
+================================================================================

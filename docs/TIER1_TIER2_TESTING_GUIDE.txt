@@ -1,0 +1,296 @@
+================================================================================
+TIER 1 & TIER 2 TESTING GUIDE - STEP BY STEP
+================================================================================
+
+This guide will help you test all 10 fixes that were just implemented.
+
+Total Testing Time: 45 minutes
+Difficulty: EASY
+
+================================================================================
+BEFORE YOU START
+================================================================================
+
+1. Make sure dashboard.py is saved
+2. Start the dashboard: streamlit run modules/dashboard.py
+3. Wait for it to load (should say "You can now view your Streamlit app")
+4. Open browser to http://localhost:8502
+
+================================================================================
+TIER 1 TESTING (25 minutes)
+================================================================================
+
+TEST #1: CASE EXISTENCE VALIDATION (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Test with invalid case ID
+  1. Go to URL: http://localhost:8502?case_id=INVALID_CASE_XYZ&auto_extract=true
+  2. Expected: See error message "Case 'INVALID_CASE_XYZ' not found in system"
+  3. Expected: See info message "Please create the case first or check the case ID"
+  4. Result: ✅ PASS or ❌ FAIL
+
+Step 2: Test with valid case ID
+  1. Create a case first (go to Case Management tab, create case)
+  2. Go to URL: http://localhost:8502?case_id=YOUR_CASE_ID
+  3. Expected: Dashboard loads normally
+  4. Expected: Case is selected in sidebar
+  5. Result: ✅ PASS or ❌ FAIL
+
+TEST #2: APPROVAL VERIFICATION (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Test with no approval
+  1. Create a case (if not already created)
+  2. Go to URL: http://localhost:8502?case_id=YOUR_CASE_ID&auto_extract=true
+  3. Expected: See error "No approval found for this case"
+  4. Expected: See info "Please request approval from the nominee first"
+  5. Result: ✅ PASS or ❌ FAIL
+
+Step 2: Test with denied approval
+  1. Generate approval link for your case
+  2. Open approval link in new tab
+  3. Click "❌ No, Deny"
+  4. Go back to dashboard
+  5. Go to URL: http://localhost:8502?case_id=YOUR_CASE_ID&auto_extract=true
+  6. Expected: See error "Approval was denied for this case"
+  7. Result: ✅ PASS or ❌ FAIL
+
+Step 3: Test with approved approval
+  1. Generate new approval link for your case
+  2. Open approval link in new tab
+  3. Click "✅ Yes, Approve"
+  4. Should be redirected to dashboard
+  5. Expected: Extraction tab should be selected
+  6. Expected: See message "Auto-extraction triggered from approval!"
+  7. Result: ✅ PASS or ❌ FAIL
+
+TEST #3: PARAMETER SANITIZATION (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Test with invalid case ID format
+  1. Go to URL: http://localhost:8502?case_id=CASE@001<script>
+  2. Expected: See error "Invalid case ID format"
+  3. Expected: See info "Case ID can only contain letters, numbers, underscore, and hyphen"
+  4. Result: ✅ PASS or ❌ FAIL
+
+Step 2: Test with very long case ID
+  1. Go to URL: http://localhost:8502?case_id=VERY_LONG_CASE_ID_THAT_IS_MORE_THAN_100_CHARACTERS_LONG_XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  2. Expected: See error "Case ID is too long (max 100 characters)"
+  3. Result: ✅ PASS or ❌ FAIL
+
+Step 3: Test with invalid auto_extract
+  1. Go to URL: http://localhost:8502?case_id=YOUR_CASE_ID&auto_extract=maybe
+  2. Expected: See warning "Invalid auto_extract parameter, ignoring"
+  3. Expected: Dashboard loads normally without auto-extract
+  4. Result: ✅ PASS or ❌ FAIL
+
+Step 4: Test with invalid extraction type
+  1. Go to URL: http://localhost:8502?case_id=YOUR_CASE_ID&extraction_type=unknown
+  2. Expected: See warning "Unsupported extraction type: unknown, using default"
+  3. Expected: Extraction type should be set to 'android'
+  4. Result: ✅ PASS or ❌ FAIL
+
+TEST #4: TIMEOUT HANDLING (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Test timeout message (simulate slow loading)
+  1. This is hard to test without actually having a slow system
+  2. If you have a slow system, redirect should take >30 seconds
+  3. Expected: See warning "Redirect is taking longer than expected"
+  4. Expected: See "🔄 Retry" button
+  5. Result: ✅ PASS or ⏭️ SKIP (if system is fast)
+
+Step 2: Test normal redirect (should clear timer)
+  1. Go to URL: http://localhost:8502?case_id=YOUR_CASE_ID
+  2. Expected: Dashboard loads quickly (<5 seconds)
+  3. Expected: No timeout message shown
+  4. Result: ✅ PASS or ❌ FAIL
+
+TEST #5: DEVICE VALIDATION (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Test with device connected
+  1. Make sure you have a device connected via ADB
+  2. Go to Extraction tab
+  3. Expected: See device status (✅ Device Connected or ❌ Device Offline)
+  4. Expected: See battery and storage metrics
+  5. Expected: If device connected, extraction should be allowed
+  6. Result: ✅ PASS or ❌ FAIL
+
+Step 2: Test with device offline
+  1. Disconnect your device
+  2. Go to Extraction tab
+  3. Expected: See "❌ Device Offline"
+  4. Expected: See error "Cannot start extraction: Device is offline"
+  5. Expected: Extraction should be blocked
+  6. Result: ✅ PASS or ❌ FAIL
+
+================================================================================
+TIER 2 TESTING (20 minutes)
+================================================================================
+
+TEST #6: REDIRECT LOGGING (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Check redirect history file
+  1. Approve a case (follow TEST #2 Step 3)
+  2. Open file explorer
+  3. Navigate to: c:\Forensmart\audit\redirects\
+  4. Expected: See file "redirect_history.json"
+  5. Expected: See file "YOUR_CASE_ID_redirect.json"
+  6. Result: ✅ PASS or ❌ FAIL
+
+Step 2: Check redirect history content
+  1. Open "redirect_history.json" with text editor
+  2. Expected: See array of redirect events
+  3. Expected: Each event has: case_id, timestamp, source, status, user_agent, extraction_type, device_id, approval_status
+  4. Expected: Latest event should have status='success'
+  5. Result: ✅ PASS or ❌ FAIL
+
+TEST #7: APPROVAL STATUS POLLING (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Test real-time approval detection
+  1. Create a case
+  2. Open dashboard in one tab
+  3. Open approval link in another tab
+  4. Keep dashboard visible
+  5. Click "✅ Yes, Approve" in approval tab
+  6. Expected: Dashboard should auto-refresh within 5 seconds
+  7. Expected: Extraction tab should be selected
+  8. Result: ✅ PASS or ❌ FAIL
+
+Step 2: Check approval polling log
+  1. Go to Diagnostics tab
+  2. Scroll to "Redirect History" section
+  3. Expected: See redirect events
+  4. Expected: Should see event with source='approval_polling' and status='approval_changed'
+  5. Result: ✅ PASS or ❌ FAIL
+
+TEST #8: MOBILE DETECTION (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Test on desktop
+  1. Access dashboard from desktop browser
+  2. Go to Extraction tab
+  3. Expected: See message "💻 Desktop Device Detected - Full extraction features available"
+  4. Result: ✅ PASS or ❌ FAIL
+
+Step 2: Test on mobile
+  1. Access dashboard from mobile browser (or use mobile emulation in DevTools)
+  2. Go to Extraction tab
+  3. Expected: See message "📱 Mobile Device Detected - Extraction will proceed on mobile"
+  4. Result: ✅ PASS or ❌ FAIL
+
+TEST #9: EXTRACTION TYPE VALIDATION (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: Test valid extraction type
+  1. Go to Extraction tab
+  2. Expected: See "Extraction Type: ANDROID" (or whatever type is set)
+  3. Result: ✅ PASS or ❌ FAIL
+
+Step 2: Test invalid extraction type
+  1. Go to URL: http://localhost:8502?case_id=YOUR_CASE_ID&extraction_type=invalid
+  2. Expected: See warning "Unsupported extraction type: invalid, using default"
+  3. Expected: See "Extraction Type: ANDROID"
+  4. Result: ✅ PASS or ❌ FAIL
+
+TEST #10: REDIRECT HISTORY VIEWER (5 minutes)
+─────────────────────────────────────────────────────────────────────────────
+
+Step 1: View redirect history
+  1. Go to Diagnostics tab
+  2. Scroll down to "Redirect History" section
+  3. Expected: See "✅ X redirect events logged"
+  4. Expected: See filter options (Case ID, Status, Source)
+  5. Expected: See list of redirect events
+  6. Result: ✅ PASS or ❌ FAIL
+
+Step 2: Test filtering
+  1. Enter a case ID in "Filter by Case ID"
+  2. Expected: List should show only events for that case
+  3. Select a status in "Filter by Status"
+  4. Expected: List should show only events with that status
+  5. Select a source in "Filter by Source"
+  6. Expected: List should show only events from that source
+  7. Result: ✅ PASS or ❌ FAIL
+
+Step 3: Test export
+  1. Click "📥 Export Redirect History as JSON"
+  2. Expected: See "Download JSON" button
+  3. Click "Download JSON"
+  4. Expected: JSON file should download
+  5. Open file and verify it contains redirect events
+  6. Result: ✅ PASS or ❌ FAIL
+
+================================================================================
+TESTING SUMMARY
+================================================================================
+
+TIER 1 TESTS:
+  [ ] FIX #1: Case Existence Validation
+  [ ] FIX #2: Approval Verification
+  [ ] FIX #3: Parameter Sanitization
+  [ ] FIX #4: Timeout Handling
+  [ ] FIX #5: Device Validation
+
+TIER 2 TESTS:
+  [ ] FIX #6: Redirect Logging
+  [ ] FIX #7: Approval Status Polling
+  [ ] FIX #8: Mobile Detection
+  [ ] FIX #9: Extraction Type Validation
+  [ ] FIX #10: Redirect History Viewer
+
+TOTAL TESTS: 10
+EXPECTED PASS RATE: 100%
+
+================================================================================
+TROUBLESHOOTING
+================================================================================
+
+If a test fails, check:
+
+1. Dashboard is running
+   - Run: streamlit run modules/dashboard.py
+   - Check: "You can now view your Streamlit app"
+
+2. Code was saved
+   - Check: modules/dashboard.py has all the changes
+   - Check: No syntax errors in console
+
+3. Audit directory exists
+   - Check: c:\Forensmart\audit\redirects\ exists
+   - Create if missing: mkdir audit\redirects
+
+4. Browser cache
+   - Clear browser cache (Ctrl+Shift+Delete)
+   - Refresh page (Ctrl+F5)
+
+5. Streamlit cache
+   - Clear Streamlit cache: streamlit cache clear
+   - Restart dashboard
+
+6. Check logs
+   - Look at terminal where dashboard is running
+   - Check for error messages
+   - Check browser console (F12)
+
+================================================================================
+NEXT STEPS AFTER TESTING
+================================================================================
+
+If all tests pass:
+  1. Commit changes to version control
+  2. Deploy to production
+  3. Monitor redirect history in Diagnostics tab
+  4. Celebrate! 🎉
+
+If some tests fail:
+  1. Check the troubleshooting section above
+  2. Review the implementation code
+  3. Check error messages in console
+  4. Fix any issues
+  5. Re-test
+
+================================================================================

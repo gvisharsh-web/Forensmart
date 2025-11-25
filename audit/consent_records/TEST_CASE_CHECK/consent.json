@@ -4,11 +4,11 @@
   "level": "BASIC",
   "nominee_phone": null,
   "metadata": {},
-  "created_at": "2025-11-19T14:35:29.773208",
+  "created_at": "2025-11-25T11:58:06.291760",
   "last_verified": null,
   "consent_history": [
     {
-      "timestamp": "2025-11-19T14:35:29.773208",
+      "timestamp": "2025-11-25T11:58:06.291760",
       "level": "BASIC",
       "action": "Session created - standard case"
     }

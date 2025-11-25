@@ -60,7 +60,8 @@ from modules.shared.error_checker import ErrorChecker # pyright: ignore[reportMi
 from modules.approval.utils import get_approval_decision # pyright: ignore[reportMissingImports]
 from modules.shared.device_detector import DeviceDetector # pyright: ignore[reportMissingImports]
 from modules.shared.app_error_checker import AppErrorChecker # pyright: ignore[reportMissingImports]
-from modules.approval.sync import ApprovalSync # pyright: ignore[reportMissingImports]
+from modules.approval.manager import ApprovalManager, ApprovalSync # pyright: ignore[reportMissingImports]
+from modules.approval.redirect import ApprovalNotifier # pyright: ignore[reportMissingImports]
 from modules.shared.device_manager import DeviceManager # pyright: ignore[reportMissingImports]
 from modules.extraction.validator import ExtractionValidator # pyright: ignore[reportMissingImports]
 from modules.extraction.progress import ProgressManager, ExtractionProgressTracker # pyright: ignore[reportMissingImports]
@@ -74,7 +75,7 @@ except Exception:  # pragma: no cover - optional dependency in non-Streamlit con
 # Optional integrations
 try:
     # Expecting a UI function exported
-    from modules import media_viewer as media_viewer_module # pyright: ignore[reportMissingImports]
+    from modules.ui import media_viewer as media_viewer_module  # pyright: ignore[reportMissingImports]
 except Exception:
     media_viewer_module = None
 
@@ -499,7 +500,7 @@ def _render_pdf_report(preview: Dict[str, Any]) -> bytes:
 # --- Comms Analyzer Tab Integration ---
 try:
     # Ensure this module is available for the intelligence tab
-    from modules import comms_analyzer # pyright: ignore[reportMissingImports]
+    from modules.analysis import comms_analyzer  # pyright: ignore[reportMissingImports]
     HAS_COMMS_ANALYZER = True
 except Exception:
     HAS_COMMS_ANALYZER = False
@@ -516,8 +517,627 @@ def render_comms_analyzer(cm: ConsentManager):
         st.warning('Comms Analyzer module not available.')
 
 
-def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
-    """Render the main dashboard with a modern tabbed interface."""
+def save_approval_decision(case_id: str, decision: str, nominee_name: str) -> None:
+    """Save approval decision to audit trail and update ApprovalSync."""
+    import logging
+    from pathlib import Path
+    
+    logger = logging.getLogger(__name__)
+    
+    audit_dir = Path('audit/approvals')
+    audit_dir.mkdir(parents=True, exist_ok=True)
+    
+    approval_file = audit_dir / f"{case_id}_approval.json"
+    
+    approval_record = {
+        'case_id': case_id,
+        'decision': decision,
+        'nominee_name': nominee_name,
+        'timestamp': datetime.now().isoformat()
+    }
+    
+    approval_file.write_text(json.dumps(approval_record, indent=2))
+    logger.info(f"Approval decision saved: {case_id} - {decision}")
+    
+    # Also update ApprovalManager so orchestrator recognizes the approval
+    if decision == 'approved':
+        try:
+            ApprovalManager.mark_approved(case_id, nominee_name)
+            logger.info(f"ApprovalManager updated for {case_id}")
+        except Exception as e:
+            logger.warning(f"Could not update ApprovalManager: {e}")
+
+def render_consent_view():
+    """Renders the public-facing consent page for the nominee."""
+    import base64
+    from urllib.parse import unquote
+    
+    st.set_page_config(page_title="ForenSmart Consent Approval", layout="centered")
+    st.title("🔐 ForenSmart Consent Approval")
+
+    params = st.query_params
+    encoded_data = params.get('data')
+
+    if not encoded_data:
+        st.error("Invalid or missing approval link. Please use the link provided by the investigator.")
+        return
+
+    try:
+        decoded_str = base64.b64decode(unquote(encoded_data)).decode('utf-8')
+        approval_data = json.loads(decoded_str)
+        case_id = approval_data.get('case_id')
+        nominee_name = approval_data.get('nominee_name')
+    except Exception as e:
+        st.error(f"Could not decode the approval link. It may be corrupted. Error: {e}")
+        return
+
+    # Display case information
+    st.markdown("### Case Information")
+    col_a, col_b = st.columns(2)
+    with col_a:
+        st.metric("Case ID", case_id or "N/A")
+        st.metric("Device ID", approval_data.get('device_id', 'UNKNOWN'))
+    with col_b:
+        st.metric("Requested By", "ForenSmart Investigator")
+        st.metric("Nominee", nominee_name or "N/A")
+    
+    st.markdown("**Purpose of Request**")
+    st.info(approval_data.get('purpose', 'No purpose specified.'))
+    
+    # Display fallback hash if available
+    if approval_data.get('fallback_hash'):
+        st.markdown("### Fallback Hash (If Link Fails)")
+        st.warning("If the approval link doesn't work, send this hash via SMS:")
+        st.code(approval_data.get('fallback_hash'), language='text')
+
+    st.markdown("### Your Decision")
+    st.caption("Please confirm whether you approve or deny this extraction request.")
+
+    # Check for a decision in session state to prevent re-clicking
+    if st.session_state.get(f'decision_made_{case_id}'):
+        st.success("Your decision has been recorded. This page will close automatically.")
+        st.markdown('<script>setTimeout(() => window.close(), 3000);</script>', unsafe_allow_html=True)
+        return
+
+    col1, col2 = st.columns(2)
+    with col1:
+        if st.button('✅ Yes, Approve', use_container_width=True):
+            with st.spinner("Processing approval..."):
+                # Save to file so investigator's dashboard can read it
+                save_approval_decision(case_id, 'approved', nominee_name)
+                ApprovalNotifier.notify_approval(case_id=case_id, device_id=approval_data.get('device_id'), decision='approved', nominee_name=nominee_name, extraction_type='android')
+                
+                st.session_state[f'decision_made_{case_id}'] = 'approved'
+                st.success("✅ Approval Granted! The investigator has been notified.")
+                st.balloons()
+                
+                # Auto-close page after 3 seconds (NO redirect)
+                st.markdown('''
+                <script>
+                setTimeout(() => {
+                    window.close();
+                }, 3000);
+                </script>
+                ''', unsafe_allow_html=True)
+                st.info("This page will close automatically in 3 seconds...")
+
+    with col2:
+        if st.button('❌ No, Deny', use_container_width=True):
+            with st.spinner("Processing denial..."):
+                # Save to file so investigator's dashboard can read it
+                save_approval_decision(case_id, 'denied', nominee_name)
+                ApprovalNotifier.notify_approval(case_id=case_id, device_id=approval_data.get('device_id'), decision='denied', nominee_name=nominee_name, extraction_type='android')
+                
+                st.session_state[f'decision_made_{case_id}'] = 'denied'
+                st.error("❌ Request Denied. The investigator has been notified.")
+                
+                # Auto-close page after 3 seconds (NO redirect)
+                st.markdown('''
+                <script>
+                setTimeout(() => {
+                    window.close();
+                }, 3000);
+                </script>
+                ''', unsafe_allow_html=True)
+                st.info("This page will close automatically in 3 seconds...")
+
+
+def _get_dashboard_url():
+    """Auto-detect dashboard URL (Network IP or localhost)."""
+    import socket
+    try:
+        # Get local network IP
+        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        s.connect(("8.8.8.8", 80))
+        local_ip = s.getsockname()[0]
+        s.close()
+        return f"http://{local_ip}:8501"
+    except Exception:
+        return "http://localhost:8501"  # Fallback
+
+def _normalize_phone_number(phone: str) -> str:
+    """Normalize phone number to E.164 format."""
+    import re
+    # Remove all non-digit characters except leading +
+    phone = re.sub(r'[^\d+]', '', phone)
+    # Ensure it starts with +
+    if not phone.startswith('+'):
+        phone = '+' + phone
+    return phone
+
+def _read_sms_from_adb(nominee_phone: str) -> Optional[Dict[str, str]]:
+    """
+    Read SMS from ADB-connected Android phone.
+    
+    Args:
+        nominee_phone: Nominee's phone number (any format)
+        
+    Returns:
+        Dict with 'phone', 'hash', 'message' if found, None otherwise
+    """
+    import subprocess
+    import re
+    import logging
+    
+    logger = logging.getLogger(__name__)
+    
+    try:
+        # Normalize nominee phone to E.164
+        nominee_phone_normalized = _normalize_phone_number(nominee_phone)
+        
+        # Read SMS from inbox via ADB
+        result = subprocess.run(
+            ['adb', 'shell', 'content', 'query', '--uri', 'content://sms/inbox'],
+            capture_output=True,
+            text=True,
+            timeout=10
+        )
+        
+        if result.returncode != 0:
+            logger.warning(f"ADB SMS read failed: {result.stderr}")
+            return None
+        
+        # Parse output and find SMS from nominee
+        for line in result.stdout.split('\n'):
+            # Extract address (phone number) and body (message)
+            address_match = re.search(r'address=([^,]+)', line)
+            body_match = re.search(r'body=([^,]+)', line)
+            
+            if not address_match or not body_match:
+                continue
+            
+            sender_phone = address_match.group(1).strip()
+            message_body = body_match.group(1).strip()
+            
+            # Normalize sender phone
+            sender_phone_normalized = _normalize_phone_number(sender_phone)
+            
+            # Check if SMS is from nominee
+            if sender_phone_normalized == nominee_phone_normalized:
+                # Extract hash from message (format: "APPROVE A7B9C1D2")
+                if 'APPROVE' in message_body.upper():
+                    hash_match = re.search(r'APPROVE\s+([A-Z0-9]{8})', message_body.upper())
+                    if hash_match:
+                        hash_value = hash_match.group(1)
+                        logger.info(f"SMS hash extracted from {sender_phone}: {hash_value}")
+                        return {
+                            'phone': sender_phone_normalized,
+                            'hash': hash_value,
+                            'message': message_body
+                        }
+        
+        logger.warning(f"No SMS found from {nominee_phone_normalized}")
+        return None
+    
+    except FileNotFoundError:
+        logger.error("ADB not found. Please ensure ADB is installed and in PATH.")
+        return None
+    except subprocess.TimeoutExpired:
+        logger.error("ADB command timed out")
+        return None
+    except Exception as e:
+        logger.error(f"ADB SMS read error: {e}")
+        return None
+
+def _check_adb_device_connected() -> bool:
+    """Check if ADB device is connected."""
+    import subprocess
+    try:
+        result = subprocess.run(
+            ['adb', 'devices'],
+            capture_output=True,
+            text=True,
+            timeout=5
+        )
+        # Check if any device is listed (not just "List of attached devices:")
+        devices = [line.strip() for line in result.stdout.split('\n') if 'device' in line and not line.startswith('List')]
+        return len(devices) > 0
+    except Exception as e:
+        logger.warning(f"ADB device check failed: {e}")
+        return False
+
+def _generate_approval_link_with_hash(case_id: str, nominee_name: str, device_id: str, purpose: str) -> dict:
+    """Generates a unique approval link and a fallback hash."""
+    import hashlib
+    import base64
+    from urllib.parse import quote, unquote
+    
+    # 1. Generate the data payload for the link
+    base_url = _get_dashboard_url()  # Auto-detect Network IP
+    payload = ConsentPortalEnhancer.create_approval_details_json(
+        case_id=case_id,
+        device_id=device_id,
+        purpose=purpose,
+        requested_level="STANDARD",
+        nominee_name=nominee_name
+    )
+    # 2. Generate a secure fallback hash
+    hash_input = f"{case_id}|{nominee_name}|{datetime.now().isoformat()}|{os.urandom(8).hex()}"
+    fallback_hash = hashlib.sha256(hash_input.encode()).hexdigest()[:8].upper()
+
+    # 3. Add hash to payload so it's displayed on approval page
+    payload_dict = json.loads(base64.b64decode(unquote(payload)).decode('utf-8')) if isinstance(payload, str) else json.loads(payload)
+    payload_dict['fallback_hash'] = fallback_hash
+    
+    # Re-encode payload with hash
+    payload_with_hash = quote(base64.b64encode(json.dumps(payload_dict).encode()).decode())
+    approval_link = f"{base_url}?data={payload_with_hash}"
+
+    # 4. Store the hash (we'll implement a proper DB later, using session_state for now)
+    if 'approval_hashes' not in st.session_state:
+        st.session_state['approval_hashes'] = {}
+    st.session_state['approval_hashes'][fallback_hash] = {
+        'case_id': case_id,
+        'nominee_name': nominee_name,
+        'created_at': datetime.now().isoformat(),
+        'status': 'pending'
+    }
+
+    return {
+        'link': approval_link,
+        'hash': fallback_hash
+    }
+
+def render_consent_hub_tab(cm: ConsentManager):
+    """Renders the UI for the Consent Hub tab."""
+    st.title("🔐 Consent Hub")
+    st.info("Generate and manage nominee approval requests from here.")
+
+    case_id = st.session_state.get('case_id')
+    if not case_id:
+        st.warning("Please select a case from the 'Case Management' tab first.")
+        return
+
+    session = cm.get_session(case_id)
+    if not session:
+        st.error(f"No session found for case {case_id}.")
+        return
+
+    st.markdown(f"### Managing Consent for: `{case_id}`")
+
+    with st.form("generate_link_form"):
+        st.markdown("**Approval Request Details**")
+        nominee_name = st.text_input("Nominee Name", value=session.nominee_name or "")
+        nominee_phone = st.text_input("Nominee Phone (for WhatsApp/SMS)", value=session.metadata.get('nominee_phone', ""))
+        nominee_email = st.text_input("Nominee Email", value=session.metadata.get('nominee_email', ""))
+        purpose = st.text_area("Purpose of Extraction", value="Standard forensic analysis.")
+        
+        submitted = st.form_submit_button("Generate Approval Link & Fallback Hash")
+
+    if submitted:
+        if not nominee_name:
+            st.error("Nominee name is required.")
+        else:
+            # Persist nominee details for later use
+            session.nominee_name = nominee_name
+            session.metadata['nominee_phone'] = nominee_phone
+            session.metadata['nominee_email'] = nominee_email
+            cm.persist_session(case_id)
+
+            with st.spinner("Generating secure link and hash..."):
+                generated_data = _generate_approval_link_with_hash(
+                    case_id=case_id,
+                    nominee_name=nominee_name,
+                    device_id=session.device_id or "UNKNOWN",
+                    purpose=purpose
+                )
+                st.session_state[f'generated_consent_{case_id}'] = generated_data
+                st.rerun()
+
+    # Display the generated link, hash, and delivery options
+    if f'generated_consent_{case_id}' in st.session_state:
+        data = st.session_state[f'generated_consent_{case_id}']
+        link = data['link']
+        fallback_hash = data['hash']
+
+        st.divider()
+        st.markdown("### ✅ Approval Link Generated Successfully")
+        
+        st.markdown("**1. Primary Approval Link**")
+        st.code(link, language='text')
+
+        st.markdown("**2. Offline Fallback Hash**")
+        st.info("⚠️ Hash is stored securely and displayed to nominee only. Do not share this hash with anyone else.")
+        # Don't display hash to investigator - it's secret!
+        st.caption(f"Hash stored: {'*' * 8} (hidden for security)")
+
+        # Use ConsentPortalEnhancer to render sharing options
+        ConsentPortalEnhancer.render_delivery_ui(
+            approval_link=link,
+            nominee_phone=session.metadata.get('nominee_phone'),
+            nominee_email=session.metadata.get('nominee_email'),
+            nominee_name=session.nominee_name,
+            case_id=case_id
+        )
+
+        st.divider()
+        st.markdown("### 3. Live Approval Status")
+        
+        # Check for approval from file (investigator and nominee are different sessions)
+        from pathlib import Path
+        approval_file = Path('audit/approvals') / f"{case_id}_approval.json"
+        
+        # Show status
+        if approval_file.exists():
+            try:
+                approval_data_file = json.loads(approval_file.read_text())
+                if approval_data_file.get('decision') == 'approved':
+                    st.success(f"✅ Approved by {approval_data_file.get('nominee_name')} at {approval_data_file.get('timestamp')}")
+                    st.balloons()
+                    st.session_state['start_extraction'] = True
+                    st.session_state['nav'] = 'Extraction'
+                    st.info("🚀 Extraction will start automatically when you refresh or navigate to Extraction tab.")
+                    
+                    # Auto-refresh with JavaScript
+                    st.markdown('''
+                    <script>
+                    setTimeout(() => {
+                        location.reload();
+                    }, 3000);
+                    </script>
+                    ''', unsafe_allow_html=True)
+                elif approval_data_file.get('decision') == 'denied':
+                    st.error(f"❌ Denied by {approval_data_file.get('nominee_name')} at {approval_data_file.get('timestamp')}")
+            except:
+                pass
+        else:
+            st.info("⏳ Waiting for nominee approval... (Link has been sent)")
+            st.caption("Approval will be detected automatically when nominee approves the link.")
+            
+            # Add refresh button
+            col1, col2, col3 = st.columns([1, 1, 2])
+            with col1:
+                if st.button("🔄 Refresh Status"):
+                    st.rerun()
+
+    st.divider()
+    st.markdown("### 4. SMS Hash Fallback (Manual or Auto-Read)")
+    
+    # Check if ADB device is connected
+    adb_connected = _check_adb_device_connected()
+    
+    col_manual, col_auto = st.columns(2)
+    
+    # Manual entry option
+    with col_manual:
+        st.markdown("**Manual Entry**")
+        with st.form("hash_fallback_form"):
+            fallback_hash_input = st.text_input("Enter Fallback Hash from SMS", "").upper()
+            verify_submitted = st.form_submit_button("Verify Hash and Start Extraction")
+        
+        if verify_submitted and fallback_hash_input:
+            stored_hashes = st.session_state.get('approval_hashes', {})
+            if fallback_hash_input in stored_hashes and stored_hashes[fallback_hash_input]['case_id'] == case_id:
+                if stored_hashes[fallback_hash_input]['status'] == 'pending':
+                    with st.spinner("Hash verified! Processing approval and starting extraction..."):
+                        stored_hashes[fallback_hash_input]['status'] = 'used'
+                        save_approval_decision(case_id, 'approved', stored_hashes[fallback_hash_input]['nominee_name'])
+                        ApprovalNotifier.notify_approval(case_id=case_id, device_id="UNKNOWN", decision='approved', nominee_name=stored_hashes[fallback_hash_input]['nominee_name'], extraction_type='android')
+                        st.session_state['start_extraction'] = True
+                        st.success("✅ SMS Fallback Approval successful! Extraction triggered.")
+                        st.rerun()
+                else:
+                    st.error("This hash has already been used.")
+            else:
+                st.error("Invalid hash for this case.")
+    
+    # Auto-read option (via ADB)
+    with col_auto:
+        st.markdown("**Auto-Read from ADB**")
+        if adb_connected:
+            st.success("✅ ADB Device Connected")
+            if st.button("🔍 Read SMS from Nominee Phone", use_container_width=True):
+                nominee_phone = session.metadata.get('nominee_phone', '')
+                if not nominee_phone:
+                    st.error("Nominee phone number not set. Please enter it above.")
+                else:
+                    with st.spinner("Reading SMS from ADB device..."):
+                        sms_data = _read_sms_from_adb(nominee_phone)
+                        
+                        if sms_data:
+                            hash_value = sms_data['hash']
+                            stored_hashes = st.session_state.get('approval_hashes', {})
+                            
+                            if hash_value in stored_hashes and stored_hashes[hash_value]['case_id'] == case_id:
+                                if stored_hashes[hash_value]['status'] == 'pending':
+                                    with st.spinner("Hash verified! Processing approval and starting extraction..."):
+                                        stored_hashes[hash_value]['status'] = 'used'
+                                        save_approval_decision(case_id, 'approved', stored_hashes[hash_value]['nominee_name'])
+                                        ApprovalNotifier.notify_approval(case_id=case_id, device_id="UNKNOWN", decision='approved', nominee_name=stored_hashes[hash_value]['nominee_name'], extraction_type='android')
+                                        st.session_state['start_extraction'] = True
+                                        st.success(f"✅ SMS Auto-Read Successful! Hash {hash_value} verified. Extraction triggered.")
+                                        st.rerun()
+                                else:
+                                    st.error(f"Hash {hash_value} has already been used.")
+                            else:
+                                st.error(f"Hash {hash_value} not found or doesn't match this case.")
+                        else:
+                            st.warning(f"No SMS found from {nominee_phone}. Ensure nominee sent: 'APPROVE {fallback_hash}'")
+        else:
+            st.warning("⚠️ No ADB Device Connected")
+            st.info("Connect an Android phone via USB with ADB enabled to use auto-read feature.")
+
+def render_sidebar(orchestrator: DataExtractionOrchestrator):
+    """Renders the sidebar for the investigator view."""
+    with st.sidebar:
+        st.markdown("##  ForenSmart Console")
+        st.divider()
+        
+        # System Status Section
+        st.markdown("### 🔧 System Status")
+        
+        # Check system health
+        try:
+            # Run all checks
+            all_checks = AppErrorChecker.check_all()
+            error_check = ErrorChecker.check_storage_integrity()
+            
+            # Overall status
+            col1, col2 = st.columns(2)
+            with col1:
+                # Count errors from all checks
+                total_errors = sum(len(check.get('errors', [])) for check in all_checks.values())
+                if total_errors == 0:
+                    st.success("✅ App Healthy")
+                elif total_errors < 3:
+                    st.warning("⚠️ App Warning")
+                else:
+                    st.error("❌ App Issues")
+            
+            with col2:
+                storage_status = error_check.get('status', 'unknown')
+                if storage_status == 'ok':
+                    st.success("✅ Storage OK")
+                else:
+                    st.warning("⚠️ Storage Issue")
+            
+            # Device status
+            st.markdown("**Device Information**")
+            
+            try:
+                # Get device details
+                adb_summary = orchestrator._refresh_adb_summary()
+                devices = adb_summary.get('devices', [])
+                
+                if devices:
+                    device = devices[0]  # Get first connected device
+                    
+                    # Device Name
+                    device_name = device.get('model', device.get('serial', 'Unknown Device'))
+                    st.caption(f"📱 **Device:** {device_name}")
+                    
+                    # Battery info (works on non-rooted devices)
+                    try:
+                        import subprocess
+                        serial = device.get('serial')
+                        
+                        # Get battery info via dumpsys (works without root)
+                        battery_result = subprocess.run(
+                            ['adb', '-s', serial, 'shell', 'dumpsys', 'battery'],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        
+                        battery_level = 'N/A'
+                        battery_health = 'Unknown'
+                        
+                        if battery_result.returncode == 0:
+                            for line in battery_result.stdout.split('\n'):
+                                if 'level:' in line:
+                                    battery_level = line.split(':')[1].strip()
+                                if 'health:' in line:
+                                    health_val = line.split(':')[1].strip()
+                                    health_map = {'2': 'Good', '3': 'Overheat', '4': 'Dead', '5': 'Over Voltage', '6': 'Unspecified Failure', '7': 'Cold'}
+                                    battery_health = health_map.get(health_val, health_val)
+                        
+                        st.caption(f"🔋 **Battery:** {battery_level}% ({battery_health})")
+                        
+                        # Get storage info via df (works without root)
+                        storage_result = subprocess.run(
+                            ['adb', '-s', serial, 'shell', 'df', '/data'],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
+                        )
+                        
+                        total_storage = 'N/A'
+                        available_storage = 'N/A'
+                        
+                        if storage_result.returncode == 0:
+                            lines = storage_result.stdout.split('\n')
+                            if len(lines) > 1:
+                                parts = lines[1].split()
+                                if len(parts) >= 4:
+                                    # Convert from KB to GB
+                                    total_kb = int(parts[1]) if parts[1].isdigit() else 0
+                                    avail_kb = int(parts[3]) if parts[3].isdigit() else 0
+                                    total_storage = f"{total_kb // 1024 // 1024}GB"
+                                    available_storage = f"{avail_kb // 1024 // 1024}GB"
+                        
+                        st.caption(f"💾 **Storage:** {available_storage} / {total_storage}")
+                        
+                    except Exception as e:
+                        st.caption(f"⚠️ Device info: Battery/Storage unavailable")
+                        st.caption(f"💡 Tip: Device doesn't need to be rooted")
+                    
+                    # Connection status
+                    device_col1, device_col2 = st.columns(2)
+                    with device_col1:
+                        st.success("✅ Connected")
+                    with device_col2:
+                        st.success("✅ ADB Ready")
+                else:
+                    st.warning("⚠️ No devices connected")
+                    st.caption("Connect Android phone via USB")
+                    
+            except Exception as e:
+                st.warning(f"⚠️ Device check error")
+                st.caption(f"Error: {str(e)[:40]}")
+            
+            # Issues summary
+            all_issues = []
+            for check_name, check_result in all_checks.items():
+                all_issues.extend(check_result.get('errors', []))
+            
+            if all_issues:
+                with st.expander(f"⚠️ Issues ({len(all_issues)})"):
+                    for issue in all_issues[:5]:  # Show first 5 issues
+                        st.error(f"• {issue}")
+                    if len(all_issues) > 5:
+                        st.caption(f"... and {len(all_issues) - 5} more issues")
+            
+            # Auto-refresh indicator
+            st.caption("🔄 Status updates automatically")
+            
+            # Add auto-refresh button
+            if st.button("🔄 Refresh Status", use_container_width=True):
+                st.rerun()
+            
+        except Exception as e:
+            st.warning(f"⚠️ Status check error: {str(e)[:50]}")
+        
+        st.divider()
+
+        # Case selection and management
+        cm = get_consent_manager()
+        all_cases = case_selection_options(cm.sessions)
+        case_id = st.selectbox(
+            "Select Case",
+            options=all_cases,
+            format_func=lambda x: f"{x} - {cm.get_session(x).metadata.get('description', 'No description')}" if x != 'CREATE_NEW' else "-- Create New Case --",
+            index=0 if 'case_id' not in st.session_state or st.session_state['case_id'] is None else all_cases.index(st.session_state['case_id'])
+        )
+
+        if case_id and case_id != st.session_state.get('case_id'):
+            st.session_state['case_id'] = case_id
+            st.rerun()
+
+        if case_id == 'CREATE_NEW':
+            st.session_state['case_id'] = None # Clear selection to show creation form
+
+def render_investigator_view(orchestrator: DataExtractionOrchestrator):
+    """Render the main investigator dashboard with all tabs."""
     cm = get_consent_manager()
     sessions = cm.sessions
     for case_id in list(sessions.keys()):
@@ -542,25 +1162,83 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
 
     # Quick stats
     st.markdown("### 📊 Dashboard Overview")
+    
+    # Get extraction results if available
+    extraction_results = st.session_state.get('extraction_results', {})
+    total_artifacts_extracted = extraction_results.get('total_artifacts', 0)
+    extraction_history = get_extraction_ui_manager().extraction_history
+    
     col1, col2, col3, col4 = st.columns(4)
     with col1:
         st.metric("Active Cases", total_sessions)
     with col2:
-        st.metric("Total Artifacts", StorageAnalytics.get_total_storage_info().get('total_files', 'N/A'))
+        # Show extracted artifacts if extraction just completed, otherwise show total files
+        if total_artifacts_extracted > 0:
+            st.metric("Extracted Artifacts", total_artifacts_extracted)
+        else:
+            st.metric("Total Artifacts", StorageAnalytics.get_total_storage_info().get('total_files', 'N/A'))
     with col3:
-        st.metric("Extractions", len(get_extraction_ui_manager().extraction_history))
+        st.metric("Extractions", len(extraction_history))
     with col4:
         st.metric("Reports Generated", len(_list_existing_reports(st.session_state.get('case_id') or '')))
 
     st.divider()
+    
+    # Display recent extraction results if available
+    if total_artifacts_extracted > 0:
+        st.markdown("### 📦 Latest Extraction Results")
+        col1, col2, col3 = st.columns([1, 1, 1], gap="medium")
+        
+        with col1:
+            st.info(f"✅ **Status**: {extraction_results.get('status', 'unknown').upper()}")
+        with col2:
+            device_id = extraction_results.get('device_id', 'Unknown')
+            st.info(f"📱 **Device**: {device_id[:15]}..." if len(str(device_id)) > 15 else f"📱 **Device**: {device_id}")
+        with col3:
+            st.info(f"⏱️ **Type**: {extraction_results.get('extraction_type', 'unknown').upper()}")
+        
+        # ========================================================================
+        # PHASE 3: DISPLAY MODULE-LEVEL CONSENT ERRORS
+        # ========================================================================
+        # Show blocked modules if extraction failed due to consent
+        if extraction_results.get('error_type') == 'consent_denied' and extraction_results.get('blocked_modules'):
+            st.error("[ERROR] Extraction Blocked - Insufficient Consent")
+            st.markdown("The following modules require higher consent levels:")
+            
+            for blocked in extraction_results['blocked_modules']:
+                col1, col2, col3 = st.columns([2, 1, 1])
+                with col1:
+                    st.markdown(f"**{blocked['module'].upper()}**")
+                with col2:
+                    st.caption(f"Requires: {blocked['required']}")
+                with col3:
+                    st.caption(f"Current: {blocked['current']}")
+            
+            st.info("[INFO] Solution: Upgrade consent level in the Consent Hub tab to unlock these modules.")
+            st.divider()
+        
+        # Show artifact breakdown by module
+        if extraction_results.get('artifact_details'):
+            st.markdown("#### 📊 Artifacts by Module")
+            # Use responsive columns - max 3 per row
+            num_modules = len(extraction_results['artifact_details'])
+            cols_per_row = min(3, num_modules)
+            artifact_cols = st.columns([1] * cols_per_row, gap="small")
+            
+            for idx, (module_name, artifacts) in enumerate(extraction_results['artifact_details'].items()):
+                with artifact_cols[idx]:
+                    total_module_artifacts = sum(v for v in artifacts.values() if isinstance(v, int))
+                    st.metric(f"{module_name.upper()}", total_module_artifacts)
+        
+        st.divider()
 
     # Main tabs
     tab_labels = [
         "🗂️ Case Management",
+        "🔐 Consent Hub", # Add the new Consent Hub tab
         "📱 Extraction",
         "🧠 Intelligence",
         "🖼️ Media Viewer",
-        "🔐 Consent",
         "📑 Reports",
         "💾 Storage",
         "🔧 Diagnostics"
@@ -570,17 +1248,18 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
     default_tab_index = 0
     nav_state = st.session_state.get('nav', 'Overview')
     if nav_state == 'Extraction':
-        default_tab_index = 1
-    elif nav_state == 'Intelligence':
         default_tab_index = 2
-    elif nav_state == 'Consent':
-        default_tab_index = 4
+    elif nav_state == 'Intelligence':
+        default_tab_index = 3
     
-    (tab_case, tab_extraction, tab_intelligence, tab_media,
-     tab_consent, tab_reports, tab_storage, tab_diagnostics) = st.tabs(tab_labels)
+    (tab_case, tab_consent_hub, tab_extraction, tab_intelligence, tab_media,
+     tab_reports, tab_storage, tab_diagnostics) = st.tabs(tab_labels)
 
     with tab_case:
         render_case_management_tab(cm)
+
+    with tab_consent_hub:
+        render_consent_hub_tab(cm)
 
     # ========================================================================
     # Extraction Tab
@@ -599,39 +1278,12 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
             # Check device health
             if device_id and device_id != 'UNKNOWN_DEVICE':
                 device_health = DeviceManager.get_device_health(device_id)
-                
-                # Show device status
-                col1, col2, col3 = st.columns(3)
-                with col1:
-                    status = device_health.get('status', 'unknown')
-                    if status == 'connected':
-                        st.success(f"✅ Device Connected")
-                    elif status == 'offline':
-                        st.error(f"❌ Device Offline")
-                    else:
-                        st.warning(f"⚠️ Device {status.title()}")
-                
-                with col2:
-                    battery = device_health.get('battery', 'N/A')
-                    st.metric("Battery", battery)
-                
-                with col3:
-                    storage = device_health.get('storage', 'N/A')
-                    st.metric("Storage", storage)
-                
-                # Show warnings if any
-                if device_health.get('issues'):
-                    for issue in device_health['issues']:
-                        st.error(f"⚠️ {issue}")
-                
-                # Show info messages if any
-                if device_health.get('warnings'):
-                    for warning in device_health['warnings']:
-                        st.warning(f"ℹ️ {warning}")
+                status = device_health.get('status', 'unknown')
                 
                 # Prevent extraction if device offline
                 if status == 'offline':
-                    st.error("Cannot start extraction: Device is offline")
+                    st.error("❌ Cannot start extraction: Device is offline")
+                    st.info("💡 Check device status in the sidebar (🔧 System Status)")
                     st.stop()
             
             # ====================================================================
@@ -644,11 +1296,42 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
                 user_agent = headers.get('user-agent', '').lower()
                 # Detect mobile devices
                 is_mobile = bool(re.search(r'mobile|android|iphone|ipad|ipod|windows phone', user_agent))
-            except Exception:
-                # Fallback: check if user_agent in query params
-                user_agent = st.query_params.get('user_agent', '').lower()
-                is_mobile = bool(re.search(r'mobile|android|iphone|ipad|ipod|windows phone', user_agent))
-            
+            except Exception:  # pragma: no cover - fallback for older versions
+                if callable(_get_websocket_headers):
+                    try:
+                        headers = _get_websocket_headers()
+                    except Exception:
+                        headers = None
+                if not headers:
+                    return ''
+                normalized = {str(k).lower(): str(v) for k, v in headers.items() if k and v}
+                host = normalized.get('x-forwarded-host') or normalized.get('host')
+                if not host:
+                    return ''
+
+                proto = (normalized.get('x-forwarded-proto')
+                         or normalized.get('x-forwarded-protocol')
+                         or '').split(',')[0].strip().lower()
+                if proto not in {'http', 'https'}:
+                    if 'https' in (normalized.get('cf-visitor') or '').lower() or normalized.get('x-arr-ssl'):
+                        proto = 'https'
+                    else:
+                        proto = 'http'
+
+                base = f"{proto}://{host}".rstrip('/')
+
+                prefix = normalized.get('x-forwarded-prefix') or normalized.get('x-forwarded-pathbase') or ''
+                script_hint = normalized.get('x-forwarded-script-name') or normalized.get('x-streamlit-path') or ''
+                extra_path = (prefix + script_hint).strip()
+                if extra_path and not extra_path.startswith('/'):
+                    extra_path = '/' + extra_path
+                extra_path = extra_path.rstrip('/')
+                if extra_path:
+                    base = f"{base}{extra_path}"
+
+                return base
+
+
             if is_mobile:
                 st.info("📱 **Mobile Device Detected** - Extraction will proceed on mobile")
             else:
@@ -672,7 +1355,224 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
             if st.session_state.get('auto_extract_triggered'):
                 st.info("🔄 **Auto-extraction triggered from approval!** Starting extraction process...")
                 st.session_state['auto_extract_triggered'] = False  # Clear flag
-            render_extraction_tab(case_id)
+                st.session_state['start_extraction'] = True  # Trigger extraction
+            
+            # Let render_extraction_tab handle the extraction
+            # Don't duplicate extraction logic here
+            if False:  # Disabled - render_extraction_tab handles this
+                # Create progress placeholder for live updates
+                progress_placeholder = st.empty()
+                message_placeholder = st.empty()
+                
+                try:
+                    # Mark extraction as in progress
+                    st.session_state['extraction_in_progress'] = True
+                    
+                    # Get device ID
+                    device_id = session.device_id if session else None
+                    if not device_id or device_id == 'UNKNOWN_DEVICE':
+                        st.error("No device connected. Please connect a device via ADB.")
+                        st.session_state['start_extraction'] = False
+                        st.session_state['extraction_in_progress'] = False
+                    else:
+                        # Ensure consent level is set
+                        if not session or session.level == ConsentLevel.NONE:
+                            st.warning("Setting consent level to STANDARD for extraction...")
+                            cm.set_consent_level(case_id, ConsentLevel.STANDARD, "Auto-set for extraction")
+                        
+                        # Show extraction starting message
+                        with message_placeholder.container():
+                            st.info("🚀 Starting extraction...")
+                        
+                        # Call orchestrator to start extraction
+                        def progress_callback(progress: float, message: str):
+                            """Update progress in real-time."""
+                            # Update progress bar
+                            with progress_placeholder.container():
+                                st.progress(min(progress / 100, 1.0))
+                                st.caption(f"Progress: {progress:.0f}%")
+                            
+                            # Update message
+                            with message_placeholder.container():
+                                st.info(f"⚙️ {message}")
+                        
+                        # Start extraction with detailed logging
+                        try:
+                            with message_placeholder.container():
+                                st.info(f"📱 Extracting from device: {device_id}")
+                            
+                            # Log extraction start
+                            import logging
+                            logger = logging.getLogger(__name__)
+                            logger.info(f"Starting extraction for case {case_id}, device {device_id}")
+                            
+                            # Call extract_all_data with all parameters
+                            result = orchestrator.extract_all_data(
+                                case_id=case_id,
+                                device_id=device_id,
+                                progress_callback=progress_callback
+                            )
+                            
+                            logger.info(f"Extraction result: {result.get('status')}")
+                            
+                        except TypeError as te:
+                            # Handle missing kwargs - retry without callback
+                            with message_placeholder.container():
+                                st.warning(f"⚠️ Extraction parameter error: {str(te)}")
+                                st.info("Retrying with minimal parameters...")
+                            
+                            logger.error(f"TypeError in extraction: {str(te)}")
+                            
+                            # Retry with minimal parameters
+                            with message_placeholder.container():
+                                st.info("⚙️ Retrying extraction...")
+                            
+                            result = orchestrator.extract_all_data(
+                                case_id=case_id,
+                                device_id=device_id
+                            )
+                            
+                        except Exception as e:
+                            # Catch all other errors with full traceback
+                            import traceback
+                            error_traceback = traceback.format_exc()
+                            logger.error(f"Extraction failed: {str(e)}\n{error_traceback}", exc_info=True)
+                            
+                            with message_placeholder.container():
+                                st.error(f"❌ Extraction error: {str(e)}")
+                                st.code(error_traceback, language='python')
+                            
+                            result = {'status': 'failed', 'message': str(e), 'traceback': error_traceback}
+                        
+                        # Show final progress
+                        with progress_placeholder.container():
+                            st.progress(1.0)
+                            st.caption("Progress: 100%")
+                        
+                        if result.get('status') == 'success':
+                            with message_placeholder.container():
+                                st.success(f"✅ Extraction completed! {result.get('total_artifacts', 0)} artifacts extracted.")
+                            
+                            # Display extracted device information
+                            st.divider()
+                            st.markdown("### 📱 Extracted Device Information")
+                            
+                            # Get device info from results
+                            device_info = result.get('artifacts', {}).get('device_info', {})
+                            
+                            if device_info:
+                                col1, col2, col3, col4 = st.columns(4)
+                                
+                                with col1:
+                                    st.metric("Device Model", device_info.get('model', 'N/A'))
+                                
+                                with col2:
+                                    st.metric("Manufacturer", device_info.get('manufacturer', 'N/A'))
+                                
+                                with col3:
+                                    st.metric("OS Version", device_info.get('os_version', 'N/A'))
+                                
+                                with col4:
+                                    st.metric("Storage", device_info.get('storage_capacity', 'N/A'))
+                                
+                                # Additional info
+                                col5, col6 = st.columns(2)
+                                with col5:
+                                    st.metric("RAM", device_info.get('ram', 'N/A'))
+                                
+                                with col6:
+                                    st.metric("Serial Number", device_info.get('serial_number', 'N/A')[:20] + "...")
+                                
+                                st.caption(f"Extracted at: {device_info.get('extracted_at', 'N/A')}")
+                            else:
+                                st.info("No device information extracted.")
+                            
+                            st.divider()
+                            
+                            # Display other extracted data summary
+                            st.markdown("### 📊 Extraction Summary")
+                            artifacts = result.get('artifacts', {})
+                            
+                            col1, col2, col3, col4 = st.columns(4)
+                            with col1:
+                                st.metric("Communications", len(artifacts.get('communications', [])))
+                            with col2:
+                                st.metric("Location Data", len(artifacts.get('location', [])))
+                            with col3:
+                                st.metric("Security Data", len(artifacts.get('security', [])))
+                            with col4:
+                                st.metric("Media Files", len(artifacts.get('media', [])))
+                            
+                            st.session_state['start_extraction'] = False
+                            st.session_state['extraction_in_progress'] = False
+                        else:
+                            with message_placeholder.container():
+                                st.error(f"❌ Extraction failed: {result.get('message', 'Unknown error')}")
+                            st.session_state['start_extraction'] = False
+                            st.session_state['extraction_in_progress'] = False
+                            
+                except Exception as e:
+                    # Use unified error handling
+                    error_context = {
+                        'operation': 'extraction',
+                        'case_id': case_id,
+                        'device_id': device_id,
+                        'error_type': type(e).__name__
+                    }
+                    
+                    # Log error using unified system
+                    handle_error(
+                        error=e,
+                        context=error_context,
+                        severity='error'
+                    )
+                    
+                    with message_placeholder.container():
+                        st.error(f"❌ Extraction error: {str(e)}")
+                    
+                    st.session_state['extraction_in_progress'] = False
+                    
+                    # Show detailed error information
+                    with st.expander("📋 Error Details & Troubleshooting"):
+                        st.code(str(e), language='text')
+                        
+                        # Run error checker
+                        st.markdown("### 🔍 System Diagnostics")
+                        error_check = ErrorChecker.check_storage_integrity()
+                        
+                        if error_check.get('status') == 'ok':
+                            st.success("✅ Storage integrity OK")
+                        else:
+                            st.warning(f"⚠️ Storage issues: {error_check.get('message')}")
+                        
+                        # App error check
+                        app_check = AppErrorChecker.check_app_health()
+                        st.markdown("### 📊 App Health")
+                        col1, col2, col3 = st.columns(3)
+                        with col1:
+                            st.metric("Status", app_check.get('status', 'unknown'))
+                        with col2:
+                            st.metric("Issues", len(app_check.get('issues', [])))
+                        with col3:
+                            st.metric("Warnings", len(app_check.get('warnings', [])))
+                        
+                        # Troubleshooting checklist
+                        st.markdown("### ✅ Troubleshooting Checklist")
+                        st.markdown("""
+                        - [ ] Device is connected via USB
+                        - [ ] USB Debugging is enabled on device
+                        - [ ] Device is authorized (check device screen for prompt)
+                        - [ ] ADB is installed and in PATH
+                        - [ ] Consent level is set to STANDARD or higher
+                        - [ ] Device has sufficient battery (>20%)
+                        - [ ] Device has sufficient storage (>1GB free)
+                        - [ ] No other ADB sessions are active
+                        """)
+                    
+                    st.session_state['start_extraction'] = False
+            else:
+                # Show extraction UI only if not currently extracting
+                render_extraction_tab(case_id)
         else:
             st.info("Please select a case from the 'Case Management' tab.")
 
@@ -693,11 +1593,6 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
     with tab_media:
         render_media(cm)
 
-    # ========================================================================
-    # Consent Tab
-    # ========================================================================
-    with tab_consent:
-        render_consent(cm)
 
     # ========================================================================
     # Reports Tab
@@ -727,13 +1622,13 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
             st.markdown("### 📋 Approval Status")
             col_app1, col_app2, col_app3 = st.columns(3)
             with col_app1:
-                is_approved = ApprovalSync.is_approved(case_id)
+                is_approved = ApprovalManager.is_approved(case_id)
                 st.metric("Approved", "✅ Yes" if is_approved else "❌ No")
             with col_app2:
-                is_expired = ApprovalSync.is_approval_expired(case_id)
+                is_expired = ApprovalManager.is_approval_expired(case_id)
                 st.metric("Expired", "❌ Yes" if is_expired else "✅ No")
             with col_app3:
-                age = ApprovalSync.get_approval_age_seconds(case_id)
+                age = ApprovalManager.get_approval_age_seconds(case_id)
                 age_str = f"{age}s ago" if age else "N/A"
                 st.metric("Age", age_str)
             st.divider()
@@ -932,7 +1827,7 @@ def render_dashboard_home(orchestrator: DataExtractionOrchestrator):
                 else:
                     st.info("No redirect history available yet")
             except Exception as e:
-                st.warning(f"⚠️ Failed to load redirect history: {str(e)}")
+                st.warning(f"⚠️ Failed to load redirect history: {e}")
         else:
             st.info("No redirect history file found yet")
         
@@ -1099,10 +1994,10 @@ def render_consent(cm: ConsentManager):
     # Check for approval decision from consent portal with ApprovalSync
     approval_decision = get_approval_decision(case_id)
     
-    # Use ApprovalSync for real-time approval status
-    if ApprovalSync.is_approved(case_id):
+    # Use ApprovalManager for real-time approval status
+    if ApprovalManager.is_approved(case_id):
         approval_decision = 'approved'
-    elif ApprovalSync.is_denied(case_id):
+    elif ApprovalManager.is_denied(case_id):
         approval_decision = 'denied'
     
     # Validate extraction readiness with ExtractionValidator
@@ -1136,9 +2031,10 @@ def render_consent(cm: ConsentManager):
         if st.button('🔄 Refresh', key=f'{case_id}_check_approval'):
             # Clear cache to force fresh read from file
             try:
-                ApprovalSync.clear_cache(case_id)
+                # Clear cache by re-reading from file
+                ApprovalManager.get_approval_status(case_id, use_cache=False)
             except Exception as e:
-                logger.error(f"Failed to clear approval cache: {e}")
+                logger.error(f"Failed to refresh approval: {e}")
             st.session_state['approval_check_ts'] = datetime.now().isoformat()
             st.rerun()
     
@@ -1533,9 +2429,26 @@ def render_media(cm: ConsentManager):
     media_data = results.get('data', {}).get('media', {}) if isinstance(results, dict) else {}
     media_artifacts = media_data.get('artifacts', {}) if isinstance(media_data, dict) else {}
 
+    paths: Set[str] = set()
+
+    def _collect_paths(value: Any) -> None:
+        if isinstance(value, str):
+            if value.strip():
+                paths.add(value)
+        elif isinstance(value, (list, tuple, set)):
+            for item in value:
+                _collect_paths(item)
+        elif isinstance(value, dict):
+            for item in value.values():
+                _collect_paths(item)
+
+    _collect_paths(media_artifacts)
+    search_roots = sorted(paths)
+
     if media_viewer_module and hasattr(media_viewer_module, 'render_media_view'):
         try:
-            media_viewer_module.render_media_view(case_id, cm, artifact_paths=media_artifacts)
+            kwargs = {'search_roots': search_roots} if search_roots else {}
+            media_viewer_module.render_media_view(case_id, cm, **kwargs)
         except Exception as e:
             st.error(f'Media viewer error: {e}')
     else:
@@ -1746,9 +2659,8 @@ def render_reports():
             st.success(f'Report saved: {out}')
 
 
-@st.cache_data(show_spinner=False, ttl=300)
 def _load_intelligence_data(case_id: str) -> Dict[str, Any]:
-    """Cache intelligence data loading to improve performance."""
+    """Load intelligence data - NO CACHING to ensure fresh extraction results."""
     results = ResultsRepository.load(case_id) or {}
     data = results.get('data', {}) if isinstance(results, dict) else {}
     modules_run = results.get('modules_run', []) if isinstance(results, dict) else []
@@ -1766,8 +2678,8 @@ def render_intelligence(cm: ConsentManager, orchestrator: DataExtractionOrchestr
         st.warning('No consent session found. Initialize consent from the Consent tab.')
         return
     
-    # Check approval status with ApprovalSync
-    if not ApprovalSync.is_approved(case_id):
+    # Check approval status with ApprovalManager
+    if not ApprovalManager.is_approved(case_id):
         st.warning("⏳ Awaiting nominee approval for intelligence analysis.")
         if st.button("📤 Show Approval Delivery Options", key="btn_dashboard_intel_approval"):
             ConsentPortalEnhancer.render_delivery_ui(
@@ -1917,7 +2829,7 @@ def render_intelligence(cm: ConsentManager, orchestrator: DataExtractionOrchestr
 
     with tabs[1]: # Comms Analyzer
         try:
-            import modules.comms_analyzer as sc # pyright: ignore[reportMissingImports]
+            from modules.analysis import comms_analyzer as sc  # pyright: ignore[reportMissingImports]
             status = comms_hint.get('status', 'unknown')
             if status == 'ok':
                 st.caption(f"{comms_total} communications loaded • {', '.join(f'{k}: {v}' for k, v in comms_counts.items())}")
@@ -1939,7 +2851,7 @@ def render_intelligence(cm: ConsentManager, orchestrator: DataExtractionOrchestr
 
     with tabs[0]: # Location Intelligence
         try:
-            import modules.location_intelligence as li # pyright: ignore[reportMissingImports]
+            from modules.analysis import location_intelligence as li  # pyright: ignore[reportMissingImports]
             status = location_hint.get('status', 'unknown')
             if status == 'ok':
                 if location_total:
@@ -2070,268 +2982,30 @@ def render_active_cases_widget(consent_manager: ConsentManager):
         st.info("No active cases found. Create a new case to begin.")
 
 def main():
-    try:
-        cm = get_consent_manager()
-        orchestrator = get_orchestrator(cm)
-
-        # Nominee approval deep link handling
-        params = st.query_params
-        token_value = params.get('unlock_token')
-        if token_value:
-            render_nominee_approval(cm, token_value)
-            return
-
-        # AUTO-EXTRACT REDIRECT HANDLING
-        # When consent portal redirects after approval, it passes case_id and auto_extract=true
-        import re
-        
-        # ========================================================================
-        # TIER 1 FIX #3: PARAMETER SANITIZATION
-        # ========================================================================
-        case_id_param = params.get('case_id')
-        auto_extract_param = params.get('auto_extract')
-        
-        # Sanitize case_id parameter - only allow alphanumeric, underscore, and hyphen
-        if case_id_param:
-            if not re.match(r'^[A-Za-z0-9_-]+$', case_id_param):
-                st.error("❌ Invalid case ID format")
-                st.info("Case ID can only contain letters, numbers, underscore, and hyphen")
-                st.stop()
+    """Main router to select between investigator and consent views."""
+    params = st.query_params
+    
+    # If 'data' or 'unlock_token' is in the URL, show the consent view.
+    if 'data' in params or 'unlock_token' in params or params.get('view') == 'consent':
+        render_consent_view()
+    else:
+        # Handle auto-extraction redirect from approval
+        if 'case_id' in params:
+            case_id = params.get('case_id')
+            st.session_state['case_id'] = case_id
             
-            # Limit length to prevent abuse
-            if len(case_id_param) > 100:
-                st.error("❌ Case ID is too long (max 100 characters)")
-                st.stop()
-        
-        # Sanitize auto_extract parameter
-        if auto_extract_param:
-            if auto_extract_param not in ['true', 'false']:
-                st.warning("⚠️ Invalid auto_extract parameter, ignoring")
-                auto_extract_param = None
-        
-        # Sanitize extraction_type parameter
-        extraction_type_param = params.get('extraction_type', 'android')
-        SUPPORTED_TYPES = ['android', 'ios', 'hdd', 'cloud']
-        if extraction_type_param not in SUPPORTED_TYPES:
-            st.warning(f"⚠️ Unsupported extraction type: {extraction_type_param}, using default")
-            extraction_type_param = 'android'
-        
-        # ========================================================================
-        # TIER 1 FIX #1: CASE EXISTENCE VALIDATION
-        # ========================================================================
-        if case_id_param:
-            # Validate case exists before loading
-            session = cm.get_session(case_id_param)
-            
-            if not session:
-                st.error(f"❌ Case '{case_id_param}' not found in system")
-                st.info("Please create the case first or check the case ID")
-                st.stop()
-            
-            # Case exists, set session state
-            st.session_state['case_id'] = case_id_param
-            
-            # ====================================================================
-            # TIER 1 FIX #2: APPROVAL VERIFICATION BEFORE EXTRACTION
-            # ====================================================================
-            # Check approval status before setting auto_extract
-            approval_status = ApprovalSync.get_approval_status(case_id_param, use_cache=False)
-            
-            if auto_extract_param == 'true':
-                # Verify approval exists and is approved
-                if not approval_status:
-                    st.error("❌ No approval found for this case")
-                    st.info("Please request approval from the nominee first")
-                    st.stop()
-                
-                decision = approval_status.get('decision')
-                
-                if decision == 'denied':
-                    st.error("❌ Approval was denied for this case")
-                    st.info("You cannot extract data without approval")
-                    st.stop()
-                
-                if decision != 'approved':
-                    st.warning("⏳ Approval is still pending")
-                    st.info("Please wait for the nominee to approve")
-                    st.stop()
-                
-                # Approval is valid, set auto_extract flags
+            # Check if auto-extract was requested
+            if params.get('auto_extract') == 'true':
                 st.session_state['auto_extract_triggered'] = True
                 st.session_state['nav'] = 'Extraction'  # Navigate to extraction tab
-                st.session_state['extraction_type'] = extraction_type_param
-                
-                # ================================================================
-                # TIER 2 FIX #6: LOG REDIRECT EVENT
-                # ================================================================
-                _log_redirect_event(
-                    case_id_param,
-                    source='approval_portal',
-                    status='success',
-                    user_agent=st.context.headers.get('user-agent', 'unknown') if hasattr(st, 'context') else 'unknown',
-                    extraction_type=extraction_type_param,
-                    device_id=session.device_id if session else 'unknown',
-                    approval_status='approved'
-                )
-
-        # Sidebar navigation
-        if 'nav' not in st.session_state:
-            st.session_state['nav'] = 'Overview'
-
-        # ========================================================================
-        # TIER 1 FIX #4: TIMEOUT HANDLING FOR REDIRECT
-        # ========================================================================
-        # Initialize redirect timestamp if not present
-        if 'redirect_start_time' not in st.session_state:
-            st.session_state['redirect_start_time'] = None
         
-        if case_id_param:
-            # Set redirect start time on first load
-            if st.session_state['redirect_start_time'] is None:
-                st.session_state['redirect_start_time'] = time.time()
-            
-            # Check if redirect is taking too long (30 seconds)
-            elapsed = time.time() - st.session_state['redirect_start_time']
-            if elapsed > 30:
-                st.warning("⚠️ Redirect is taking longer than expected")
-                st.info("This might be due to:")
-                st.write("- Slow network connection")
-                st.write("- Case data is large")
-                st.write("- System is busy")
-                st.write("")
-                st.info("Please wait a bit longer or refresh the page")
-                
-                # Reset timer after showing message
-                if st.button("🔄 Retry"):
-                    st.session_state['redirect_start_time'] = time.time()
-                    st.rerun()
-            
-            # Clear timer after successful load (5 seconds)
-            if elapsed > 5:
-                st.session_state['redirect_start_time'] = None
+        # Otherwise, show the main investigator dashboard.
+        orchestrator = get_orchestrator()
+        render_sidebar(orchestrator)
+        render_investigator_view(orchestrator)
 
-        if '_system_report' not in st.session_state:
-            st.session_state['_system_report'] = _run_system_checks()
-        if '_storage_report' not in st.session_state:
-            st.session_state['_storage_report'] = _run_storage_checks()
-
-        system_report = st.session_state['_system_report']
-        storage_report = st.session_state['_storage_report']
-        # Initialize session state
-        if 'case_id' not in st.session_state:
-            st.session_state['case_id'] = None
-        
-        # ========================================================================
-        # TIER 2 FIX #7: APPROVAL STATUS POLLING (Enhanced)
-        # ========================================================================
-        # Poll approval file every 5 seconds for real-time approval detection
-        if 'last_approval_poll' not in st.session_state:
-            st.session_state['last_approval_poll'] = 0
-        
-        current_time = time.time()
-        case_id = st.session_state.get('case_id')
-        
-        # Auto-poll approval file every 5 seconds
-        if case_id and (current_time - st.session_state['last_approval_poll'] > 5):
-            try:
-                # Get approval status without cache (force fresh read from file)
-                approval_status = ApprovalSync.get_approval_status(case_id, use_cache=False)
-                
-                # Check if approval changed
-                if approval_status:
-                    current_decision = approval_status.get('decision')
-                    previous_decision = st.session_state.get(f'{case_id}_approval_decision')
-                    
-                    # If approval changed, refresh UI automatically
-                    if current_decision != previous_decision:
-                        st.session_state[f'{case_id}_approval_decision'] = current_decision
-                        logger.info(f"Approval detected for {case_id}: {current_decision} - Auto-refreshing UI")
-                        
-                        # Log approval status change
-                        _log_redirect_event(
-                            case_id,
-                            source='approval_polling',
-                            status='approval_changed',
-                            approval_status=current_decision
-                        )
-                        
-                        st.rerun()  # Auto-refresh UI
-                
-                st.session_state['last_approval_poll'] = current_time
-            except Exception as e:
-                logger.error(f"Auto-refresh polling failed: {e}")
-
-
-
-        # --- Modern Sidebar ---
-        with st.sidebar:
-            st.markdown("### 📋 Case Selection")
-            case_id_input = st.text_input(
-                "Case ID",
-                value=st.session_state.get('case_id', ''),
-                key='case_id_input'
-            )
-            if case_id_input:
-                st.session_state['case_id'] = case_id_input
-
-            st.markdown("### 🔐 Consent Status")
-            case_id = st.session_state.get('case_id')
-            if case_id:
-                session = cm.get_session(case_id)
-                if session and session.level != ConsentLevel.NONE:
-                    st.success(f"✅ Consent Active\n\nCase: {case_id}\n\nLevel: {session.level.name}")
-                else:
-                    st.warning("⚠️ No Consent\n\nCapture consent to proceed")
-            else:
-                st.warning("⚠️ No Consent\n\nSelect a case to see status")
-
-            st.markdown("### 🔧 System Status")
-            col1, col2 = st.columns(2)
-            with col1:
-                st.metric("ADB", "✅" if _check_adb_status() else "❌")
-            with col2:
-                st.metric("Storage", "✅" if storage_report.get('status') == 'ok' else "⚠️")
-
-            with st.expander("System Checks Details", expanded=False):
-                if not system_report['warnings'] and not system_report['info']:
-                    st.success("All system checks passed.")
-                else:
-                    for warning in system_report['warnings']:
-                        st.warning(warning)
-                    for info in system_report['info']:
-                        st.info(info)
-
-            st.divider()
-
-            st.markdown("### ⚡ Quick Actions")
-            if st.button("🔄 Refresh", use_container_width=True):
-                st.rerun()
-
-            if st.button("📋 Extraction History", use_container_width=True):
-                st.session_state['view_history'] = True
-
-        # Route to appropriate view
-        if st.session_state.get('view_history'):
-            render_extraction_history()
-            if st.button("← Back to Dashboard"):
-                st.session_state['view_history'] = False
-                st.rerun()
-        else:
-            render_dashboard_home(orchestrator)
-    
-    except Exception as e:
-        # Handle error with unified error system
-        error_result = handle_error(e, context="Dashboard rendering", module="dashboard", function="main")
-        st.error(f"Dashboard Error: {error_result['message']}")
-        st.info("Suggestions:")
-        for suggestion in error_result['suggestions']:
-            st.write(f"  • {suggestion}")
-        
-        # Display error statistics
-        stats = get_error_stats()
-        if stats['total_errors'] > 0:
-            st.warning(f"Total errors tracked: {stats['total_errors']}")
-
-
-if __name__ == '__main__':
+# --- Main Execution ---
+if __name__ == "__main__":
+    # Initialize the consent manager at the start
+    get_consent_manager()
     main()
