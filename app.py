@@ -609,6 +609,93 @@ def render_extraction_workflow():
     if 'consent_approved' not in st.session_state:
         st.session_state.consent_approved = False
     
+    # ========== IMPROVEMENT 1: SHOW CASE CONTEXT ==========
+    st.markdown("---")
+    st.markdown("### 📋 Your Cases")
+    
+    if st.session_state.cases_list:
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            st.metric("Total Cases", len(st.session_state.cases_list))
+        
+        with col2:
+            created = len([c for c in st.session_state.cases_list if c['Status'] == 'Created'])
+            st.metric("Created", created)
+        
+        with col3:
+            completed = len([c for c in st.session_state.cases_list if c['Status'] == 'Completed'])
+            st.metric("Completed", completed)
+        
+        # Show recent cases
+        st.markdown("**Recent Cases:**")
+        for case in st.session_state.cases_list[-3:]:  # Show last 3
+            col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+            with col1:
+                st.write(f"**{case['Case ID']}** - {case['Case Name']}")
+            with col2:
+                st.write(f"📱 {case.get('Device', 'N/A')}")
+            with col3:
+                st.write(f"Status: {case['Status']}")
+            with col4:
+                if st.button("Select", key=f"select_case_{case['Case ID']}"):
+                    st.session_state.selected_device = case['Case ID']
+                    st.rerun()
+    else:
+        st.info("💡 No cases created yet. Create a case first in the Cases tab.")
+    
+    st.markdown("---")
+    
+    # ========== IMPROVEMENT 2: SHOW PROGRESS INDICATOR ==========
+    st.markdown("### 📊 Workflow Progress")
+    
+    col1, col2, col3, col4, col5 = st.columns(5)
+    
+    with col1:
+        status = "✅" if st.session_state.selected_device else "⏳"
+        st.write(f"{status} Device")
+    
+    with col2:
+        status = "✅" if st.session_state.selected_modules else "⏳"
+        st.write(f"{status} Modules")
+    
+    with col3:
+        status = "✅" if st.session_state.consent_approved else "⏳"
+        st.write(f"{status} Consent")
+    
+    with col4:
+        st.write("⏳ Extract")
+    
+    with col5:
+        st.write("⏳ Results")
+    
+    st.markdown("---")
+    
+    # ========== IMPROVEMENT 3: SHOW CURRENT CASE CONTEXT ==========
+    if st.session_state.selected_device:
+        st.markdown("### 📋 Current Case")
+        
+        # Find case details
+        case_details = None
+        for case in st.session_state.cases_list:
+            if case['Case ID'] == st.session_state.selected_device:
+                case_details = case
+                break
+        
+        if case_details:
+            col1, col2, col3 = st.columns(3)
+            
+            with col1:
+                st.write(f"**Case:** {case_details['Case Name']}")
+            
+            with col2:
+                st.write(f"**Device:** {case_details.get('Device', 'N/A')}")
+            
+            with col3:
+                st.write(f"**Status:** {case_details['Status']}")
+        
+        st.markdown("---")
+    
     # Workflow tabs
     tab1, tab2, tab3, tab4, tab5 = st.tabs([
         "1️⃣ Device Selection",
@@ -751,6 +838,23 @@ def render_extraction_workflow():
         if st.session_state.selected_device is None:
             st.warning("⚠️ Please select a device first (Step 1)")
         else:
+            # Show selected case in consent tab
+            st.info(f"📋 Selected: {st.session_state.selected_device}")
+            
+            # Find and show case details
+            for case in st.session_state.cases_list:
+                if case['Case ID'] == st.session_state.selected_device:
+                    col1, col2, col3 = st.columns(3)
+                    with col1:
+                        st.write(f"**Case:** {case['Case Name']}")
+                    with col2:
+                        st.write(f"**Device:** {case.get('Device', 'N/A')}")
+                    with col3:
+                        st.write(f"**Status:** {case['Status']}")
+                    break
+            
+            st.markdown("---")
+            
             try:
                 render_consent_check()
             except Exception as e:
