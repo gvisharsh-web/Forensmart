@@ -167,6 +167,32 @@ class DeviceDetector:
     """Detect connected devices"""
     
     @staticmethod
+    def find_adb_path() -> str:
+        """Find ADB executable in common locations"""
+        import os
+        import shutil
+        
+        # Try standard PATH first
+        adb_path = shutil.which("adb")
+        if adb_path:
+            return adb_path
+        
+        # Try common Android SDK locations
+        common_paths = [
+            os.path.expanduser("~\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe"),
+            "C:\\Android\\sdk\\platform-tools\\adb.exe",
+            os.path.expanduser("~\\Android\\Sdk\\platform-tools\\adb.exe"),
+            "C:\\Program Files\\Android\\Android Studio\\sdk\\platform-tools\\adb.exe",
+            os.path.expanduser("~\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Google.PlatformTools_Microsoft.Winget.Source_8wekyb3d8bbwe\\platform-tools\\adb.exe"),
+        ]
+        
+        for path in common_paths:
+            if os.path.exists(path):
+                return path
+        
+        return None
+    
+    @staticmethod
     def detect_devices() -> List[str]:
         """
         Detect connected devices via ADB
@@ -175,8 +201,17 @@ class DeviceDetector:
             List of device IDs
         """
         try:
+            # Find ADB path
+            adb_path = DeviceDetector.find_adb_path()
+            
+            if not adb_path:
+                print("⚠️ ADB not found in any common location")
+                return []
+            
+            print(f"[INFO] Using ADB: {adb_path}")
+            
             result = subprocess.run(
-                ["adb", "devices"],
+                [adb_path, "devices"],
                 capture_output=True,
                 text=True,
                 timeout=5
