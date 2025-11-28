@@ -639,42 +639,63 @@ def render_extraction_workflow():
             try:
                 import subprocess
                 import shutil
+                import os
                 
-                # Check if adb is available
+                # Check if adb is available in multiple locations
+                adb_path = None
+                
+                # Try standard PATH first
                 adb_path = shutil.which("adb")
                 
+                # If not found, try common Android SDK locations
+                if not adb_path:
+                    common_paths = [
+                        os.path.expanduser("~\\AppData\\Local\\Android\\Sdk\\platform-tools\\adb.exe"),
+                        "C:\\Android\\sdk\\platform-tools\\adb.exe",
+                        os.path.expanduser("~\\Android\\Sdk\\platform-tools\\adb.exe"),
+                        "C:\\Program Files\\Android\\Android Studio\\sdk\\platform-tools\\adb.exe",
+                    ]
+                    for path in common_paths:
+                        if os.path.exists(path):
+                            adb_path = path
+                            break
+                
                 if adb_path:
-                    result = subprocess.run(
-                        [adb_path, "devices"],
-                        capture_output=True,
-                        text=True,
-                        timeout=5
-                    )
-                    adb_output = result.stdout
-                    
-                    # Parse ADB output
-                    devices_list = []
-                    for line in adb_output.split('\n')[1:]:
-                        if line.strip() and 'device' in line and 'List' not in line:
-                            device_info = line.split()[0]
-                            if device_info:
-                                devices_list.append(device_info)
-                    
-                    if devices_list:
-                        st.success(f"✅ Found {len(devices_list)} connected device(s)")
-                        selected_device = st.selectbox(
-                            "Select your device:",
-                            devices_list,
-                            key="extraction_device_select"
+                    try:
+                        result = subprocess.run(
+                            [adb_path, "devices"],
+                            capture_output=True,
+                            text=True,
+                            timeout=5
                         )
-                        st.session_state.selected_device = selected_device
-                        st.info(f"📱 Selected Device: **{selected_device}**")
-                    else:
-                        st.warning("⚠️ No ADB devices detected")
-                        st.info("💡 Make sure device is connected and ADB is enabled")
+                        adb_output = result.stdout
+                        
+                        # Parse ADB output
+                        devices_list = []
+                        for line in adb_output.split('\n')[1:]:
+                            if line.strip() and 'device' in line and 'List' not in line:
+                                device_info = line.split()[0]
+                                if device_info:
+                                    devices_list.append(device_info)
+                        
+                        if devices_list:
+                            st.success(f"✅ Found {len(devices_list)} connected device(s)")
+                            selected_device = st.selectbox(
+                                "Select your device:",
+                                devices_list,
+                                key="extraction_device_select"
+                            )
+                            st.session_state.selected_device = selected_device
+                            st.info(f"📱 Selected Device: **{selected_device}**")
+                        else:
+                            st.warning("⚠️ No ADB devices detected")
+                            st.info("💡 Make sure device is connected and ADB is enabled on device")
+                    except subprocess.TimeoutExpired:
+                        st.warning("⚠️ ADB command timed out")
+                        st.info("💡 Try reconnecting device and refresh")
                 else:
-                    st.warning("⚠️ ADB not installed")
-                    st.info("💡 ADB (Android Debug Bridge) is not available. Use 'From Your Cases' option instead.")
+                    st.warning("⚠️ ADB not found in system PATH")
+                    st.info("💡 ADB (Android Debug Bridge) not available. Use 'From Your Cases' option instead.")
             
             except Exception as e:
                 st.warning(f"⚠️ Device detection error: {str(e)}")
