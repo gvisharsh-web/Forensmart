@@ -825,11 +825,36 @@ def render_extraction_workflow():
         if st.session_state.selected_device is None:
             st.warning("⚠️ Please select a device first (Step 1)")
         else:
+            # Initialize selected_modules as dict if needed
+            if not isinstance(st.session_state.selected_modules, dict):
+                st.session_state.selected_modules = {
+                    'device_info': True,
+                    'communications': True,
+                    'location': False,
+                    'media': True,
+                    'security': False,
+                    'social_media': True,
+                }
+            
             try:
                 render_module_selector()
             except Exception as e:
                 st.warning(f"⚠️ Module selector: {str(e)}")
                 st.info("💡 Select which data modules you want to extract")
+                
+                # Fallback UI
+                st.markdown("**Select Modules to Extract:**")
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    st.checkbox("📱 Device Info", value=True, key="fallback_device")
+                    st.checkbox("💬 Communications", value=True, key="fallback_comms")
+                    st.checkbox("📍 Location", value=False, key="fallback_location")
+                
+                with col2:
+                    st.checkbox("🖼️ Media", value=True, key="fallback_media")
+                    st.checkbox("🔒 Security", value=False, key="fallback_security")
+                    st.checkbox("📱 Social Media", value=True, key="fallback_social")
     
     # STEP 3: Consent Check
     with tab3:
