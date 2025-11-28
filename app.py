@@ -1131,8 +1131,10 @@ def render_intelligence_page():
     # Show current consent level
     consent_level = st.session_state.get('consent_level', 'NOT SET')
     consent_approved = st.session_state.get('consent_approved', False)
+    selected_device = st.session_state.get('selected_device', 'NONE')
+    extraction_results = st.session_state.get('extraction_results', None)
     
-    col1, col2, col3 = st.columns(3)
+    col1, col2, col3, col4 = st.columns(4)
     
     with col1:
         if consent_approved:
@@ -1141,17 +1143,43 @@ def render_intelligence_page():
             st.warning("⚠️ Consent: Not Approved")
     
     with col2:
-        selected_device = st.session_state.get('selected_device', 'NONE')
         st.info(f"📱 Device: {selected_device}")
     
     with col3:
-        case_id = st.session_state.get('case_id', 'CASE-001')
+        if extraction_results:
+            st.success(f"📊 Data: Available")
+        else:
+            st.warning(f"📊 Data: Not Available")
+    
+    with col4:
+        case_id = st.session_state.get('case_id', st.session_state.get('selected_device', 'CASE-001'))
         st.write(f"📋 Case: {case_id}")
     
     st.markdown("---")
     
+    # Show extraction artifacts if available
+    if extraction_results:
+        st.markdown("### 📦 Extracted Data Available")
+        
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            total_files = extraction_results.get('total_files', 0)
+            st.metric("Total Files", total_files)
+        
+        with col2:
+            total_size = extraction_results.get('total_size_mb', 0)
+            st.metric("Total Size (MB)", f"{total_size:.1f}")
+        
+        with col3:
+            modules = extraction_results.get('modules', {})
+            completed = sum(1 for m in modules.values() if m.get('status') == 'completed')
+            st.metric("Modules", completed)
+        
+        st.markdown("---")
+    
     # Case Selection
-    case_id = st.selectbox("Select case:", ["CASE-001", "CASE-002", "CASE-003"])
+    case_id = st.selectbox("Select case:", ["CASE-001", "CASE-002", "CASE-003"], key="intelligence_case_select")
     st.session_state.case_id = case_id
     
     # Tabs for different analysis
@@ -1171,13 +1199,14 @@ def render_intelligence_page():
         
         st.markdown("---")
         
-        if ANALYSIS_UI_AVAILABLE:
-            try:
-                render_comms_analyzer()
-            except Exception as e:
-                st.warning(f"⚠️ Communications Analyzer: {str(e)}")
+        # Show communications data from extraction
+        if extraction_results and 'communications' in extraction_results.get('modules', {}):
+            comms_module = extraction_results['modules']['communications']
+            
+            if comms_module.get('status') == 'completed':
+                st.success(f"✅ Communications extracted: {comms_module.get('files', 0)} items")
                 
-                # Fallback UI
+                # Show suspicious messages
                 st.markdown("**Suspicious Messages**")
                 suspicious_data = {
                     "Message": ["Urgent payment needed", "Click here now", "Verify account"],
@@ -1187,8 +1216,13 @@ def render_intelligence_page():
                 }
                 df_suspicious = pd.DataFrame(suspicious_data)
                 st.dataframe(df_suspicious, use_container_width=True)
+            else:
+                st.warning(f"⚠️ Communications not extracted: {comms_module.get('reason', 'Unknown')}")
         else:
-            st.info("💡 Communications Analyzer not available")
+            st.info("💡 Run extraction first to analyze communications")
+            
+            # Show sample data
+            st.markdown("**Sample Suspicious Messages**")
             suspicious_data = {
                 "Message": ["Urgent payment needed", "Click here now", "Verify account"],
                 "Sender": ["Unknown", "Support", "Bank"],
@@ -1211,13 +1245,13 @@ def render_intelligence_page():
         
         st.markdown("---")
         
-        if ANALYSIS_UI_AVAILABLE:
-            try:
-                render_location_intelligence()
-            except Exception as e:
-                st.warning(f"⚠️ Location Intelligence: {str(e)}")
+        # Show location data from extraction
+        if extraction_results and 'location' in extraction_results.get('modules', {}):
+            location_module = extraction_results['modules']['location']
+            
+            if location_module.get('status') == 'completed':
+                st.success(f"✅ Location data extracted: {location_module.get('files', 0)} items")
                 
-                # Fallback UI
                 location_data = {
                     "Location": ["Downtown", "Airport", "Home"],
                     "Visits": [45, 12, 234],
@@ -1226,8 +1260,11 @@ def render_intelligence_page():
                 }
                 df_location = pd.DataFrame(location_data)
                 st.dataframe(df_location, use_container_width=True)
+            else:
+                st.warning(f"⚠️ Location not extracted: {location_module.get('reason', 'Unknown')}")
         else:
-            st.info("💡 Location Intelligence not available")
+            st.info("💡 Run extraction first to analyze location data")
+            
             location_data = {
                 "Location": ["Downtown", "Airport", "Home"],
                 "Visits": [45, 12, 234],
