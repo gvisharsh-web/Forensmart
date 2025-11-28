@@ -426,8 +426,84 @@ def render_cases_page():
             device_type = st.selectbox("Device Type", ["iPhone", "Android", "Windows", "Mac", "Linux"])
         
         with col2:
-            device_id = st.text_input("Device ID", placeholder="e.g., DEVICE-12345")
             investigator = st.text_input("Investigator Name", placeholder="e.g., John Smith")
+        
+        st.markdown("**Device ID Options**")
+        
+        device_id_option = st.radio(
+            "How would you like to set the Device ID?",
+            ["Auto-generate", "Enter manually", "Detect connected device"],
+            horizontal=True
+        )
+        
+        device_id = None
+        
+        if device_id_option == "Auto-generate":
+            # Auto-generate device ID based on device type
+            import random
+            import string
+            
+            device_prefixes = {
+                "iPhone": "IPHONE",
+                "Android": "ANDROID",
+                "Windows": "WINDOWS",
+                "Mac": "MAC",
+                "Linux": "LINUX"
+            }
+            
+            prefix = device_prefixes.get(device_type, "DEVICE")
+            random_suffix = ''.join(random.choices(string.ascii_uppercase + string.digits, k=8))
+            device_id = f"{prefix}-{random_suffix}"
+            
+            st.info(f"📱 Auto-generated Device ID: **{device_id}**")
+        
+        elif device_id_option == "Enter manually":
+            device_id = st.text_input(
+                "Device ID",
+                placeholder="e.g., DEVICE-12345 or iPhone-IMEI-123456",
+                key="manual_device_id"
+            )
+        
+        else:  # Detect connected device
+            st.markdown("**Connected Device Detection**")
+            
+            # Simulate device detection
+            detection_method = st.selectbox(
+                "Detection Method",
+                ["USB", "Network (ADB)", "WiFi", "Manual Entry"]
+            )
+            
+            if st.button("🔍 Scan for Connected Devices", use_container_width=True):
+                with st.spinner("Scanning for connected devices..."):
+                    import time
+                    time.sleep(1)
+                    
+                    # Simulated device detection
+                    detected_devices = {
+                        "USB": ["iPhone-A1B2C3D4E5F6", "Samsung-Galaxy-S21-ABC123"],
+                        "Network (ADB)": ["192.168.1.100:5555", "192.168.1.101:5555"],
+                        "WiFi": ["iPhone-WiFi-ABC123", "Android-WiFi-XYZ789"],
+                        "Manual Entry": []
+                    }
+                    
+                    devices = detected_devices.get(detection_method, [])
+                    
+                    if devices:
+                        st.success(f"✅ Found {len(devices)} device(s)")
+                        selected_device = st.selectbox(
+                            "Select device:",
+                            devices,
+                            key="detected_device"
+                        )
+                        device_id = selected_device
+                        st.info(f"📱 Selected Device ID: **{device_id}**")
+                    else:
+                        st.warning("⚠️ No devices detected. Please enter manually.")
+                        device_id = st.text_input(
+                            "Device ID",
+                            placeholder="Enter device ID manually",
+                            key="manual_fallback_device_id"
+                        )
         
         description = st.text_area("Case Description", placeholder="Enter case details...")
         
@@ -445,14 +521,15 @@ def render_cases_page():
                     "Created": datetime.now().strftime("%Y-%m-%d"),
                     "Findings": 0,
                     "Investigator": investigator,
-                    "Description": description
+                    "Description": description,
+                    "Device ID": device_id
                 }
                 
                 # Add to cases list
                 st.session_state.cases_list.append(new_case)
                 
                 st.success(f"✅ Case created successfully!")
-                st.info(f"📋 Case ID: **{case_id}**\n\n📝 Case Name: **{case_name}**")
+                st.info(f"📋 Case ID: **{case_id}**\n\n📝 Case Name: **{case_name}**\n\n📱 Device ID: **{device_id}**")
                 st.balloons()
             else:
                 st.error("❌ Please fill in all required fields (Case Name, Device ID, Investigator Name)")
