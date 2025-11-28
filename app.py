@@ -2342,6 +2342,215 @@ def render_main_page():
         st.info("Help page coming soon")
 
 # ============================================================================
+# EXTRACTION WORKFLOW GUIDE
+# ============================================================================
+
+def render_extraction_workflow_guide():
+    """Render extraction workflow guide for users"""
+    st.markdown('<div class="main-header">🔍 Extraction Workflow Guide</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    ## How Extraction Works in ForenSmart
+    
+    Extraction can happen in **two modes**: with device connected or without device connected.
+    """)
+    
+    tab1, tab2, tab3 = st.tabs(["📋 Workflow", "🔌 Device Connected", "📱 Device Not Connected"])
+    
+    with tab1:
+        st.markdown("### Extraction Process Flow")
+        
+        st.markdown("""
+        **Step 1: Select Case**
+        - Choose case from list
+        - View case details
+        - Verify consent level
+        
+        **Step 2: Select Modules**
+        - Device Info
+        - Communications
+        - Location
+        - Media
+        - Security
+        - System
+        
+        **Step 3: Check Consent**
+        - Verify consent level allows extraction
+        - Only approved modules shown
+        - Blocked modules grayed out
+        
+        **Step 4: Start Extraction**
+        - Device connected: Extract immediately
+        - Device not connected: Prepare extraction
+        
+        **Step 5: Monitor Progress**
+        - Real-time progress tracking
+        - File count updates
+        - Status indicators
+        
+        **Step 6: View Results**
+        - Extracted files listed
+        - Statistics displayed
+        - Export options available
+        """)
+    
+    with tab2:
+        st.markdown("### When Device is Connected ✅")
+        
+        st.success("**Immediate Extraction**")
+        
+        st.markdown("""
+        **Process:**
+        1. Device detected via USB/ADB/Network
+        2. Device ID automatically identified
+        3. Select extraction modules
+        4. Extraction starts immediately
+        5. Real-time progress shown
+        6. Results displayed
+        
+        **Advantages:**
+        - ✅ Immediate results
+        - ✅ Real-time progress
+        - ✅ Direct data access
+        - ✅ Faster extraction
+        - ✅ Live verification
+        
+        **Requirements:**
+        - Device connected
+        - Device unlocked (if needed)
+        - Proper permissions
+        - ADB/USB drivers installed
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("**Example Flow:**")
+        
+        col1, col2, col3, col4, col5 = st.columns(5)
+        
+        with col1:
+            st.info("📱\n**Device\nConnected**")
+        
+        with col2:
+            st.write("→")
+        
+        with col3:
+            st.info("🔍\n**Detect\nDevice**")
+        
+        with col4:
+            st.write("→")
+        
+        with col5:
+            st.info("📊\n**Extract\nData**")
+    
+    with tab3:
+        st.markdown("### When Device is NOT Connected ⚠️")
+        
+        st.warning("**Deferred Extraction**")
+        
+        st.markdown("""
+        **Process:**
+        1. Create case with manual device info
+        2. Set extraction parameters
+        3. Prepare extraction configuration
+        4. Save extraction plan
+        5. Wait for device connection
+        6. Execute extraction when device connects
+        
+        **Advantages:**
+        - ✅ Plan ahead
+        - ✅ Prepare extraction
+        - ✅ Set parameters in advance
+        - ✅ No need for device present
+        - ✅ Execute later
+        
+        **How It Works:**
+        1. **Preparation Phase**
+           - Create case
+           - Select modules
+           - Set consent level
+           - Save extraction plan
+        
+        2. **Waiting Phase**
+           - Case stored
+           - Plan saved
+           - Ready for device
+           - Can modify anytime
+        
+        3. **Execution Phase**
+           - Device connects
+           - Extraction starts
+           - Uses saved plan
+           - Respects consent level
+        
+        4. **Completion Phase**
+           - Data extracted
+           - Artifacts stored
+           - Report generated
+           - Results available
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("**Example Flow:**")
+        
+        col1, col2, col3, col4, col5, col6 = st.columns(6)
+        
+        with col1:
+            st.info("📋\n**Create\nCase**")
+        
+        with col2:
+            st.write("→")
+        
+        with col3:
+            st.info("⚙️\n**Prepare\nPlan**")
+        
+        with col4:
+            st.write("→")
+        
+        with col5:
+            st.info("⏳\n**Wait for\nDevice**")
+        
+        with col6:
+            st.info("📱\n**Execute\nWhen Ready**")
+        
+        st.markdown("---")
+        
+        st.markdown("**What You Can Do Now:**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write("""
+            ✅ Create case
+            ✅ Select modules
+            ✅ Set consent level
+            ✅ Configure extraction
+            ✅ Save plan
+            """)
+        
+        with col2:
+            st.write("""
+            ✅ View plan details
+            ✅ Modify parameters
+            ✅ Change consent level
+            ✅ Update modules
+            ✅ Delete plan
+            """)
+        
+        st.markdown("---")
+        
+        st.markdown("**When Device Connects:**")
+        
+        st.success("""
+        ✅ Extraction starts automatically
+        ✅ Uses saved configuration
+        ✅ Respects consent level
+        ✅ Extracts selected modules
+        ✅ Generates report
+        """)
+
+# ============================================================================
 # CONSENT WORKFLOW GUIDE
 # ============================================================================
 
