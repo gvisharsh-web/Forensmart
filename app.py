@@ -926,6 +926,8 @@ def render_extraction_workflow():
                 if st.button("✅ Approve Consent", use_container_width=True, type="primary"):
                     if accept_consent and accept_legal:
                         st.session_state.consent_approved = True
+                        st.session_state.consent_level = consent_level
+                        st.session_state.approval_method = approval_method
                         st.success(f"✅ Consent approved for {st.session_state.selected_device}")
                         st.info(f"🔐 Consent Level: {consent_level}")
                     else:
@@ -960,9 +962,10 @@ def render_extraction_workflow():
                     from modules.extraction.consent_based_extraction import ExtractionOrchestrator
                     
                     # Create consent data from session
+                    consent_level = st.session_state.get('consent_level', 'LEGAL')
                     consent_data = {
                         'case_id': st.session_state.selected_device or "UNKNOWN",
-                        'consent_level': 'LEGAL',  # From approval
+                        'consent_level': consent_level,  # From approval
                         'modules_allowed': [k for k, v in st.session_state.selected_modules.items() if v],
                         'modules_blocked': [k for k, v in st.session_state.selected_modules.items() if not v]
                     }
@@ -1125,6 +1128,28 @@ def render_intelligence_page():
     """Render intelligence page with integrated analysis modules"""
     st.markdown('<div class="main-header">🧠 Intelligence & Analysis</div>', unsafe_allow_html=True)
     
+    # Show current consent level
+    consent_level = st.session_state.get('consent_level', 'NOT SET')
+    consent_approved = st.session_state.get('consent_approved', False)
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        if consent_approved:
+            st.success(f"✅ Consent: {consent_level}")
+        else:
+            st.warning("⚠️ Consent: Not Approved")
+    
+    with col2:
+        selected_device = st.session_state.get('selected_device', 'NONE')
+        st.info(f"📱 Device: {selected_device}")
+    
+    with col3:
+        case_id = st.session_state.get('case_id', 'CASE-001')
+        st.write(f"📋 Case: {case_id}")
+    
+    st.markdown("---")
+    
     # Case Selection
     case_id = st.selectbox("Select case:", ["CASE-001", "CASE-002", "CASE-003"])
     st.session_state.case_id = case_id
@@ -1135,6 +1160,16 @@ def render_intelligence_page():
     # TAB 1: Communications Analysis
     with tab1:
         st.markdown('<div class="section-header">💬 Communications Analyzer</div>', unsafe_allow_html=True)
+        
+        # Check consent for communications
+        consent_level = st.session_state.get('consent_level', 'STANDARD')
+        if consent_level not in ['LEGAL', 'FULL']:
+            st.warning(f"⚠️ Communications analysis requires LEGAL or FULL consent (Current: {consent_level})")
+            st.info("💡 Go to Extraction → Consent Check to approve LEGAL or FULL consent")
+        else:
+            st.success(f"✅ Consent approved: {consent_level}")
+        
+        st.markdown("---")
         
         if ANALYSIS_UI_AVAILABLE:
             try:
@@ -1166,6 +1201,15 @@ def render_intelligence_page():
     # TAB 2: Location Analysis
     with tab2:
         st.markdown('<div class="section-header">📍 Location Intelligence</div>', unsafe_allow_html=True)
+        
+        # Check consent for location
+        consent_level = st.session_state.get('consent_level', 'STANDARD')
+        if consent_level not in ['STANDARD', 'LEGAL', 'FULL']:
+            st.warning(f"⚠️ Location analysis requires STANDARD or higher consent (Current: {consent_level})")
+        else:
+            st.success(f"✅ Consent approved: {consent_level}")
+        
+        st.markdown("---")
         
         if ANALYSIS_UI_AVAILABLE:
             try:
