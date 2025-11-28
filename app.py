@@ -348,21 +348,73 @@ def render_cases_page():
     """Render cases management page"""
     st.markdown('<div class="main-header">📁 Case Management</div>', unsafe_allow_html=True)
     
+    # Initialize cases storage in session state
+    if 'cases_list' not in st.session_state:
+        st.session_state.cases_list = [
+            {
+                "Case ID": "CASE-001",
+                "Case Name": "Sample Case 1",
+                "Device": "iPhone 12",
+                "Status": "Completed",
+                "Created": "2025-11-20",
+                "Findings": 45,
+                "Investigator": "John Smith",
+                "Description": "Sample case for testing"
+            },
+            {
+                "Case ID": "CASE-002",
+                "Case Name": "Sample Case 2",
+                "Device": "Samsung S21",
+                "Status": "In Progress",
+                "Created": "2025-11-22",
+                "Findings": 12,
+                "Investigator": "Jane Doe",
+                "Description": "Another sample case"
+            }
+        ]
+    
     tab1, tab2, tab3 = st.tabs(["All Cases", "Create New", "Templates"])
     
     with tab1:
         st.markdown('<div class="section-header">📋 All Cases</div>', unsafe_allow_html=True)
         
-        cases_data = {
-            "Case ID": ["CASE-001", "CASE-002", "CASE-003", "CASE-004"],
-            "Device": ["iPhone 12", "Samsung S21", "Pixel 6", "iPhone 13"],
-            "Status": ["Completed", "In Progress", "Pending", "Completed"],
-            "Created": ["2025-11-20", "2025-11-22", "2025-11-23", "2025-11-24"],
-            "Findings": [45, 12, 0, 78]
-        }
-        
-        df_cases = pd.DataFrame(cases_data)
-        st.dataframe(df_cases, use_container_width=True)
+        if st.session_state.cases_list:
+            # Display cases in a table
+            cases_display = []
+            for case in st.session_state.cases_list:
+                cases_display.append({
+                    "Case ID": case["Case ID"],
+                    "Case Name": case["Case Name"],
+                    "Device": case["Device"],
+                    "Status": case["Status"],
+                    "Created": case["Created"],
+                    "Findings": case["Findings"]
+                })
+            
+            df_cases = pd.DataFrame(cases_display)
+            st.dataframe(df_cases, use_container_width=True)
+            
+            # Show case details when clicked
+            st.markdown("---")
+            st.markdown("**Case Details**")
+            
+            case_names = [case["Case Name"] for case in st.session_state.cases_list]
+            selected_case_name = st.selectbox("Select case to view details:", case_names)
+            
+            for case in st.session_state.cases_list:
+                if case["Case Name"] == selected_case_name:
+                    col1, col2 = st.columns(2)
+                    with col1:
+                        st.write(f"**Case ID**: {case['Case ID']}")
+                        st.write(f"**Device**: {case['Device']}")
+                        st.write(f"**Status**: {case['Status']}")
+                    with col2:
+                        st.write(f"**Investigator**: {case['Investigator']}")
+                        st.write(f"**Created**: {case['Created']}")
+                        st.write(f"**Findings**: {case['Findings']}")
+                    st.write(f"**Description**: {case['Description']}")
+        else:
+            st.info("No cases created yet. Create a new case in the 'Create New' tab.")
     
     with tab2:
         st.markdown('<div class="section-header">➕ Create New Case</div>', unsafe_allow_html=True)
@@ -370,21 +422,89 @@ def render_cases_page():
         col1, col2 = st.columns(2)
         
         with col1:
-            case_name = st.text_input("Case Name")
-            device_type = st.selectbox("Device Type", ["iPhone", "Android", "Windows", "Mac"])
+            case_name = st.text_input("Case Name", placeholder="e.g., vishaal new")
+            device_type = st.selectbox("Device Type", ["iPhone", "Android", "Windows", "Mac", "Linux"])
         
         with col2:
-            device_id = st.text_input("Device ID")
-            investigator = st.text_input("Investigator Name")
+            device_id = st.text_input("Device ID", placeholder="e.g., DEVICE-12345")
+            investigator = st.text_input("Investigator Name", placeholder="e.g., John Smith")
         
-        description = st.text_area("Case Description")
+        description = st.text_area("Case Description", placeholder="Enter case details...")
         
-        if st.button("Create Case", use_container_width=True):
-            st.success(f"✅ Case created: {case_name}")
+        if st.button("Create Case", use_container_width=True, type="primary"):
+            if case_name and device_id and investigator:
+                # Generate case ID
+                case_id = f"CASE-{len(st.session_state.cases_list) + 1:03d}"
+                
+                # Create new case
+                new_case = {
+                    "Case ID": case_id,
+                    "Case Name": case_name,
+                    "Device": device_type,
+                    "Status": "Pending",
+                    "Created": datetime.now().strftime("%Y-%m-%d"),
+                    "Findings": 0,
+                    "Investigator": investigator,
+                    "Description": description
+                }
+                
+                # Add to cases list
+                st.session_state.cases_list.append(new_case)
+                
+                st.success(f"✅ Case created successfully!")
+                st.info(f"📋 Case ID: **{case_id}**\n\n📝 Case Name: **{case_name}**")
+                st.balloons()
+            else:
+                st.error("❌ Please fill in all required fields (Case Name, Device ID, Investigator Name)")
     
     with tab3:
         st.markdown('<div class="section-header">📋 Case Templates</div>', unsafe_allow_html=True)
-        st.info("Use templates to quickly create cases with predefined settings")
+        
+        template_col1, template_col2 = st.columns(2)
+        
+        with template_col1:
+            if st.button("📱 iPhone Investigation", use_container_width=True):
+                st.session_state.template_selected = "iphone"
+                st.info("iPhone template selected. Fill in the case details below.")
+        
+        with template_col2:
+            if st.button("🤖 Android Investigation", use_container_width=True):
+                st.session_state.template_selected = "android"
+                st.info("Android template selected. Fill in the case details below.")
+        
+        if st.session_state.get('template_selected'):
+            st.markdown("---")
+            st.markdown("**Create case from template**")
+            
+            col1, col2 = st.columns(2)
+            with col1:
+                template_case_name = st.text_input("Case Name (Template)")
+                template_investigator = st.text_input("Investigator Name (Template)")
+            
+            with col2:
+                template_device_id = st.text_input("Device ID (Template)")
+            
+            template_description = st.text_area("Case Description (Template)")
+            
+            if st.button("Create from Template", use_container_width=True):
+                if template_case_name and template_device_id and template_investigator:
+                    case_id = f"CASE-{len(st.session_state.cases_list) + 1:03d}"
+                    device_type = "iPhone" if st.session_state.template_selected == "iphone" else "Android"
+                    
+                    new_case = {
+                        "Case ID": case_id,
+                        "Case Name": template_case_name,
+                        "Device": device_type,
+                        "Status": "Pending",
+                        "Created": datetime.now().strftime("%Y-%m-%d"),
+                        "Findings": 0,
+                        "Investigator": template_investigator,
+                        "Description": template_description
+                    }
+                    
+                    st.session_state.cases_list.append(new_case)
+                    st.success(f"✅ Case created from template!")
+                    st.balloons()
 
 def render_extraction_workflow():
     """Render integrated extraction workflow with all UI components"""
