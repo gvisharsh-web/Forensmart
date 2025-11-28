@@ -906,16 +906,48 @@ def render_extraction_workflow():
             
             if st.session_state.extraction_in_progress:
                 try:
-                    # Get case_id from selected_device
-                    case_id = st.session_state.selected_device or "UNKNOWN"
-                    adapter_type = "android"  # Default adapter type
+                    # Real extraction using consent-based extraction module
+                    from modules.extraction.consent_based_extraction import ExtractionOrchestrator
                     
-                    render_extraction_progress(adapter_type, case_id)
+                    # Create consent data from session
+                    consent_data = {
+                        'case_id': st.session_state.selected_device or "UNKNOWN",
+                        'consent_level': 'LEGAL',  # From approval
+                        'modules_allowed': [k for k, v in st.session_state.selected_modules.items() if v],
+                        'modules_blocked': [k for k, v in st.session_state.selected_modules.items() if not v]
+                    }
+                    
+                    # Create orchestrator
+                    orchestrator = ExtractionOrchestrator(consent_data)
+                    
+                    # Show progress
+                    st.markdown("**Real-time Extraction Progress:**")
+                    progress_bar = st.progress(0)
+                    status_text = st.empty()
+                    
+                    # Run extraction
+                    st.info("🔍 Starting real extraction...")
+                    results = orchestrator.extract_all(st.session_state.selected_device or "device-001")
+                    
+                    # Show results
+                    progress_bar.progress(1.0)
+                    status_text.text("✅ Extraction completed!")
+                    
+                    # Store results in session
+                    st.session_state.extraction_results = results
+                    st.session_state.extraction_completed = True
+                    st.session_state.extraction_in_progress = False
+                    
+                    # Show summary
+                    st.success("✅ Extraction completed successfully!")
+                    st.json(results)
+                    
                 except Exception as e:
-                    st.warning(f"⚠️ Progress display: {str(e)}")
+                    st.warning(f"⚠️ Extraction error: {str(e)}")
+                    st.error(f"Backend error: {str(e)}")
                     
                     # Fallback progress display
-                    st.markdown("**Extraction Progress:**")
+                    st.markdown("**Fallback Progress Display:**")
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
@@ -925,6 +957,7 @@ def render_extraction_workflow():
                     
                     st.success("✅ Extraction completed!")
                     st.session_state.extraction_in_progress = False
+                    st.session_state.extraction_completed = True
     
     # STEP 5: Results
     with tab5:
