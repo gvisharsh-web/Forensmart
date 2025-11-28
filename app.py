@@ -970,15 +970,24 @@ def render_extraction_workflow():
                         'modules_blocked': [k for k, v in st.session_state.selected_modules.items() if not v]
                     }
                     
-                    # Create orchestrator
-                    orchestrator = ExtractionOrchestrator(consent_data)
-                    
                     # Show progress
                     st.markdown("**Real-time Extraction Progress:**")
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
+                    # Show debug info
+                    with st.expander("🔍 Debug Information"):
+                        st.write("Consent Data:")
+                        st.json(consent_data)
+                    
+                    # Create orchestrator
+                    status_text.text("Initializing orchestrator...")
+                    progress_bar.progress(0.1)
+                    orchestrator = ExtractionOrchestrator(consent_data)
+                    
                     # Run extraction
+                    status_text.text("Running extraction...")
+                    progress_bar.progress(0.5)
                     st.info("🔍 Starting real extraction...")
                     results = orchestrator.extract_all(st.session_state.selected_device or "device-001")
                     
@@ -993,6 +1002,7 @@ def render_extraction_workflow():
                     
                     # Show summary
                     st.success("✅ Extraction completed successfully!")
+                    st.markdown("**Extraction Results:**")
                     st.json(results)
                     
                 except Exception as e:
