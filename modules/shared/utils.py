@@ -1,15 +1,308 @@
-"""Shared helper utilities for ForenSmart modules."""
-from __future__ import annotations
+"""
+UTILS MODULE - Shared Utilities with Error Handling Loopholes
+Provides common utilities with automatic error handling
 
-import json
+This module provides:
+- Error handling loopholes (automatic error recovery)
+- Input validation
+- Caching utilities
+- Retry mechanisms
+- Common helper functions
+"""
+
 import os
-import threading
-from datetime import datetime
-from typing import Any, Dict, Iterable, List, Optional, Tuple
+import json
+import logging
+import time
+from typing import Optional, Dict, Any, Callable, List
+from functools import wraps
+from datetime import datetime, timedelta
 
+# ============================================================================
+# LOGGING SETUP
+# ============================================================================
+
+logger = logging.getLogger(__name__)
+
+# ============================================================================
+# ERROR HANDLING LOOPHOLES
+# ============================================================================
+
+class ErrorHandlingLoopholes:
+    """Automatic error handling and recovery"""
+
+    @staticmethod
+    def is_error_handling_enabled() -> bool:
+        """Check if error handling loopholes are enabled"""
+        return os.getenv('ERROR_HANDLING_ENABLED', 'true').lower() == 'true'
+
+    @staticmethod
+    def auto_retry_on_error(
+        func: Callable,
+        max_attempts: int = 3,
+        delay: float = 1.0,
+        backoff: float = 2.0,
+        *args,
+        **kwargs
+    ) -> Any:
+        """
+        Automatically retry function on error with exponential backoff
+        
+        Args:
+            func: Function to retry
+            max_attempts: Maximum retry attempts
+            delay: Initial delay between retries
+            backoff: Backoff multiplier
+            *args, **kwargs: Function arguments
+        
+        Returns:
+            Function result or None on failure
+        """
+        
+        if not ErrorHandlingLoopholes.is_error_handling_enabled():
+            return func(*args, **kwargs)
+        
+        current_delay = delay
+        last_error = None
+        
+        for attempt in range(max_attempts):
+            try:
+                logger.info(f"Attempt {attempt + 1}/{max_attempts}: {func.__name__}")
+                result = func(*args, **kwargs)
+                if attempt > 0:
+                    logger.info(f"Success on attempt {attempt + 1}")
+                return result
+            
+            except Exception as e:
+                last_error = e
+                logger.warning(f"Attempt {attempt + 1} failed: {str(e)}")
+                
+                if attempt < max_attempts - 1:
+                    logger.info(f"Retrying in {current_delay}s...")
+                    time.sleep(current_delay)
+                    current_delay *= backoff
+        
+        logger.error(f"All {max_attempts} attempts failed: {str(last_error)}")
+        return None
+
+    @staticmethod
+    def safe_execute(
+        func: Callable,
+        default_return: Any = None,
+        log_error: bool = True,
+        *args,
+        **kwargs
+    ) -> Any:
+        """
+        Safely execute function with automatic error handling
+        
+        Args:
+            func: Function to execute
+            default_return: Default return value on error
+            log_error: Whether to log errors
+            *args, **kwargs: Function arguments
+        
+        Returns:
+            Function result or default_return on error
+        """
+        
+        if not ErrorHandlingLoopholes.is_error_handling_enabled():
+            return func(*args, **kwargs)
+        
+        try:
+            return func(*args, **kwargs)
+        except Exception as e:
+            if log_error:
+                logger.error(f"Error in {func.__name__}: {str(e)}", exc_info=True)
+            return default_return
+
+    @staticmethod
+    def handle_missing_data(
+        data: Any,
+        default: Any = None,
+        key: Optional[str] = None
+    ) -> Any:
+        """
+        Handle missing data gracefully
+        
+        Args:
+            data: Data to check
+            default: Default value if missing
+            key: Dictionary key to check
+        
+        Returns:
+            Data value or default
+        """
+        
+        try:
+            if data is None:
+                return default
+            
+            if key and isinstance(data, dict):
+                return data.get(key, default)
+            
+            return data
+        except Exception as e:
+            logger.warning(f"Error handling missing data: {str(e)}")
+            return default
+
+    @staticmethod
+    def validate_input(
+        value: Any,
+        expected_type: type,
+        allow_none: bool = False,
+        min_length: Optional[int] = None,
+        max_length: Optional[int] = None
+    ) -> bool:
+        """
+        Validate input with automatic error handling
+        
+        Args:
+            value: Value to validate
+            expected_type: Expected type
+            allow_none: Allow None values
+            min_length: Minimum length (for strings/lists)
+            max_length: Maximum length (for strings/lists)
+        
+        Returns:
+            True if valid, False otherwise
+        """
+        
+        try:
+            # Check None
+            if value is None:
+                return allow_none
+            
+            # Check type
+            if not isinstance(value, expected_type):
+                logger.warning(f"Type mismatch: expected {expected_type}, got {type(value)}")
+                return False
+            
+            # Check length
+            if hasattr(value, '__len__'):
+                if min_length and len(value) < min_length:
+                    logger.warning(f"Value too short: {len(value)} < {min_length}")
+                    return False
+                
+                if max_length and len(value) > max_length:
+                    logger.warning(f"Value too long: {len(value)} > {max_length}")
+                    return False
+            
+            return True
+        
+        except Exception as e:
+            logger.error(f"Validation error: {str(e)}")
+            return False
+
+
+# ============================================================================
+# CACHING UTILITIES
+# ============================================================================
+
+class CacheManager:
+    """Simple caching with automatic error handling"""
+
+    def __init__(self, cache_dir: str = "cache", ttl_seconds: int = 3600):
+        """Initialize cache manager"""
+        self.cache_dir = cache_dir
+        self.ttl_seconds = ttl_seconds
+        os.makedirs(cache_dir, exist_ok=True)
+        self.memory_cache: Dict[str, Dict[str, Any]] = {}
+
+    def get(self, key: str) -> Optional[Any]:
+        """Get cached value"""
+        try:
+            # Check memory cache first
+            if key in self.memory_cache:
+                cache_entry = self.memory_cache[key]
+                if datetime.now() < cache_entry['expiry']:
+                    logger.debug(f"Cache hit (memory): {key}")
+                    return cache_entry['value']
+                else:
+                    del self.memory_cache[key]
+            
+            # Check file cache
+            cache_file = os.path.join(self.cache_dir, f"{key}.json")
+            if os.path.exists(cache_file):
+                with open(cache_file, 'r') as f:
+                    cache_entry = json.load(f)
+                
+                if datetime.fromisoformat(cache_entry['expiry']) > datetime.now():
+                    logger.debug(f"Cache hit (file): {key}")
+                    return cache_entry['value']
+                else:
+                    os.remove(cache_file)
+            
+            logger.debug(f"Cache miss: {key}")
+            return None
+        
+        except Exception as e:
+            logger.warning(f"Cache get error: {str(e)}")
+            return None
+
+    def set(self, key: str, value: Any) -> bool:
+        """Set cached value"""
+        try:
+            # Store in memory cache
+            self.memory_cache[key] = {
+                'value': value,
+                'expiry': datetime.now() + timedelta(seconds=self.ttl_seconds)
+            }
+            
+            # Store in file cache
+            cache_file = os.path.join(self.cache_dir, f"{key}.json")
+            cache_entry = {
+                'value': value,
+                'expiry': (datetime.now() + timedelta(seconds=self.ttl_seconds)).isoformat(),
+                'created': datetime.now().isoformat()
+            }
+            
+            with open(cache_file, 'w') as f:
+                json.dump(cache_entry, f)
+            
+            logger.debug(f"Cache set: {key}")
+            return True
+        
+        except Exception as e:
+            logger.warning(f"Cache set error: {str(e)}")
+            return False
+
+    def clear(self, key: Optional[str] = None) -> bool:
+        """Clear cache"""
+        try:
+            if key:
+                # Clear specific key
+                if key in self.memory_cache:
+                    del self.memory_cache[key]
+                
+                cache_file = os.path.join(self.cache_dir, f"{key}.json")
+                if os.path.exists(cache_file):
+                    os.remove(cache_file)
+                
+                logger.debug(f"Cache cleared: {key}")
+            else:
+                # Clear all cache
+                self.memory_cache.clear()
+                
+                for file in os.listdir(self.cache_dir):
+                    if file.endswith('.json'):
+                        os.remove(os.path.join(self.cache_dir, file))
+                
+                logger.debug("All cache cleared")
+            
+            return True
+        
+        except Exception as e:
+            logger.warning(f"Cache clear error: {str(e)}")
+            return False
+
+
+# ============================================================================
+# ARTIFACT PATH BUILDER
+# ============================================================================
 
 class ArtifactPathBuilder:
-    """Centralise artifact path resolution."""
+    """Build artifact paths with error handling"""
 
     BASE_DIR = "artifacts"
 
@@ -19,493 +312,98 @@ class ArtifactPathBuilder:
         case_id: Optional[str],
         *segments: str,
         ensure_dir: bool = False,
-        ensure_parent: bool = False,
+        ensure_parent: bool = False
     ) -> str:
-        safe_case = (case_id or "default_case").strip() or "default_case"
-        path = os.path.join(cls.BASE_DIR, safe_case, *segments)
-        if ensure_dir:
-            os.makedirs(path, exist_ok=True)
-        elif ensure_parent:
-            os.makedirs(os.path.dirname(path), exist_ok=True)
-        return path
+        """Resolve artifact path"""
+        try:
+            safe_case = (case_id or "default_case").strip() or "default_case"
+            path = os.path.join(cls.BASE_DIR, safe_case, *segments)
+            
+            if ensure_dir:
+                os.makedirs(path, exist_ok=True)
+            elif ensure_parent:
+                os.makedirs(os.path.dirname(path), exist_ok=True)
+            
+            return path
+        
+        except Exception as e:
+            logger.error(f"Error resolving artifact path: {str(e)}")
+            return cls.BASE_DIR
 
+
+# ============================================================================
+# RESULTS REPOSITORY
+# ============================================================================
 
 class ResultsRepository:
-    """Handle loading and saving extraction results."""
+    """Manage extraction results with error handling"""
 
-    BASE_DIR = "reports"
-
-    @classmethod
-    def _path(cls, case_id: Optional[str]) -> str:
-        safe_case = (case_id or "default_case").strip() or "default_case"
-        return os.path.join(cls.BASE_DIR, safe_case, "results.json")
-
-    @classmethod
-    def load(cls, case_id: Optional[str]) -> Optional[Dict[str, Any]]:
-        path = cls._path(case_id)
-        if not os.path.exists(path):
-            return None
+    @staticmethod
+    def save(case_id: str, results: Dict[str, Any]) -> bool:
+        """Save results"""
         try:
-            with open(path, "r", encoding="utf-8") as handle:
-                return json.load(handle)
-        except Exception:
-            return None
-
-    @classmethod
-    def save(cls, case_id: Optional[str], data: Dict[str, Any]) -> None:
-        path = cls._path(case_id)
-        os.makedirs(os.path.dirname(path), exist_ok=True)
-        with open(path, "w", encoding="utf-8") as handle:
-            json.dump(data, handle, indent=2, default=str)
-
-
-class MediaManifest:
-    """Build media manifests for viewer consumption."""
-
-    @staticmethod
-    def build(case_id: str, results: Optional[Dict[str, Any]]) -> List[Dict[str, Any]]:
-        if not results:
-            return []
-
-        manifest: List[Dict[str, Any]] = []
-        media_section = (results.get("data") or {}).get("media", {})
-        media_map = {
-            "photos": "photo",
-            "videos": "video",
-            "audio": "audio",
-        }
-        for collection, kind in media_map.items():
-            items = media_section.get(collection) or []
-            for item in items:
-                if not isinstance(item, dict):
-                    continue
-                manifest.append(
-                    {
-                        "case_id": case_id,
-                        "type": kind,
-                        "path": item.get("path"),
-                        "metadata": item,
-                    }
-                )
-        return manifest
-
-
-class ConsentVaultHelper:
-    """Thin wrapper to interact with ConsentManager's privacy vault."""
-
-    @staticmethod
-    def store_entry(consent_manager: Any, case_id: str, device_id: str, secret: str,
-                    auth_type: str = "PIN", consent_level: str = "STANDARD") -> Optional[str]:
-        vault = getattr(consent_manager, "privacy_vault", None)
-        if not vault:
-            return None
-        try:
-            return vault.store_pin_pattern(case_id, device_id, secret, auth_type, consent_level)
-        except Exception:
-            return None
-
-    @staticmethod
-    def verify_entry(consent_manager: Any, vault_id: str, attempt: str, case_id: str) -> bool:
-        vault = getattr(consent_manager, "privacy_vault", None)
-        if not vault:
+            path = ArtifactPathBuilder.resolve(case_id, ensure_dir=True)
+            results_file = os.path.join(path, "results.json")
+            
+            with open(results_file, 'w') as f:
+                json.dump(results, f, indent=2)
+            
+            logger.info(f"Results saved: {case_id}")
+            return True
+        
+        except Exception as e:
+            logger.error(f"Error saving results: {str(e)}")
             return False
+
+    @staticmethod
+    def load(case_id: str) -> Optional[Dict[str, Any]]:
+        """Load results"""
         try:
-            return bool(vault.verify_pin_pattern(vault_id, attempt, case_id))
-        except Exception:
+            path = ArtifactPathBuilder.resolve(case_id)
+            results_file = os.path.join(path, "results.json")
+            
+            if not os.path.exists(results_file):
+                logger.warning(f"Results file not found: {case_id}")
+                return None
+            
+            with open(results_file, 'r') as f:
+                results = json.load(f)
+            
+            logger.info(f"Results loaded: {case_id}")
+            return results
+        
+        except Exception as e:
+            logger.error(f"Error loading results: {str(e)}")
+            return None
+
+    @staticmethod
+    def delete(case_id: str) -> bool:
+        """Delete results"""
+        try:
+            path = ArtifactPathBuilder.resolve(case_id)
+            results_file = os.path.join(path, "results.json")
+            
+            if os.path.exists(results_file):
+                os.remove(results_file)
+                logger.info(f"Results deleted: {case_id}")
+                return True
+            
+            return False
+        
+        except Exception as e:
+            logger.error(f"Error deleting results: {str(e)}")
             return False
 
 
-class ArtifactIndex:
-    """Provide lightweight artifact listings for a case."""
-
-    @staticmethod
-    def list_files(case_id: str, *subdirs: str, max_depth: int = 3) -> List[str]:
-        root = ArtifactPathBuilder.resolve(case_id, *subdirs)
-        if not os.path.isdir(root):
-            return []
-        results: List[str] = []
-        for current_root, dirs, files in os.walk(root):
-            depth = current_root.replace(root, '').count(os.sep)
-            if depth >= max_depth:
-                dirs[:] = []
-            for name in files:
-                results.append(os.path.join(current_root, name))
-        return sorted(results)
-
-
-class ConsentAuditReader:
-    """Access consent audit logs from disk."""
-
-    BASE_DIR = os.path.join("audit", "consent_records")
-
-    @classmethod
-    def list_events(
-        cls, case_id: Optional[str], limit: Optional[int] = None
-    ) -> List[Dict[str, Any]]:
-        if not case_id:
-            return []
-        path = os.path.join(cls.BASE_DIR, case_id, "access_log.json")
-        if not os.path.exists(path):
-            return []
-        try:
-            with open(path, "r", encoding="utf-8") as handle:
-                events: List[Dict[str, Any]] = json.load(handle)
-        except Exception:
-            return []
-
-        if limit is not None and limit >= 0:
-            return events[-limit:]
-        return events
-
-
-class ProgressLogFormatter:
-    """Format module log dictionaries for UI tables."""
-
-    @staticmethod
-    def from_module_logs(module_logs: Optional[Dict[str, Iterable[Dict[str, Any]]]]) -> List[Dict[str, Any]]:
-        if not module_logs:
-            return []
-
-        rows: List[Dict[str, Any]] = []
-        for module_name, entries in module_logs.items():
-            for entry in entries or []:
-                if not isinstance(entry, dict):
-                    continue
-                rows.append(
-                    {
-                        "module": module_name,
-                        "attempt": entry.get("attempt"),
-                        "event": entry.get("event"),
-                        "timestamp": entry.get("timestamp"),
-                        "details": entry.get("details"),
-                    }
-                )
-
-        def _sort_key(row: Dict[str, Any]):
-            ts = row.get("timestamp")
-            if isinstance(ts, str):
-                try:
-                    return datetime.fromisoformat(ts)
-                except ValueError:
-                    return ts
-            return ts or ""
-
-        rows.sort(key=_sort_key)
-        return rows
-
-
-class ExtractionValidator:
-    """Determine potential issues in extraction results."""
-
-    @staticmethod
-    def scan(results: Optional[Dict[str, Any]]) -> Dict[str, List[str]]:
-        issues = {"warnings": [], "errors": []}
-        if not results:
-            issues["warnings"].append("No extraction results available.")
-            return issues
-
-        status = results.get("status")
-        if status not in {"completed", "partial_success"}:
-            issues["warnings"].append(f"Extraction status is {status}.")
-
-        modules_run = results.get("modules_run") or []
-        if not modules_run:
-            issues["warnings"].append("No modules reported in results.")
-
-        for module in modules_run:
-            if module.get("status") == "error":
-                issues["errors"].append(
-                    f"Module {module.get('name')} failed: {module.get('error', 'unknown error')}"
-                )
-
-        for key in ("communications", "location", "media"):
-            if key not in (results.get("data") or {}):
-                issues["warnings"].append(f"Missing {key} section in results data.")
-
-        return issues
-
-
-class ResultsDiff:
-    """Compare two extraction results dictionaries."""
-
-    @staticmethod
-    def compare(old: Optional[Dict[str, Any]], new: Optional[Dict[str, Any]]) -> Dict[str, Any]:
-        if old is None:
-            return {"status": "new", "changed_modules": []}
-        if new is None:
-            return {"status": "removed", "changed_modules": []}
-
-        old_modules = {m.get("name"): m for m in old.get("modules_run", [])}
-        new_modules = {m.get("name"): m for m in new.get("modules_run", [])}
-
-        changed = []
-        for name, new_entry in new_modules.items():
-            old_entry = old_modules.get(name)
-            if not old_entry:
-                changed.append({"module": name, "change": "added"})
-                continue
-            if old_entry.get("status") != new_entry.get("status") or old_entry.get("attempts") != new_entry.get("attempts"):
-                changed.append({"module": name, "change": "updated"})
-
-        for name in old_modules:
-            if name not in new_modules:
-                changed.append({"module": name, "change": "removed"})
-
-        return {"status": "diff", "changed_modules": changed}
-
-
-class JobTracker:
-    """Minimal in-memory tracking for long running jobs."""
-
-    def __init__(self):
-        self._jobs: Dict[str, Dict[str, Any]] = {}
-        self._lock = threading.Lock()
-
-    def start(self, job_id: str, metadata: Optional[Dict[str, Any]] = None) -> None:
-        with self._lock:
-            self._jobs[job_id] = {
-                "status": "running",
-                "metadata": metadata or {},
-                "progress": 0,
-                "history": [
-                    {
-                        "timestamp": datetime.now().isoformat(),
-                        "event": "started",
-                        "details": metadata or {},
-                    }
-                ],
-            }
-
-    def update(self, job_id: str, progress: int, message: str) -> None:
-        with self._lock:
-            job = self._jobs.setdefault(job_id, {})
-            job.setdefault("history", []).append(
-                {
-                    "timestamp": datetime.now().isoformat(),
-                    "event": "progress",
-                    "details": message,
-                }
-            )
-            job["progress"] = progress
-            job.setdefault("status", "running")
-
-    def complete(self, job_id: str, status: str = "completed", details: Optional[str] = None) -> None:
-        with self._lock:
-            job = self._jobs.setdefault(job_id, {})
-            job["status"] = status
-            job.setdefault("history", []).append(
-                {
-                    "timestamp": datetime.now().isoformat(),
-                    "event": "completed",
-                    "details": details,
-                }
-            )
-
-    def get(self, job_id: str) -> Optional[Dict[str, Any]]:
-        with self._lock:
-            return self._jobs.get(job_id)
-
-    def snapshot(self) -> Dict[str, Dict[str, Any]]:
-        with self._lock:
-            return json.loads(json.dumps(self._jobs))
-
-
-class AsyncJobRegistry(JobTracker):
-    """High-level helper for registering background extraction jobs."""
-
-    def schedule(self, job_id: str, label: str, metadata: Optional[Dict[str, Any]] = None) -> Dict[str, Any]:
-        self.start(job_id, metadata={**(metadata or {}), 'label': label})
-        return self.get(job_id) or {}
-
-    def mark(self, job_id: str, status: str, details: Optional[str] = None) -> None:
-        if status == 'completed':
-            self.complete(job_id, status='completed', details=details)
-        else:
-            self.complete(job_id, status='failed', details=details)
-
-
-def adb_root_access_message(summary: Dict[str, Any], feature: str) -> str:
-    """Generate contextual messaging when ADB-root-only data is unavailable."""
-    if not summary.get('installed'):
-        return 'ADB is not installed or not accessible in PATH; install platform-tools to enable device extraction.'
-    devices = summary.get('devices') or []
-    if not devices:
-        return 'No Android devices detected via ADB. Connect a device and accept the USB debugging prompt.'
-    default = summary.get('default_device')
-    status = default.get('status') if isinstance(default, dict) else None
-    if status != 'device':
-        return 'Connected device is not authorised. Unlock the phone and accept the RSA fingerprint prompt.'
-    return (
-        f'{feature} requires elevated access to the device data partition. '
-        'Ensure the device is rooted or use consent-backed content provider dumps as a fallback.'
-    )
-
-
-def parse_sms_dump(path: str) -> List[Dict[str, Any]]:
-    rows: List[Dict[str, Any]] = []
-    try:
-        with open(path, 'r', encoding='utf-8') as handle:
-            for line in handle:
-                if 'body=' not in line:
-                    continue
-                rows.append(
-                    {
-                        'message': _extract_between(line, 'body=', ','),
-                        'address': _extract_between(line, 'address=', ','),
-                        'timestamp': _extract_between(line, 'date=', ','),
-                    }
-                )
-    except Exception:
-        return []
-    return rows
-
-
-def parse_calls_dump(path: str) -> List[Dict[str, Any]]:
-    rows: List[Dict[str, Any]] = []
-    try:
-        with open(path, 'r', encoding='utf-8') as handle:
-            for line in handle:
-                if 'number=' not in line:
-                    continue
-                rows.append(
-                    {
-                        'number': _extract_between(line, 'number=', ','),
-                        'duration': _extract_between(line, 'duration=', ','),
-                        'type': _extract_between(line, 'type=', ','),
-                        'timestamp': _extract_between(line, 'date=', ','),
-                    }
-                )
-    except Exception:
-        return []
-    return rows
-
-
-def _extract_between(text: str, start: str, end: str) -> str:
-    try:
-        i = text.index(start) + len(start)
-        j = text.index(end, i)
-        return text[i:j]
-    except ValueError:
-        return ''
-
-
-def format_system_checks(summary: Dict[str, Any]) -> Dict[str, List[str]]:
-    warnings: List[str] = []
-    info: List[str] = []
-    if not summary.get('installed'):
-        warnings.append('ADB not installed; install Android platform-tools and ensure `adb` is on PATH.')
-        return {'warnings': warnings, 'info': info}
-
-    devices = summary.get('devices') or []
-    if not devices:
-        warnings.append('No Android devices detected via ADB.')
-    else:
-        for device in devices:
-            serial = device.get('serial', 'unknown')
-            status = device.get('status', 'unknown')
-            if status == 'device':
-                info.append(f"Device {serial} ready via ADB.")
-            elif status == 'unauthorized':
-                warnings.append(f"Device {serial} is unauthorized. Accept the RSA prompt on the handset.")
-            else:
-                warnings.append(f"Device {serial} status: {status}.")
-
-    return {'warnings': warnings, 'info': info}
-
-
-def case_selection_options(sessions: Dict[str, Any]) -> List[str]:
-    return sorted(sessions.keys())
-
-
-def persist_case_snapshot(consent_manager: Any, case_id: Optional[str]) -> Tuple[bool, str]:
-    if not case_id:
-        return False, 'No case selected.'
-    if consent_manager.persist_session(case_id):
-        return True, 'Consent snapshot saved.'
-    return False, 'No consent session found to save.'
-
-
-def render_consent_status(session: Optional[Any]) -> Dict[str, str]:
-    if not session:
-        return {'level': 'N/A', 'message': 'No active consent session.'}
-    level = getattr(session, 'level', None)
-    level_name = level.name if level else 'Unknown'
-    unlock = getattr(session, 'metadata', {}).get('unlock_status') if hasattr(session, 'metadata') else None
-    unlock_status = (unlock or {}).get('status', 'unverified')
-    return {
-        'level': level_name,
-        'unlock_status': unlock_status,
-        'message': f"Consent level {level_name} • Unlock {unlock_status}",
-    }
-
-
-def consent_otp_controls(consent_manager: Any, case_id: str, phone_number: str) -> Tuple[bool, str]:
-    if not consent_manager:
-        return False, 'Consent manager unavailable.'
-    try:
-        consent_manager.send_verification_sms(case_id, phone_number)
-    except Exception as exc:
-        return False, f'Failed to send OTP: {exc}'
-    return True, 'OTP sent successfully.'
-
-
-def render_vault_entries(entries: List[Dict[str, Any]]) -> List[str]:
-    rendered = []
-    for entry in entries:
-        rendered.append(
-            f"Vault {entry.get('vault_id')} ({entry.get('auth_type', 'PIN')}) added {entry.get('created_at')}"
-        )
-    return rendered
-
-
-def summarize_results_diff(diff: Dict[str, Any]) -> str:
-    if not diff:
-        return 'No change detected.'
-    status = diff.get('status', 'unknown')
-    modules = diff.get('changed_modules', [])
-    lines = [f'Result diff status: {status}']
-    for module in modules:
-        lines.append(f"• {module.get('module')}: {module.get('change')}")
-    return '\n'.join(lines)
-
-
-def build_report_sections(results: Dict[str, Any], selected: List[str]) -> Dict[str, Any]:
-    sections: Dict[str, Any] = {}
-    data = results.get('data', {}) if isinstance(results, dict) else {}
-    mapping = {
-        'Communications': 'communications',
-        'Location': 'location',
-        'Media': 'media',
-        'System': 'system',
-        'Security': 'security',
-        'Errors': 'errors',
-    }
-    for label in selected:
-        key = mapping.get(label)
-        if key and key in data:
-            sections[label] = data[key]
-    if 'Summary' in selected:
-        sections['Summary'] = {
-            'status': results.get('status'),
-            'modules_run': results.get('modules_run'),
-            'duration_seconds': results.get('duration_seconds'),
-        }
-    return sections
-
-
-def capture_diagnostics_snapshot(orchestrator: Any, consent_manager: Any, case_id: str) -> Dict[str, Any]:
-    snapshot = {
-        'case_id': case_id,
-        'created_at': datetime.now().isoformat(),
-        'consent': {},
-        'system': {},
-    }
-    if consent_manager:
-        session = consent_manager.get_session(case_id)
-        snapshot['consent']['status'] = render_consent_status(session)
-    if orchestrator:
-        try:
-            snapshot['system']['modules'] = orchestrator.get_module_status()
-        except Exception:
-            snapshot['system']['modules'] = {}
-    return snapshot
+# ============================================================================
+# GLOBAL CACHE INSTANCE
+# ============================================================================
+
+_cache_manager: Optional[CacheManager] = None
+
+def get_cache_manager() -> CacheManager:
+    """Get global cache manager instance"""
+    global _cache_manager
+    if _cache_manager is None:
+        _cache_manager = CacheManager()
+    return _cache_manager

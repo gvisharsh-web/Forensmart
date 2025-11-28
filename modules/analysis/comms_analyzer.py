@@ -1,720 +1,651 @@
 """
-Comms Analyzer (renamed from Suspicious Classifier)
+COMMS ANALYZER - Communications Analyzer
+Analyzes messages, calls, and communications for suspicious patterns
+Integrated with fraud database for real-time detection
 
-Clean module for text scoring of communications extracted from a case.
-- Loads TF-IDF model pipeline if available
-- Scores messages and provides a streamlined UI
-- Avoids duplicated/spammy UI across modules
+This module provides:
+- Message classification (phishing, fraud, threats, spam)
+- Keyword detection
+- Entity extraction
+- Phishing detection
+- Threat detection
+- Fraud detection
+- Sentiment analysis
+- Pattern analysis
+- Risk scoring
+- Database integration (fraudster/harasser lookup)
+- Auto-reporting to database
 """
-import os
-import json
+
+import logging
 import re
-from collections import Counter
+import json
+import os
 from datetime import datetime
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Optional, Dict, Any, List
+from transformers import pipeline
+import requests
 
-import streamlit as st
-import streamlit.components.v1 as components
-import numpy as np
-import pandas as pd
-import plotly.express as px
-from reportlab.lib.pagesizes import letter
-from reportlab.pdfgen import canvas
-import io
+from modules.analysis.models import DatabaseManager, updater
+from modules.shared.utils import ArtifactPathBuilder, ResultsRepository
 
-try:
-    import joblib  # type: ignore
-except Exception:
-    joblib = None
+logger = logging.getLogger(__name__)
 
-try:
-    from pyvis.network import Network
-except ImportError:
-    Network = None
+# ============================================================================
+# SUSPICIOUS KEYWORDS DATABASE
+# ============================================================================
 
-# NEW: Import audit trail for communications analysis
-try:
-    from modules.consent.portal import ConsentAuditTrail
-except ImportError:
-    ConsentAuditTrail = None  # Optional dependency
+SUSPICIOUS_KEYWORDS = {
+    "PHISHING": [
+        "verify", "confirm", "update", "account", "urgent", "click here",
+        "click link", "validate", "authenticate", "re-enter", "suspended",
+        "limited time", "act now", "confirm identity", "verify password"
+    ],
+    "FRAUD": [
+        "wire", "transfer", "payment", "money", "send", "bank account",
+        "credit card", "social security", "tax id", "routing number",
+        "swift code", "account number", "inheritance", "prize"
+    ],
+    "THREAT": [
+        "kill", "hurt", "attack", "bomb", "weapon", "shoot", "stab",
+        "rape", "assault", "violence", "harm", "danger", "threat",
+        "die", "dead", "murder", "destroy"
+    ],
+    "SPAM": [
+        "free", "limited time", "act now", "click here", "buy now",
+        "special offer", "exclusive deal", "winner", "congratulations",
+        "claim prize", "unsubscribe"
+    ]
+}
 
-from modules.shared.utils import (
-    ArtifactPathBuilder,
-    adb_root_access_message,
-    parse_sms_dump,
-    parse_calls_dump,
-)
+# ============================================================================
+# FRAUD PATTERNS
+# ============================================================================
 
-try:
-    from adapters.android_adb import AndroidADB  # type: ignore
-except Exception:  # pragma: no cover - optional dependency
-    AndroidADB = None  # type: ignore
-
-
-def _save_intelligence_findings(case_id: str, key: str, data: Any):
-    """Saves intelligence findings to the case's results.json."""
-    results_path = os.path.join('reports', case_id, 'results.json')
-    if not os.path.exists(results_path):
-        return
-
-    try:
-        with open(results_path, 'r') as f:
-            main_results = json.load(f)
-
-        main_results.setdefault('data', {}).setdefault('intelligence_findings', {})[key] = data
-
-        with open(results_path, 'w') as f:
-            json.dump(main_results, f, indent=2, default=str)
-        
-        # NEW: Record communications analysis in audit trail
-        if ConsentAuditTrail:
-            try:
-                ConsentAuditTrail.record_approval(
-                    case_id=case_id,
-                    decision=f"comms_analysis_{key}",
-                    nominee_name="System",
-                    device_id="ANALYSIS",
-                    purpose=f"Communications analysis: {key.replace('_', ' ').title()}"
-                )
-            except Exception as audit_error:
-                logging.warning(f"Failed to record comms analysis audit trail: {audit_error}")
-        
-        st.toast(f"{key.replace('_', ' ').title()} findings saved to case report.")
-    except Exception as e:
-        st.error(f"Failed to save intelligence findings: {e}")
-
-
-@st.cache_data(show_spinner=False, ttl=300)
-def _load_results_comms(case_id: str) -> Dict[str, List[Dict[str, Any]]]:
-    """Load and cache communications data with 5-minute TTL for performance."""
-    return _load_results_comms_raw(case_id)
-
-@st.cache_data(show_spinner=False, ttl=300)
-def _process_call_records_cached(case_id: str, call_count: int) -> Dict[str, Any]:
-    """Cache processed call records metadata to avoid reprocessing."""
-    return {'processed': True, 'count': call_count}
-
-
-def _load_results_comms_raw(case_id: str) -> Dict[str, List[Dict[str, Any]]]:
-    """Load multiple communications sources from extraction results."""
-    path = os.path.join('reports', case_id, 'results.json')
-    sources: Dict[str, List[Dict[str, Any]]] = {
-        'sms': [], 'calls': [], 'whatsapp': [], 'telegram': [], 'snapchat': [], 'instagram': []
+FRAUD_PATTERNS = {
+    "BANK_PHISHING": {
+        "keywords": ["verify", "confirm", "update", "account", "urgent"],
+        "risk_score": 0.95,
+        "description": "Bank account verification phishing"
+    },
+    "PAYPAL_PHISHING": {
+        "keywords": ["paypal", "verify", "account", "confirm", "update"],
+        "risk_score": 0.92,
+        "description": "PayPal phishing attempt"
+    },
+    "AMAZON_PHISHING": {
+        "keywords": ["amazon", "account", "suspended", "verify", "confirm"],
+        "risk_score": 0.90,
+        "description": "Amazon account phishing"
+    },
+    "ROMANCE_SCAM": {
+        "keywords": ["love", "money", "emergency", "help", "wire", "transfer"],
+        "risk_score": 0.88,
+        "description": "Romance/dating scam"
+    },
+    "LOTTERY_SCAM": {
+        "keywords": ["won", "prize", "claim", "tax", "payment", "lottery"],
+        "risk_score": 0.92,
+        "description": "Lottery/prize scam"
+    },
+    "TECH_SUPPORT_SCAM": {
+        "keywords": ["virus", "malware", "error", "support", "call", "remote"],
+        "risk_score": 0.85,
+        "description": "Tech support scam"
+    },
+    "IRS_SCAM": {
+        "keywords": ["irs", "tax", "debt", "legal", "arrest", "warrant"],
+        "risk_score": 0.93,
+        "description": "IRS/tax authority scam"
     }
-    if os.path.exists(path):
+}
+
+# ============================================================================
+# SUSPICIOUS CLASSIFIER CLASS
+# ============================================================================
+
+class CommsAnalyzer:
+    """Communications Analyzer - Analyze messages for suspicious content with database integration"""
+    
+    def __init__(self, api_url: str = "http://localhost:8000"):
+        """Initialize analyzer with transformers and database connection"""
+        self.api_url = api_url
+        self.db = DatabaseManager()
+        self.updater = updater
+        
+        # Initialize transformers
         try:
-            with open(path, 'r', encoding='utf-8') as f:
-                data = json.load(f)
-            comms = data.get('data', {}).get('communications', {})
-            # SMS
-            sms = comms.get('sms_messages', [])
-            if isinstance(sms, list):
-                sources['sms'] = sms
-            # Calls
-            calls = comms.get('call_logs', [])
-            if isinstance(calls, list):
-                sources['calls'] = calls
-            # App messages (if your extractor stores them)
-            wa = comms.get('whatsapp_messages', [])
-            if isinstance(wa, list):
-                sources['whatsapp'] = wa
-            tg = comms.get('telegram_messages', [])
-            if isinstance(tg, list):
-                sources['telegram'] = tg
-            sc = comms.get('snapchat_messages', [])
-            if isinstance(sc, list):
-                sources['snapchat'] = sc
-            ig = comms.get('instagram_messages', [])
-            if isinstance(ig, list):
-                sources['instagram'] = ig
-        except Exception:
-            return sources
-
-    # Fallback to recent ADB dumps if available
-    dumps_dir = ArtifactPathBuilder.resolve(case_id, 'android', 'provider_dumps')
-    sms_dump = os.path.join(dumps_dir, 'sms_dump.txt')
-    if os.path.exists(sms_dump):
-        parsed_sms = parse_sms_dump(sms_dump)
-        if parsed_sms:
-            sources['sms'] = parsed_sms
-    call_dump = os.path.join(dumps_dir, 'calllog_dump.txt')
-    if os.path.exists(call_dump):
-        parsed_calls = parse_calls_dump(call_dump)
-        if parsed_calls:
-            sources['calls'] = parsed_calls
-    return sources
-
-
-def load_model(prefer_auto: bool = True) -> Optional[Any]:
-    candidates = []
-    if prefer_auto:
-        candidates = [
-            os.path.join('models', 'suspicious_tfidf_auto.pkl'),
-            os.path.join('models', 'suspicious_tfidf.pkl'),
-        ]
-    else:
-        candidates = [
-            os.path.join('models', 'suspicious_tfidf.pkl'),
-            os.path.join('models', 'suspicious_tfidf_auto.pkl'),
-        ]
-    for p in candidates:
-        if os.path.exists(p) and joblib:
-            try:
-                return joblib.load(p)
-            except Exception:
-                continue
-    return None
-
-
-@st.cache_resource(show_spinner=False)
-def _load_model_cached(prefer_auto: bool = True) -> Optional[Any]:
-    return load_model(prefer_auto)
-
-
-def score_messages(model: Any, messages: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
-    """Score messages using the provided model. Returns list of messages with 'score' field."""
-    if not model or not messages:
-        return messages
-    texts = [m.get('text', '') for m in messages]
-    if not texts:
-        return messages
-
-    scores_list = []
-    try:
-        # Assume model is a pipeline with decision_function or predict_proba
-        if hasattr(model, 'decision_function'):
-            scores = model.decision_function(texts)
-            # Normalize to [0,1] if necessary
-            if hasattr(scores, 'shape'):
-                # For binary, scores could be 1-d
-                arr = scores if len(
-                    getattr(scores, 'shape', [])) == 1 else scores[:, 0]
-            else:
-                arr = scores
-            # min-max normalize
-            a = np.array(arr)
-            mn, mx = a.min(), a.max()
-            if mx - mn > 1e-9:
-                norm = (a - mn) / (mx - mn)
-            else:
-                norm = a * 0 + 0.5
-            scores_list = norm.tolist()
-        elif hasattr(model, 'predict_proba'):
-            probs = model.predict_proba(texts)
-            p = np.array(probs)
-            # Use positive class probability if binary
-            if p.ndim == 2 and p.shape[1] > 1:
-                pos = p[:, 1]
-            else:
-                pos = p[:, 0] if p.ndim == 2 else p
-            scores_list = pos.tolist()
-        else:
-            # Fallback predict -> label 0/1, set score=label
-            preds = model.predict(texts)
-            scores_list = [float(p) for p in preds]
-        
-        for i, msg in enumerate(messages):
-            msg['score'] = float(scores_list[i])
-
-    except Exception:
-        for i, msg in enumerate(messages):
-            msg['score'] = 0.0
-
-    return messages
-
-
-def _adb_pull_communications(case_id: str) -> Dict[str, Any]:
-    """Attempt to refresh communications artifacts directly from the device via ADB."""
-    if AndroidADB is None:
-        return {'status': 'error', 'message': 'ADB module not available in runtime.'}
-
-    adb = AndroidADB()
-    summary = adb.device_summary()
-    if not summary.get('installed'):
-        return {'status': 'error', 'message': adb_root_access_message(summary, 'Communications extraction')}
-    if not summary.get('connected'):
-        return {'status': 'error', 'message': adb_root_access_message(summary, 'Communications extraction')}
-
-    dumps_dir = ArtifactPathBuilder.resolve(case_id, 'android', 'provider_dumps', ensure_dir=True)
-    try:
-        dumps = adb.dump_content_providers(case_id, dumps_dir)
-    except Exception as exc:
-        return {'status': 'error', 'message': f'Provider dump failed: {exc}'}
-
-    if not dumps:
-        return {
-            'status': 'empty',
-            'message': adb_root_access_message(summary, 'SMS/call content providers')
-        }
-
-    sms_dump = os.path.join(dumps_dir, 'sms_dump.txt')
-    sms = parse_sms_dump(sms_dump) if os.path.exists(sms_dump) else []
-
-    call_dump = os.path.join(dumps_dir, 'calllog_dump.txt')
-    calls = parse_calls_dump(call_dump) if os.path.exists(call_dump) else []
-
-    for row in calls:
-        duration = row.get('duration')
-        if isinstance(duration, str) and duration.isdigit():
-            row['duration'] = int(duration)
-
-    return {
-        'status': 'ok',
-        'message': f"Provider dumps saved under {dumps_dir}",
-        'sms': sms,
-        'calls': calls,
-        'path': dumps_dir,
-        'files': dumps,
-    }
-
-
-_NLP_MODEL: Optional[Any] = None
-
-
-def _extract_entities(text: str) -> List[Dict[str, str]]:
-    """Extract entities using spaCy if available, otherwise use simple keyword matching."""
-    entities = []
-    global _NLP_MODEL
-    try:
-        import spacy
-        if _NLP_MODEL is None:
-            _NLP_MODEL = spacy.load('en_core_web_sm')
-        doc = _NLP_MODEL(text)
-        entities = [{'text': ent.text, 'type': ent.label_} for ent in doc.ents]
-    except Exception:
-        # Fallback to simple keyword matching
-        keywords = ['location', 'address', 'meet',
-            'time', 'date', 'phone', 'email']
-        for kw in keywords:
-            if kw.lower() in text.lower():
-                entities.append({'text': kw, 'type': 'KEYWORD'})
-    return entities
-
-
-def _collect_base_records(sources: Dict[str, List[Dict[str, Any]]]) -> List[Dict[str, Any]]:
-    base_records: List[Dict[str, Any]] = []
-
-    def _append_messages(items: List[Dict[str, Any]], source: str, text_keys: Tuple[str, ...] = ('message', 'text', 'body')) -> None:
-        for message in items:
-            if not isinstance(message, dict):
-                continue
-            
-            found_text = False
-            for key in text_keys:
-                if message.get(key):
-                    if 'text' not in message:
-                        message['text'] = message[key]
-                    found_text = True
-                    break
-            
-            if found_text:
-                message['source'] = source
-                base_records.append(message)
-
-    _append_messages(sources.get('sms', []), 'SMS', ('body', 'message', 'text'))
-    _append_messages(sources.get('whatsapp', []), 'WhatsApp')
-    _append_messages(sources.get('telegram', []), 'Telegram')
-    _append_messages(sources.get('snapchat', []), 'Snapchat')
-    _append_messages(sources.get('instagram', []), 'Instagram')
-    _append_messages(sources.get('calls', []), 'Call', text_keys=('note', 'transcript', 'text'))
-
-    return base_records
-
-
-def _top_keywords(texts: List[str], limit: int = 6) -> List[Tuple[str, int]]:
-    token_counter: Counter[str] = Counter()
-    pattern = re.compile(r'[A-Za-z]{4,}')
-    for text in texts:
-        token_counter.update(tok.lower() for tok in pattern.findall(text))
-    return token_counter.most_common(limit)
-
-
-def render_ui(case_id: str):
-    st.markdown('### 📡 Comms Analyzer')
-
-    sources = _load_results_comms(case_id)
-    base_records = _collect_base_records(sources)
-    messages_to_score = [r for r in base_records if r.get('source') != 'Call']
-    call_records = sources.get('calls', [])
-    source_counts = Counter(record['source'] for record in base_records)
-
-    tabs = st.tabs(["Messages", "Call Logs", "Suspicious Calls", "Network Graph"])
-
-    # --- Messages Tab ---
-    with tabs[0]:
-        use_nlp = st.checkbox('Enable NLP analysis (requires spaCy)', value=False, key=f'nlp_{case_id}')
-        col1, col2 = st.columns(2)
-        with col1:
-            st.caption('Messages from extraction (if available)')
-            st.write(f"Loaded {len(messages_to_score)} messages from reports/{case_id}/results.json")
-        with col2:
-            uploaded = st.file_uploader(
-                'Upload communications file (CSV/TXT/JSON/XLSX)',
-                type=['csv', 'txt', 'json', 'xlsx'],
-                key=f'{case_id}_comms_uploader')
-            extra_messages: List[Dict[str, Any]] = []
-            if uploaded:
-                name = uploaded.name.lower()
-                try:
-                    if name.endswith('.csv'):
-                        df = pd.read_csv(uploaded)
-                        if 'message' in df.columns:
-                            extra_messages = df.to_dict('records')
-                        else:
-                            st.error('CSV must contain a "message" column')
-                    elif name.endswith('.xlsx'):
-                        df = pd.read_excel(uploaded)
-                        if 'message' in df.columns:
-                            extra_messages = df.to_dict('records')
-                        else:
-                            st.error('XLSX must contain a "message" column')
-                    elif name.endswith('.json'):
-                        import json
-                        payload = json.load(uploaded)
-                        if isinstance(payload, list):
-                            if payload and isinstance(payload[0], dict):
-                                extra_messages = [item for item in payload if item.get('message')]
-                            else:
-                                extra_messages = [{'text': str(item), 'source': 'Uploaded'} for item in payload if item]
-                        elif isinstance(payload, dict):
-                            msgs_from_json = payload.get('messages') or payload.get('data') or []
-                            if isinstance(msgs_from_json, list):
-                                extra_messages = [
-                                    item if isinstance(item, dict) else {'text': str(item), 'source': 'Uploaded'}
-                                    for item in msgs_from_json if (item.get('message') if isinstance(item, dict) else item)
-                                ]
-                        else:
-                            st.warning('Unsupported JSON structure. Expected list or { messages: [...] }.')
-                    elif name.endswith('.txt'):
-                        uploaded.seek(0)
-                        content = uploaded.read().decode('utf-8', errors='ignore')
-                        extra_messages = [{'text': line.strip(), 'source': 'Uploaded'} for line in content.splitlines() if line.strip()]
-                    else:
-                        st.warning('Unsupported file type.')
-                except Exception as exc:
-                    st.error(f'Failed to process uploaded file: {exc}')
-
-        stat_cols = st.columns(3)
-        stat_cols[0].metric('Messages ready', len(messages_to_score) + len(extra_messages))
-        stat_cols[1].metric('Sources detected', len(source_counts))
-        top_source = source_counts.most_common(1)
-        stat_cols[2].metric('Top source', top_source[0][0] if top_source else '—', help=', '.join(f"{src}: {count}" for src, count in source_counts.most_common(4)))
-        if source_counts:
-            st.caption('Source mix: ' + ', '.join(f"{src}: {count}" for src, count in source_counts.most_common()))
-
-        adb_feedback = st.empty()
-        if st.button('Pull latest communications via ADB', key=f'adb_pull_{case_id}'):
-            with st.spinner('Collecting communications via ADB…'):
-                result = _adb_pull_communications(case_id)
-            status = result.get('status')
-            msg = result.get('message', '')
-            if status == 'ok':
-                adb_feedback.success(msg)
-                _load_results_comms.clear()
-                st.rerun()
-            elif status == 'empty':
-                adb_feedback.info(msg)
-            else:
-                adb_feedback.error(msg)
-
-        all_messages = messages_to_score + extra_messages
-        if not all_messages:
-            st.info(
-                'No messages available to score. Provide extraction results or upload a file.')
-            return
-
-        model = _load_model_cached(prefer_auto=True)
-        if not model:
-            st.warning(
-                'No model found in models/. Place suspicious_tfidf_auto.pkl or suspicious_tfidf.pkl')
-            return
-
-        threshold = st.slider('Suspicion threshold', 0.0, 1.0, 0.7, 0.01, key=f'thresh_{case_id}')
-        topn = st.number_input('Show top N', min_value=5, max_value=200, value=20, key=f'topn_{case_id}')
-
-        auto_run = st.checkbox(
-            'Auto-analyze on load (if data available)', value=True, key=f'autoan_{case_id}')
-
-        def run_analysis():
-            with st.spinner('Scoring communications...'):
-                results = score_messages(model, all_messages)
-
-            results.sort(key=lambda x: x.get('score', 0.0), reverse=True)
-            suspicious = [r for r in results if r.get('score', 0.0) >= threshold]
-            
-            _save_intelligence_findings(case_id, 'suspicious_messages', suspicious)
-
-            st.success(
-                f"Found {len(suspicious)} suspicious items (threshold {threshold:.2f})"
+            self.zero_shot_classifier = pipeline(
+                "zero-shot-classification",
+                model="facebook/bart-large-mnli"
             )
-
-            if suspicious:
-                keyword_snapshot = _top_keywords([r['text'] for r in suspicious[: int(topn)]])
-                if keyword_snapshot:
-                    st.markdown('#### 🔑 Common keywords')
-                    st.caption(', '.join(f"{word} ({count})" for word, count in keyword_snapshot))
-
-            for r in suspicious[:int(topn)]:
-                st.markdown(f"**Score:** {r.get('score', 0.0):.2f}")
-                contact = r.get('contact') or r.get('name') or r.get('address') or r.get('sender') or '(Unknown)'
-                st.markdown(f"**From:** {contact}")
-                st.write(r['text'])
-                attachments = r.get('attachments') or []
-                for idx, path in enumerate(attachments):
-                    if st.button(f"Open attachment {idx + 1}", key=f"att_{idx}_{r.get('score', 0.0)}"):
-                        st.session_state['media_origin'] = {
-                            'case_id': case_id,
-                            'source': r.get('source', 'Communications')
-                        }
-                        st.session_state['current_media'] = path
-                        st.session_state['nav'] = 'Media'
-                        st.rerun()
-                st.markdown('---')
-
-            if suspicious and use_nlp:
-                st.markdown('#### 🔍 NLP Analysis')
-                entity_counts: Counter[Tuple[str, str]] = Counter()
-                for r in suspicious[:int(topn)]:
-                    entities = _extract_entities(r['text'])
-                    if entities:
-                        for ent in entities:
-                            entity_counts[(ent['text'], ent['type'])] += 1
-                if entity_counts:
-                    top_entities = entity_counts.most_common(12)
-                    cols = st.columns(3)
-                    for idx, ((text, ent_type), count) in enumerate(top_entities):
-                        cols[idx % 3].markdown(f'`{text}` • {ent_type} ({count})')
-
-            if st.button('Export JSON', key=f'export_json_{case_id}'):
-                out = {
-                    'case_id': case_id,
-                    'generated_at': datetime.now().isoformat(),
-                    'threshold': threshold,
-                    'count': len(suspicious),
-                    'items': suspicious
+            logger.info("✅ Zero-shot classifier loaded")
+        except Exception as e:
+            logger.error(f"❌ Failed to load zero-shot classifier: {e}")
+            self.zero_shot_classifier = None
+        
+        try:
+            self.ner = pipeline(
+                "ner",
+                model="dslim/bert-base-multilingual-cased-ner"
+            )
+            logger.info("✅ NER model loaded")
+        except Exception as e:
+            logger.error(f"❌ Failed to load NER model: {e}")
+            self.ner = None
+        
+        try:
+            self.sentiment = pipeline("sentiment-analysis")
+            logger.info("✅ Sentiment analyzer loaded")
+        except Exception as e:
+            logger.error(f"❌ Failed to load sentiment analyzer: {e}")
+            self.sentiment = None
+    
+    # ========================================================================
+    # KEYWORD DETECTION
+    # ========================================================================
+    
+    def detect_keywords(self, message: str) -> Dict[str, Any]:
+        """Detect suspicious keywords in message"""
+        message_lower = message.lower()
+        found_keywords = {}
+        
+        for category, keywords in SUSPICIOUS_KEYWORDS.items():
+            matches = []
+            for keyword in keywords:
+                if keyword.lower() in message_lower:
+                    matches.append(keyword)
+            
+            if matches:
+                found_keywords[category] = {
+                    "keywords": matches,
+                    "count": len(matches),
+                    "risk_increase": len(matches) * 0.1
                 }
-                st.download_button(
-                    'Download JSON',
-                    json.dumps(out, indent=2, default=str),
-                    file_name=f'comms_{case_id}.json',
-                    mime='application/json'
-                )
-
-        if auto_run and all_messages:
-            run_analysis()
-        elif st.button('Analyze', key=f'analyze_{case_id}'):
-            run_analysis()
-
-    # --- Call Logs Tab ---
-    with tabs[1]:
-        st.markdown('### 📞 Call Logs')
-        if not call_records:
-            st.info('No call logs available for this case.')
+        
+        return {
+            "found": len(found_keywords) > 0,
+            "categories": found_keywords,
+            "total_matches": sum(cat["count"] for cat in found_keywords.values())
+        }
+    
+    # ========================================================================
+    # PATTERN MATCHING
+    # ========================================================================
+    
+    def match_fraud_patterns(self, message: str) -> List[Dict[str, Any]]:
+        """Match message against known fraud patterns"""
+        message_lower = message.lower()
+        matches = []
+        
+        for pattern_name, pattern_data in FRAUD_PATTERNS.items():
+            keyword_matches = sum(
+                1 for kw in pattern_data["keywords"] 
+                if kw.lower() in message_lower
+            )
+            
+            if keyword_matches > 0:
+                similarity = keyword_matches / len(pattern_data["keywords"])
+                matches.append({
+                    "pattern": pattern_name,
+                    "similarity": round(similarity, 2),
+                    "risk_score": pattern_data["risk_score"],
+                    "description": pattern_data["description"],
+                    "keyword_matches": keyword_matches
+                })
+        
+        return sorted(matches, key=lambda x: x["similarity"], reverse=True)
+    
+    # ========================================================================
+    # ENTITY EXTRACTION
+    # ========================================================================
+    
+    def extract_entities(self, message: str) -> Dict[str, Any]:
+        """Extract entities from message using NER"""
+        if not self.ner:
+            return {"error": "NER model not available"}
+        
+        try:
+            entities = self.ner(message)
+            
+            # Group entities by type
+            grouped = {}
+            for entity in entities:
+                entity_type = entity["entity"].replace("B-", "").replace("I-", "")
+                if entity_type not in grouped:
+                    grouped[entity_type] = []
+                grouped[entity_type].append(entity["word"])
+            
+            return {
+                "found": len(entities) > 0,
+                "entities": grouped,
+                "total_entities": len(entities)
+            }
+        except Exception as e:
+            logger.error(f"Entity extraction failed: {e}")
+            return {"error": str(e)}
+    
+    # ========================================================================
+    # PHISHING DETECTION
+    # ========================================================================
+    
+    def detect_phishing(self, message: str, sender: str = None) -> Dict[str, Any]:
+        """Detect phishing attempts"""
+        phishing_indicators = []
+        phishing_score = 0.0
+        
+        # Check keywords
+        keywords = self.detect_keywords(message)
+        if "PHISHING" in keywords.get("categories", {}):
+            phishing_indicators.append("Phishing keywords detected")
+            phishing_score += 0.3
+        
+        # Check patterns
+        patterns = self.match_fraud_patterns(message)
+        phishing_patterns = [p for p in patterns if "PHISHING" in p["pattern"]]
+        if phishing_patterns:
+            phishing_indicators.append(f"Matches {phishing_patterns[0]['pattern']}")
+            phishing_score += phishing_patterns[0]["risk_score"] * 0.4
+        
+        # Check urgency
+        urgency_keywords = ["urgent", "immediate", "act now", "limited time"]
+        if any(kw in message.lower() for kw in urgency_keywords):
+            phishing_indicators.append("Urgency language detected")
+            phishing_score += 0.2
+        
+        # Check sender spoofing
+        if sender:
+            if "@" in sender:
+                domain = sender.split("@")[1]
+                suspicious_domains = ["fake-", "verify-", "confirm-", "update-"]
+                if any(d in domain for d in suspicious_domains):
+                    phishing_indicators.append("Suspicious sender domain")
+                    phishing_score += 0.25
+        
+        return {
+            "phishing_detected": phishing_score > 0.5,
+            "phishing_score": round(min(phishing_score, 1.0), 2),
+            "indicators": phishing_indicators,
+            "recommendation": "BLOCK" if phishing_score > 0.7 else "REVIEW" if phishing_score > 0.4 else "SAFE"
+        }
+    
+    # ========================================================================
+    # THREAT DETECTION
+    # ========================================================================
+    
+    def detect_threats(self, message: str) -> Dict[str, Any]:
+        """Detect threats and violence"""
+        threat_indicators = []
+        threat_score = 0.0
+        
+        # Check threat keywords
+        keywords = self.detect_keywords(message)
+        if "THREAT" in keywords.get("categories", {}):
+            threat_indicators.append("Threat keywords detected")
+            threat_score += 0.5
+        
+        # Check sentiment
+        if self.sentiment:
+            try:
+                sentiment = self.sentiment(message)[0]
+                if sentiment["label"] == "NEGATIVE" and sentiment["score"] > 0.9:
+                    threat_indicators.append("Highly negative sentiment")
+                    threat_score += 0.3
+            except Exception as e:
+                logger.warning(f"Sentiment analysis failed: {e}")
+        
+        # Check intensity
+        caps_ratio = sum(1 for c in message if c.isupper()) / max(len(message), 1)
+        if caps_ratio > 0.5:
+            threat_indicators.append("Excessive capitalization")
+            threat_score += 0.2
+        
+        # Check exclamation marks
+        exclamation_count = message.count("!")
+        if exclamation_count > 3:
+            threat_indicators.append("Multiple exclamation marks")
+            threat_score += 0.15
+        
+        return {
+            "threat_detected": threat_score > 0.5,
+            "threat_score": round(min(threat_score, 1.0), 2),
+            "severity": "CRITICAL" if threat_score > 0.8 else "HIGH" if threat_score > 0.6 else "MEDIUM" if threat_score > 0.4 else "LOW",
+            "indicators": threat_indicators
+        }
+    
+    # ========================================================================
+    # FRAUD DETECTION
+    # ========================================================================
+    
+    def detect_fraud(self, message: str) -> Dict[str, Any]:
+        """Detect financial fraud attempts"""
+        fraud_indicators = []
+        fraud_score = 0.0
+        
+        # Check keywords
+        keywords = self.detect_keywords(message)
+        if "FRAUD" in keywords.get("categories", {}):
+            fraud_indicators.append("Fraud keywords detected")
+            fraud_score += 0.4
+        
+        # Check patterns
+        patterns = self.match_fraud_patterns(message)
+        fraud_patterns = [p for p in patterns if any(
+            x in p["pattern"] for x in ["ROMANCE", "LOTTERY", "ADVANCE"]
+        )]
+        if fraud_patterns:
+            fraud_indicators.append(f"Matches {fraud_patterns[0]['pattern']}")
+            fraud_score += fraud_patterns[0]["risk_score"] * 0.3
+        
+        # Check money requests
+        money_keywords = ["send", "wire", "transfer", "payment", "money"]
+        if any(kw in message.lower() for kw in money_keywords):
+            fraud_indicators.append("Money request detected")
+            fraud_score += 0.3
+        
+        return {
+            "fraud_detected": fraud_score > 0.5,
+            "fraud_score": round(min(fraud_score, 1.0), 2),
+            "indicators": fraud_indicators,
+            "recommendation": "ALERT" if fraud_score > 0.7 else "REVIEW" if fraud_score > 0.4 else "SAFE"
+        }
+    
+    # ========================================================================
+    # DATABASE INTEGRATION
+    # ========================================================================
+    
+    def check_phone_database(self, phone: str) -> Dict[str, Any]:
+        """Check phone against fraudster/harasser database"""
+        try:
+            # Check fraudster database
+            fraudster = self.db.get_fraudster(phone)
+            if fraudster:
+                logger.info(f"✅ Found fraudster in database: {phone}")
+                return {
+                    "match": True,
+                    "type": "FRAUDSTER",
+                    "fraud_type": fraudster.fraud_type,
+                    "reports": fraudster.reports,
+                    "risk_level": fraudster.risk_level,
+                    "status": fraudster.status,
+                    "name": fraudster.name
+                }
+            
+            # Check harasser database
+            harasser = self.db.get_harasser(phone)
+            if harasser:
+                logger.info(f"✅ Found harasser in database: {phone}")
+                return {
+                    "match": True,
+                    "type": "HARASSER",
+                    "harassment_type": harasser.harassment_type,
+                    "reports": harasser.reports,
+                    "risk_level": harasser.risk_level,
+                    "status": harasser.status,
+                    "name": harasser.name
+                }
+        except Exception as e:
+            logger.warning(f"Database check failed: {e}")
+        
+        return {"match": False}
+    
+    def check_email_database(self, email: str) -> Dict[str, Any]:
+        """Check email against fraudster email database"""
+        try:
+            # Query fraudster emails from database
+            # This would need a method in DatabaseManager
+            # For now, return not found
+            return {"match": False}
+        except Exception as e:
+            logger.warning(f"Email database check failed: {e}")
+            return {"match": False}
+    
+    # ========================================================================
+    # COMBINED ANALYSIS
+    # ========================================================================
+    
+    def analyze_message(self, message: str, phone: str = None, 
+                       contact_phone: str = None, email: str = None, sender_name: str = None,
+                       case_id: str = None, consent_manager: Any = None) -> Dict[str, Any]:
+        """Comprehensive message analysis with contact phone tracking and consent verification"""
+        
+        # Check consent if available
+        if consent_manager and case_id:
+            try:
+                from modules.consent.models import ConsentLevel, MODULE_MIN_LEVELS
+                
+                session = consent_manager.get_session(case_id)
+                if session:
+                    min_level = MODULE_MIN_LEVELS.get('communications', ConsentLevel.LEGAL)
+                    
+                    if session.level < min_level:
+                        logger.warning(f"Communications analysis blocked: {session.level.name} < {min_level.name}")
+                        return {
+                            'status': 'consent_denied',
+                            'message': f'Communications analysis requires {min_level.name} consent',
+                            'required_level': min_level.name,
+                            'current_level': session.level.name,
+                            'case_id': case_id
+                        }
+            except Exception as e:
+                logger.error(f"Error checking consent: {e}")
+        
+        # Run all analyses
+        keywords = self.detect_keywords(message)
+        patterns = self.match_fraud_patterns(message)
+        entities = self.extract_entities(message)
+        phishing = self.detect_phishing(message, email)
+        threats = self.detect_threats(message)
+        fraud = self.detect_fraud(message)
+        
+        # Database checks
+        phone_check = self.check_phone_database(phone) if phone else {"match": False}
+        email_check = self.check_email_database(email) if email else {"match": False}
+        contact_phone_check = self.check_phone_database(contact_phone) if contact_phone else {"match": False}
+        
+        # Auto-report if found in database
+        if phone_check["match"] and phone:
+            if phone_check["type"] == "FRAUDSTER":
+                self.updater.auto_report_fraudster(phone)
+                logger.info(f"✅ Auto-reported fraudster: {phone}")
+            elif phone_check["type"] == "HARASSER":
+                self.updater.auto_report_harasser(phone)
+                logger.info(f"✅ Auto-reported harasser: {phone}")
+        
+        # Calculate combined risk score
+        ai_risk = max(
+            phishing["phishing_score"],
+            threats["threat_score"],
+            fraud["fraud_score"]
+        )
+        
+        db_risk = 0.95 if (phone_check["match"] or email_check["match"]) else 0.0
+        
+        combined_risk = (ai_risk * 0.6 + db_risk * 0.4)
+        
+        # Determine classification
+        if combined_risk > 0.85:
+            classification = "CRITICAL"
+        elif combined_risk > 0.70:
+            classification = "HIGH"
+        elif combined_risk > 0.50:
+            classification = "MEDIUM"
         else:
-            df_calls = pd.DataFrame(call_records)
-            st.dataframe(df_calls)
-            st.download_button('Download Call Logs (CSV)', df_calls.to_csv(index=False), file_name=f'calls_{case_id}.csv')
-
-    # --- Suspicious Calls Tab ---
-    with tabs[2]:
-        st.markdown('### 🚩 Suspicious Call Classifier')
-        if not call_records:
-            st.info('No call logs available for this case.')
+            classification = "LOW"
+        
+        return {
+            "timestamp": datetime.utcnow().isoformat(),
+            "message_preview": message[:100] + "..." if len(message) > 100 else message,
+            "sender": {
+                "phone": phone,
+                "email": email,
+                "name": sender_name
+            },
+            "contact": {
+                "phone": contact_phone,
+                "phone_match": contact_phone_check
+            },
+            "analysis": {
+                "keywords": keywords,
+                "patterns": patterns[:3],  # Top 3 patterns
+                "entities": entities,
+                "phishing": phishing,
+                "threats": threats,
+                "fraud": fraud
+            },
+            "database_checks": {
+                "sender_phone_match": phone_check,
+                "contact_phone_match": contact_phone_check,
+                "email_match": email_check
+            },
+            "risk_scores": {
+                "ai_risk": round(ai_risk, 2),
+                "database_risk": round(db_risk, 2),
+                "combined_risk": round(combined_risk, 2)
+            },
+            "classification": classification,
+            "recommendation": self._get_recommendation(classification, phishing, threats, fraud),
+            "actions": self._get_actions(classification, phone_check, email_check)
+        }
+    
+    # ========================================================================
+    # HELPER METHODS
+    # ========================================================================
+    
+    def _get_recommendation(self, classification: str, phishing: Dict, 
+                           threats: Dict, fraud: Dict) -> str:
+        """Get recommendation based on analysis"""
+        if classification == "CRITICAL":
+            if threats["threat_detected"]:
+                return "ALERT AUTHORITIES - Threat detected"
+            elif phishing["phishing_detected"]:
+                return "BLOCK - Known phishing attempt"
+            else:
+                return "BLOCK IMMEDIATELY - Critical risk"
+        elif classification == "HIGH":
+            if phishing["phishing_detected"]:
+                return "BLOCK - Likely phishing"
+            elif fraud["fraud_detected"]:
+                return "ALERT - Likely fraud"
+            else:
+                return "REVIEW CAREFULLY"
+        elif classification == "MEDIUM":
+            return "REVIEW - Suspicious content"
         else:
-            df_calls = pd.DataFrame(call_records)
-            suspicious = []
-            # --- Customizable Parameters ---
-            st.markdown('#### Suspicious Call Detection Rules')
-            col1, col2, col3, col4 = st.columns(4)
-            with col1:
-                LONG_DURATION = st.number_input('Long call threshold (seconds)', min_value=60, max_value=3600*2, value=600, step=30, key='long_call')
-            with col2:
-                NIGHT_START = st.number_input('Night start hour', min_value=0, max_value=23, value=22, key='night_start')
-            with col3:
-                NIGHT_END = st.number_input('Night end hour', min_value=0, max_value=23, value=7, key='night_end')
-            with col4:
-                RAPID_REPEAT_MIN = st.number_input('Rapid repeat min calls/hr', min_value=2, max_value=10, value=3, step=1, key='rapid_repeat')
-            FREQUENT_UNKNOWN_MIN = st.number_input('Frequent unknown min calls', min_value=2, max_value=20, value=5, step=1, key='freq_unknown')
-            NIGHT_HOURS = (NIGHT_START, NIGHT_END)
-            # --- Preprocess (Optimized) ---
-            if 'timestamp' in df_calls.columns:
-                df_calls['timestamp'] = pd.to_datetime(df_calls['timestamp'], errors='coerce', format='%Y-%m-%dT%H:%M:%S', exact=False)
-            elif 'date' in df_calls.columns:
-                df_calls['timestamp'] = pd.to_datetime(df_calls['date'], errors='coerce', format='%Y-%m-%dT%H:%M:%S', exact=False)
-            else:
-                df_calls['timestamp'] = pd.NaT
-            df_calls['duration'] = pd.to_numeric(df_calls.get('duration', 0), errors='coerce').fillna(0).astype(int)
-            df_calls['number'] = df_calls.get('number', df_calls.get('phone', 'UNKNOWN')).astype(str)
+            return "SAFE - No threats detected"
+    
+    def _get_actions(self, classification: str, phone_check: Dict, 
+                    email_check: Dict) -> List[str]:
+        """Get recommended actions"""
+        actions = []
+        
+        if classification == "CRITICAL":
+            actions.append("Block sender")
+            actions.append("Report to authorities")
+            actions.append("Alert user")
+        elif classification == "HIGH":
+            actions.append("Block or quarantine")
+            actions.append("Flag for review")
+            actions.append("Notify user")
+        elif classification == "MEDIUM":
+            actions.append("Flag for review")
+            actions.append("Monitor for patterns")
+        
+        if phone_check["match"]:
+            actions.append(f"Known fraudster: {phone_check.get('type')}")
+        
+        if email_check["match"]:
+            actions.append(f"Known phishing email: {email_check.get('type')}")
+        
+        return actions
+    
+    # ========================================================================
+    # ARTIFACT ROUTING
+    # ========================================================================
+    
+    def save_analysis_results(self, case_id: str, results: Dict[str, Any]) -> bool:
+        """Save analysis results to artifact storage"""
+        try:
+            # Resolve artifact path
+            artifact_path = ArtifactPathBuilder.resolve(
+                case_id, 
+                "analysis", 
+                ensure_dir=True
+            )
             
-            for idx, row in df_calls.iterrows():
-                reasons = []
-                if row['duration'] >= LONG_DURATION:
-                    reasons.append(f'Long call ({row["duration"]}s)')
-                if pd.notnull(row['timestamp']):
-                    t = row['timestamp'].time()
-                    if (t.hour >= NIGHT_HOURS[0] or t.hour < NIGHT_HOURS[1]):
-                        reasons.append('Odd hour')
-                if not row.get('contact') or row.get('contact') in ('', 'UNKNOWN', None):
-                    reasons.append('Unknown number')
-                suspicious.append({'idx': idx, 'number': row['number'], 'timestamp': row.get('timestamp'), 'duration': row['duration'], 'reasons': reasons})
+            # Save comms analysis
+            comms_file = os.path.join(artifact_path, "comms_analysis.json")
             
-            if 'number' in df_calls and 'timestamp' in df_calls:
-                df_sorted = df_calls.sort_values(['number', 'timestamp'])
-                for num, group in df_sorted.groupby('number'):
-                    times = group['timestamp'].dropna().sort_values()
-                    for i in range(len(times) - RAPID_REPEAT_MIN + 1):
-                        window = times.iloc[i:i+RAPID_REPEAT_MIN]
-                        if (window.max() - window.min()).total_seconds() <= 3600:
-                            for idx in group.iloc[i:i+RAPID_REPEAT_MIN].index:
-                                suspicious[idx]['reasons'].append('Rapid repeat')
+            with open(comms_file, 'w') as f:
+                json.dump(results, f, indent=2, default=str)
             
-            unknown_counts = df_calls[df_calls.apply(lambda row: not row.get('contact') or row.get('contact') in ('', 'UNKNOWN', None), axis=1)]['number'].value_counts()
-            for num, count in unknown_counts.items():
-                if count >= FREQUENT_UNKNOWN_MIN:
-                    for idx in df_calls[df_calls['number'] == num].index:
-                        suspicious[idx]['reasons'].append(f'Frequent unknown ({count})')
+            logger.info(f"✅ Comms analysis saved to {comms_file}")
             
-            suspicious_df = pd.DataFrame([s for s in suspicious if s['reasons']])
-            if not suspicious_df.empty:
-                _save_intelligence_findings(case_id, 'suspicious_calls', suspicious_df.to_dict('records'))
+            # Also save to results repository
+            ResultsRepository.save(case_id, {"comms_analysis": results})
             
-            # --- Contact Enrichment ---
-            if 'contact' in df_calls.columns:
-                contact_map = df_calls[df_calls['contact'].notna() & (df_calls['contact'] != '')].groupby('number')['contact'].first().to_dict()
-                suspicious_df['contact_name'] = suspicious_df['number'].map(contact_map).fillna('(Unknown)')
-            else:
-                suspicious_df['contact_name'] = '(Unknown)'
-
-            direction_col = next((col for col in ['direction', 'type', 'call_type'] if col in df_calls.columns), None)
-            if direction_col:
-                suspicious_df['direction'] = suspicious_df['idx'].map(df_calls[direction_col])
-            else:
-                suspicious_df['direction'] = 'unknown'
-
-            st.markdown('#### 📊 Call Patterns Visualization')
-            if not df_calls['timestamp'].isnull().all():
-                df_calls['hour'] = df_calls['timestamp'].dt.hour
-                fig1 = px.histogram(df_calls, x='hour', nbins=24, title='Call Count by Hour', labels={'hour':'Hour of Day'})
-                st.plotly_chart(fig1, use_container_width=True)
+            return True
+        except Exception as e:
+            logger.error(f"❌ Error saving comms analysis: {e}")
+            return False
+    
+    def load_analysis_results(self, case_id: str) -> Optional[Dict[str, Any]]:
+        """Load analysis results from artifact storage"""
+        try:
+            artifact_path = ArtifactPathBuilder.resolve(case_id, "analysis")
+            comms_file = os.path.join(artifact_path, "comms_analysis.json")
             
-            fig2 = px.histogram(df_calls, x='duration', nbins=30, title='Call Duration Distribution (seconds)')
-            st.plotly_chart(fig2, use_container_width=True)
-            
-            if not suspicious_df.empty:
-                exploded = suspicious_df.explode('reasons')
-                fig3 = px.histogram(exploded, x='reasons', title='Suspicious Call Reasons')
-                st.plotly_chart(fig3, use_container_width=True)
-
-            if not suspicious_df.empty:
-                all_reasons = set(r for reasons in suspicious_df['reasons'] for r in reasons)
-                selected_reason = st.selectbox('Filter by suspicious reason', ['All'] + sorted(all_reasons), key='reason_filter')
-                filtered_df = suspicious_df
-                if selected_reason != 'All':
-                    filtered_df = suspicious_df[suspicious_df['reasons'].apply(lambda x: selected_reason in x)]
+            if os.path.exists(comms_file):
+                with open(comms_file, 'r') as f:
+                    results = json.load(f)
                 
-                all_directions = suspicious_df['direction'].unique()
-                selected_direction = st.selectbox('Filter by call direction/type', ['All'] + sorted(all_directions), key='dir_filter')
-                if selected_direction != 'All':
-                    filtered_df = filtered_df[filtered_df['direction'] == selected_direction]
-            else:
-                filtered_df = suspicious_df
-
-            if suspicious_df.empty:
-                st.success('No suspicious calls detected based on current rules.')
-            else:
-                filtered_df['reasons_str'] = filtered_df['reasons'].apply(lambda x: ', '.join(set(x)))
-                display_df = filtered_df[['contact_name', 'number', 'timestamp', 'duration', 'direction', 'reasons_str']].copy()
-                display_df.columns = ['Contact Name', 'Phone Number', 'Timestamp', 'Duration (s)', 'Direction', 'Reasons']
-                st.dataframe(display_df, use_container_width=True)
-                
-                st.markdown('#### 📋 Call Details')
-                for idx, row in filtered_df.iterrows():
-                    contact_name = row['contact_name'] or '(Unknown)'
-                    phone_number = row['number']
-                    with st.expander(f"📞 {contact_name} - {phone_number}"):
-                        st.write(f"**Contact:** {contact_name}")
-                        st.write(f"**Number:** {phone_number}")
-                        st.write(f"**Duration:** {row['duration']}s")
-                        st.write(f"**Direction:** {row['direction']}")
-                        st.write(f"**Timestamp:** {row['timestamp']}")
-                        st.write(f"**Reasons:** {row['reasons_str']}")
-                
-                st.download_button('Download Suspicious Calls (CSV)', filtered_df.to_csv(index=False), file_name=f'suspicious_calls_{case_id}.csv')
-                
-                pdf_buffer = io.BytesIO()
-                c = canvas.Canvas(pdf_buffer, pagesize=letter)
-                c.drawString(30, 750, f"Suspicious Calls Report - Case {case_id}")
-                y = 730
-                for idx, row in filtered_df.iterrows():
-                    line = f"{row['timestamp']} | {row['number']} | {row['contact_name']} | {row['duration']}s | {row['direction']} | {row['reasons_str']}"
-                    c.drawString(30, y, line[:120])
-                    y -= 15
-                    if y < 40:
-                        c.showPage()
-                        y = 750
-                c.save()
-                st.download_button('Export PDF Report', pdf_buffer.getvalue(), file_name=f'suspicious_calls_{case_id}.pdf', mime='application/pdf')
-                
-                if 'recording' in df_calls.columns:
-                    st.markdown('#### 🎧 Linked Call Recordings (if available)')
-                    for idx, row in filtered_df.iterrows():
-                        rec_path = df_calls.loc[row['idx']].get('recording')
-                        if rec_path and isinstance(rec_path, str) and rec_path.strip():
-                            st.audio(rec_path, format='audio/wav')
-                            st.caption(f"Recording for call: {row['number']} at {row['timestamp']}")
-
-    # --- Network Graph Tab ---
-    with tabs[3]:
-        st.markdown('### 🕸️ Communication Network Graph')
-        if Network is None:
-            st.error("Pyvis library not installed. Please run: pip install pyvis")
-            return
-
-        if not base_records and not call_records:
-            st.info('No communication data available to build a graph.')
-            return
-
-        if st.button('Generate Network Graph', key=f'generate_net_graph_{case_id}'):
-            with st.spinner('Building communication graph...'):
-                net = create_network_graph(base_records, call_records)
-                try:
-                    net.save_graph('tmp/conversation_graph.html')
-                    with open('tmp/conversation_graph.html', 'r', encoding='utf-8') as f:
-                        html_content = f.read()
-                    components.html(html_content, height=600, scrolling=True)
-                    st.success('Graph generated successfully.')
-                except Exception as e:
-                    st.error(f"Failed to generate or display the graph: {e}")
+                logger.info(f"✅ Comms analysis loaded from {comms_file}")
+                return results
+            
+            return None
+        except Exception as e:
+            logger.error(f"❌ Error loading comms analysis: {e}")
+            return None
 
 
-def create_network_graph(messages: List[Dict[str, Any]], calls: List[Dict[str, Any]]) -> 'Network':
-    """Creates a pyvis network graph from messages and calls."""
-    net = Network(height='600px', width='100%', bgcolor='#222222', font_color='white', notebook=True)
-    net.barnes_hut()
+# ============================================================================
+# MAIN
+# ============================================================================
 
-    contacts = set()
-    edges = Counter()
-
-    for msg in messages:
-        sender = msg.get('sender') or msg.get('address') or msg.get('contact') or 'Unknown'
-        receiver = msg.get('receiver') or 'Device Owner'
-        if sender != 'Unknown':
-            contacts.add(sender)
-            contacts.add(receiver)
-            edges[(sender, receiver)] += 1
-
-    for call in calls:
-        caller = call.get('contact') or call.get('number') or 'Unknown'
-        callee = 'Device Owner'
-        if caller != 'Unknown':
-            contacts.add(caller)
-            contacts.add(callee)
-            edges[(caller, callee)] += 1
-
-    for contact in contacts:
-        net.add_node(contact, label=contact, title=contact)
-
-    for (source, target), weight in edges.items():
-        net.add_edge(source, target, value=weight)
-
-    return net
+if __name__ == "__main__":
+    # Example usage
+    analyzer = CommsAnalyzer()
+    
+    # Test messages
+    test_messages = [
+        {
+            "message": "Click here to verify your bank account immediately!",
+            "phone": "+1-555-0100",
+            "email": "verify@fake-bank.com"
+        },
+        {
+            "message": "I'm going to hurt you",
+            "phone": "+1-555-0200"
+        },
+        {
+            "message": "You won a prize! Send $100 to claim.",
+            "phone": "+1-555-0102"
+        }
+    ]
+    
+    for test in test_messages:
+        print(f"\n{'='*60}")
+        print(f"Analyzing: {test['message']}")
+        print(f"{'='*60}")
+        
+        result = analyzer.analyze_message(
+            message=test["message"],
+            phone=test.get("phone"),
+            email=test.get("email")
+        )
+        
+        print(f"Classification: {result['classification']}")
+        print(f"Combined Risk: {result['risk_scores']['combined_risk']}")
+        print(f"Recommendation: {result['recommendation']}")
+        print(f"Actions: {result['actions']}")
+        print(f"Database Match: {result['database_checks']['phone_match'].get('match', False)}")

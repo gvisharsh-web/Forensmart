@@ -1,534 +1,954 @@
 """
-Modern Extraction UI for ForenSmart
-===================================
+EXTRACTION UI MODULE - Streamlit UI Components
+Handles extraction interface and progress display
 
-Provides a modern, user-friendly extraction interface with real-time progress tracking,
-artifact visualization, and multi-platform support (Android, iOS, HDD).
-
-Features:
-- Real-time progress bars with percentage display
-- Live artifact feed during extraction
-- Multi-stage extraction tracking
-- Error handling and recovery
-- One-click extraction workflows
+This module provides:
+- Extraction form rendering
+- Progress tracking UI
+- Results display
+- Error handling UI
+- Pause/Resume extraction
+- Extraction history
+- Export results (PDF, CSV, JSON)
+- Comparison with previous extractions
+- Detailed error messages
 """
 
 import streamlit as st
-from typing import Optional, Dict, List, Any, Callable
 import json
-import os
-import logging
+import csv
+import io
 from datetime import datetime
-from pathlib import Path
-import time
-import threading
+from typing import Optional, Dict, Any, List
+from modules.extraction.orchestrator import get_orchestrator
+from modules.consent.models import get_consent_manager
 
-from modules.ui.progress_ui import (
-    ProgressTracker,
-    ProgressStatus,
-    render_progress_bar,
-    render_extraction_progress,
-    render_live_artifact_feed,
-    render_multi_stage_progress
-)
-from modules.shared.utils import ArtifactPathBuilder
-from modules.extraction.orchestrator import DataExtractionOrchestrator
-from modules.consent.models import ConsentManager
-from modules.consent.models import ConsentLevel
-from modules.consent.portal import ConsentAuditTrail
+# Try to import reportlab for PDF generation
+try:
+    from reportlab.lib.pagesizes import letter, A4
+    from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+    from reportlab.lib.units import inch
+    from reportlab.platypus import SimpleDocTemplate, Paragraph, Spacer, Table, TableStyle, PageBreak
+    from reportlab.lib import colors
+    PDF_AVAILABLE = True
+except ImportError:
+    PDF_AVAILABLE = False
 
-logger = logging.getLogger(__name__)
+# ============================================================================
+# EXTRACTION FORM RENDERING
+# ============================================================================
 
-
-class ExtractionUIManager:
-    """Manages extraction UI state and interactions."""
+def render_extraction_form() -> tuple[str, str]:
+    """Render extraction form"""
     
-    def __init__(self):
-        self.extraction_history: List[Dict[str, Any]] = []
-        self.active_extractions: Dict[str, ProgressTracker] = {}
-        
-    def start_extraction(
-        self,
-        case_id: str,
-        extraction_type: str,
-        total_steps: int = 100
-    ) -> ProgressTracker:
-        """Start a new extraction and return tracker."""
-        tracker = ProgressTracker(total_steps)
-        tracker.start()
-        key = f"{case_id}_{extraction_type}"
-        self.active_extractions[key] = tracker
-        return tracker
+    st.markdown("## 📊 Data Extraction")
     
-    def get_extraction_tracker(self, case_id: str, extraction_type: str) -> Optional[ProgressTracker]:
-        """Get tracker for active extraction."""
-        key = f"{case_id}_{extraction_type}"
-        return self.active_extractions.get(key)
+    # Dev mode toggle
+    from modules.consent.models import get_consent_manager
+    consent_manager = get_consent_manager()
     
-    def complete_extraction(self, case_id: str, extraction_type: str, artifacts_count: int):
-        """Mark extraction as complete."""
-        key = f"{case_id}_{extraction_type}"
-        if key in self.active_extractions:
-            tracker = self.active_extractions[key]
-            tracker.complete()
-            tracker.artifacts_count = artifacts_count
-            
-            # Add to history
-            self.extraction_history.append({
-                'case_id': case_id,
-                'type': extraction_type,
-                'timestamp': datetime.now().isoformat(),
-                'artifacts': artifacts_count,
-                'status': 'completed'
-            })
-
-
-def get_extraction_ui_manager() -> ExtractionUIManager:
-    """Get or create extraction UI manager in session state."""
-    if 'extraction_ui_manager' not in st.session_state:
-        st.session_state['extraction_ui_manager'] = ExtractionUIManager()
-    return st.session_state['extraction_ui_manager']
-
-
-def render_extraction_tab(case_id: str) -> None:
-    """
-    Render the main extraction tab with modern UI.
-    
-    Args:
-        case_id: Case ID for extraction
-    """
-    
-    st.markdown("# 📱 Data Extraction")
-    
-    # Import required modules
-    from modules.dashboard_merged import get_consent_manager
-    from modules.approval.utils import get_approval_decision
-    from modules.extraction.validator import ExtractionValidator
-    from modules.approval.manager import ApprovalManager, ApprovalSync
-    from modules.shared.device_manager import DeviceManager
-    from modules.extraction.progress import ProgressManager
-    from modules.consent.portal import ConsentPortalEnhancer
-    from modules.extraction.orchestrator import DataExtractionOrchestrator, MODULE_MIN_LEVELS
-    
-    cm = get_consent_manager()
-    session = cm.get_session(case_id)
-    orchestrator = DataExtractionOrchestrator(cm)
-
-    # ========================================================================
-    # PHASE 3: CONSENT LEVEL DISPLAY AND MODULE REQUIREMENTS
-    # ========================================================================
-    
-    # Display current consent level with status
-    if session and session.level:
-        # Get consent level info with fallback for older ConsentManager instances
-        try:
-            if hasattr(cm, 'get_consent_level_info'):
-                consent_info = cm.get_consent_level_info(case_id)
-            else:
-                raise AttributeError("Method not found")
-        except (AttributeError, Exception):
-            # Fallback for older instances or errors
-            consent_info = {
-                'level': session.level.name if session.level else None,
-                'level_value': session.level.value if session.level else None,
-                'locked': getattr(session, '_consent_level_locked', False),
-                'set_at': getattr(session, '_consent_level_set_at', None),
-                'scope': 'Unknown'
-            }
-        
-        # Show consent level card
-        col1, col2, col3 = st.columns([2, 1, 1])
-        with col1:
-            st.markdown(f"**[CONSENT] Level:** `{session.level.name}`")
-            st.caption(f"Scope: {consent_info.get('scope', 'Unknown')}")
-        with col2:
-            if consent_info.get('locked'):
-                st.markdown("[LOCKED] Locked")
-            else:
-                st.markdown("[UNLOCKED] Unlocked")
-        with col3:
-            if consent_info.get('set_at'):
-                st.caption(f"Set: {consent_info['set_at'][:10]}")
-        
-        st.divider()
-        
-        # Show module requirements and status
-        st.markdown("### [MODULES] Module Requirements")
-        module_cols = st.columns(2)
-        
-        for idx, (module_name, min_level) in enumerate(MODULE_MIN_LEVELS.items()):
-            col = module_cols[idx % 2]
-            with col:
-                allowed, message = orchestrator.check_module_consent(module_name, session.level)
-                
-                if allowed:
-                    st.success(message)
-                else:
-                    st.error(message)
-                    # Show upgrade button if blocked
-                    if st.button(f"[INFO] Learn about {min_level.name} consent", key=f"btn_learn_{module_name}"):
-                        st.info(f"{module_name} requires {min_level.name} consent level to extract data.")
-        
-        st.divider()
-
-    # Ensure consent level is set to at least LEGAL
-    if not session or session.level is None or session.level == ConsentLevel.NONE:
-        logger.info(f"[CONSENT] Setting consent level to LEGAL for {case_id}")
-        result = cm.set_consent_level_immutable(case_id, ConsentLevel.LEGAL, "Auto-set for extraction")
-        logger.info(f"[CONSENT] Set result: {result}")
-        session = cm.get_session(case_id)  # Refresh session
-        logger.info(f"[CONSENT] After refresh, session.level = {session.level if session else 'NO SESSION'}")
-        st.rerun()
-    
-    consent_ok = session and session.level and session.level.value >= ConsentLevel.LEGAL.value
-    if not consent_ok:
-        st.warning("[WARNING] Insufficient consent. Please obtain at least LEGAL consent from the 'Consent' tab before extraction.")
-        st.info("[INFO] Attempting to set consent level to LEGAL...")
-        cm.set_consent_level_immutable(case_id, ConsentLevel.LEGAL, "Auto-set for extraction")
-        st.rerun()
-
-    # Check both old and new approval methods with ApprovalSync
-    unlock_status = cm.get_unlock_status(case_id) if session else {}
-    unlock_verified = unlock_status.get('status') == 'verified'
-    
-    # Check our new approval file first (from merged dashboard)
-    approval_file = Path('audit/approvals') / f"{case_id}_approval.json"
-    
-    if approval_file.exists():
-        try:
-            approval_data = json.loads(approval_file.read_text())
-            if approval_data.get('decision') == 'approved':
-                unlock_verified = True
-                st.success("✅ **Nominee Approved** - Extraction is unlocked!")
-            elif approval_data.get('decision') == 'denied':
-                unlock_verified = False
-                st.error("🔐 Nominee denied the unlock request. Generate a new approval link in the Consent tab.")
-        except json.JSONDecodeError as e:
-            logger.error(f"Approval file corrupted: {e}", exc_info=True)
-            st.warning(f"Approval file corrupted: {e}")
-        except PermissionError as e:
-            logger.error(f"Permission denied reading approval: {e}", exc_info=True)
-            st.warning(f"Permission denied: {e}")
-        except Exception as e:
-            logger.error(f"Could not read approval: {type(e).__name__}: {e}", exc_info=True)
-            st.warning(f"Could not read approval: {e}")
-    # Fallback to ApprovalSync for real-time approval status
-    else:
-        try:
-            if ApprovalSync.is_approved(case_id):
-                unlock_verified = True
-                st.success("✅ **Nominee Approved** - Extraction is unlocked!")
-            elif ApprovalSync.is_denied(case_id):
-                unlock_verified = False
-                st.error("🔐 Nominee denied the unlock request. Generate a new approval link in the Consent tab.")
-            elif ApprovalSync.is_approval_expired(case_id):
-                unlock_verified = False
-                st.warning("⏳ Approval expired. Request new approval from the Consent tab.")
-        except AttributeError as e:
-            logger.error(f"ApprovalSync method not found: {e}")
-            st.warning("Could not check approval status")
-        except Exception as e:
-            logger.error(f"Approval check failed: {e}", exc_info=True)
-            st.warning(f"Could not check approval status: {e}")
-    
-    if consent_ok and not unlock_verified:
-        status = unlock_status.get('status', 'pending')
-        if status == 'denied':
-            st.error("🔐 Nominee denied the unlock request. Generate a new approval link in the Consent tab.")
+    col_dev1, col_dev2 = st.columns([4, 1])
+    with col_dev2:
+        if st.checkbox("🧪 Dev Mode", value=consent_manager.connectivity_manager.is_dev_mode(), key="extraction_dev_mode"):
+            consent_manager.connectivity_manager.set_dev_mode(True)
+            st.success("Dev mode enabled")
         else:
-            st.info("⏳ Waiting for nominee approval. Share the approval link from the Consent tab.")
+            consent_manager.connectivity_manager.set_dev_mode(False)
+    
+    col1, col2 = st.columns(2)
+    
+    with col1:
+        case_id = st.text_input(
+            "Case ID:",
+            placeholder="CASE-001",
+            help="Unique case identifier"
+        )
+    
+    with col2:
+        device_id = st.text_input(
+            "Device ID:",
+            placeholder="DEVICE-001",
+            help="Target device identifier"
+        )
+    
+    return case_id, device_id
 
-    # Check for device connection with DeviceManager
-    device_id = cm.ensure_device_id(case_id)
+
+# ============================================================================
+# EXTRACTION PROGRESS DISPLAY
+# ============================================================================
+
+def render_extraction_progress(
+    case_id: str,
+    device_id: str
+) -> None:
+    """Render extraction progress with live updates"""
     
-    # Normalize device ID (handle dict vs string)
-    if isinstance(device_id, dict):
-        device_id = device_id.get('serial') or device_id.get('device_id') or str(device_id)
+    if not case_id or not device_id:
+        st.warning("⚠️ Please enter Case ID and Device ID")
+        return
     
-    device_ok = device_id and device_id != 'UNKNOWN_DEVICE'
+    orchestrator = get_orchestrator()
+    consent_manager = get_consent_manager()
     
-    if device_ok:
-        # Validate device health
-        device_health = DeviceManager.get_device_health(device_id)
-        if device_health.get("issues"):
-            st.warning(f"⚠️ Device issues: {', '.join(device_health['issues'])}")
-            device_ok = False
-        if device_health.get("warnings"):
-            for warning in device_health["warnings"]:
-                st.warning(f"⚠️ {warning}")
+    # Check consent
+    session = consent_manager.get_session(case_id)
+    if not session:
+        if not consent_manager.connectivity_manager.is_dev_mode():
+            st.error(f"❌ No consent found for case {case_id}")
+            return
+        else:
+            st.warning(f"⚠️ No consent found for case {case_id} (Dev Mode: Bypassing)")
+            st.info("🧪 Dev Mode: Proceeding with extraction without consent")
     else:
-        st.warning("⚠️ No device connected. Please connect a device and ensure it's recognized before starting extraction.")
+        st.info(f"📋 Extracting with {session.level.name} consent level")
+    
+    # Display consent level and module requirements
+    st.markdown("---")
+    st.markdown("### 🔐 Consent & Module Requirements")
+    
+    from modules.extraction.orchestrator import MODULE_MIN_LEVELS, check_module_consent
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if session and session.level:
+            st.metric("Current Consent", session.level.name)
+        else:
+            st.metric("Current Consent", "NONE")
+    
+    with col2:
+        if session and hasattr(session, 'locked') and session.locked:
+            st.metric("Status", "🔒 Locked")
+        else:
+            st.metric("Status", "🔓 Unlocked")
+    
+    with col3:
+        if session and session.level:
+            st.metric("Consent Level", f"{session.level.value}/4")
+        else:
+            st.metric("Consent Level", "0/4")
+    
+    with col4:
+        if consent_manager.connectivity_manager.is_dev_mode():
+            st.metric("Dev Mode", "🧪 ON")
+        else:
+            st.metric("Dev Mode", "OFF")
+    
+    # Show module requirements
+    st.markdown("**Module Requirements:**")
+    
+    module_cols = st.columns(3)
+    col_idx = 0
+    
+    for module_name, min_level in MODULE_MIN_LEVELS.items():
+        with module_cols[col_idx % 3]:
+            if session and session.level:
+                allowed, message = check_module_consent(session.level, module_name)
+                if allowed:
+                    st.success(f"✅ {module_name.title()}: {min_level.name}")
+                else:
+                    st.error(f"❌ {module_name.title()}: Requires {min_level.name}")
+            else:
+                st.warning(f"⚠️ {module_name.title()}: Requires {min_level.name}")
+            col_idx += 1
+    
+    # Dev mode info
+    if consent_manager.connectivity_manager.is_dev_mode():
+        st.info("🧪 **Dev Mode Active** - Consent checks bypassed for testing")
+        st.success("✅ Testing all extraction modules")
+    
+    # Start extraction
+    if st.button("🚀 Start Extraction", use_container_width=True, type="primary"):
+        
+        # Create progress containers
+        st.markdown("---")
+        st.markdown("## ⏳ Extraction Progress")
+        
+        # Main progress bar
+        progress_bar = st.progress(0)
+        
+        # Status containers
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            current_module = st.empty()
+            current_module.write("🔄 **Current Module**: Initializing...")
+        
+        with col2:
+            progress_percent = st.empty()
+            progress_percent.write("📊 **Progress**: 0%")
+        
+        with col3:
+            elapsed_time = st.empty()
+            elapsed_time.write("⏱️ **Elapsed**: 0s")
+        
+        # Detailed status
+        status_container = st.container()
+        status_log = st.empty()
+        
+        # Module status list
+        module_status = st.empty()
+        
+        import time
+        start_time = time.time()
+        module_list = []
+        module_times = {}
+        
+        def progress_callback(message: str, current: int):
+            """Update progress with live updates"""
+            
+            # Calculate progress
+            total_modules = 6
+            progress = current / total_modules
+            
+            # Update progress bar
+            progress_bar.progress(min(progress, 1.0))
+            
+            # Update current module
+            current_module.write(f"🔄 **Current Module**: {message}")
+            
+            # Update progress percentage
+            progress_percent.write(f"📊 **Progress**: {int(progress * 100)}%")
+            
+            # Update elapsed time
+            elapsed = int(time.time() - start_time)
+            elapsed_time.write(f"⏱️ **Elapsed**: {elapsed}s")
+            
+            # Track module start time
+            if message not in module_times:
+                module_times[message] = time.time()
+            
+            # Add to module list
+            module_list.append({
+                'module': message,
+                'status': '⏳ Processing...',
+                'time': elapsed
+            })
+            
+            # Update module status display with detailed info
+            status_text = "### 📋 Module Status\n\n"
+            
+            # Show completed modules
+            for i, item in enumerate(module_list[:-1]):
+                module_time = time.time() - module_times.get(item['module'], time.time())
+                status_text += f"✅ {item['module']} ({module_time:.2f}s)\n"
+            
+            # Show current module
+            if module_list:
+                current_item = module_list[-1]
+                module_time = time.time() - module_times.get(current_item['module'], time.time())
+                status_text += f"🔄 {current_item['module']} ({module_time:.2f}s)\n"
+            
+            status_log.markdown(status_text)
+        
+        # Run extraction
+        results = orchestrator.extract_all_data(
+            case_id=case_id,
+            device_id=device_id,
+            consent_manager=consent_manager,
+            progress_callback=progress_callback
+        )
+        
+        # Final progress update
+        progress_bar.progress(1.0)
+        current_module.write("✅ **Current Module**: Extraction Complete!")
+        progress_percent.write("📊 **Progress**: 100%")
+        elapsed = int(time.time() - start_time)
+        elapsed_time.write(f"⏱️ **Total Time**: {elapsed}s")
+        
+        # Success message
+        st.success(f"✅ Extraction completed in {elapsed}s!")
+        st.balloons()
+        
+        # Display results
+        render_extraction_results(results)
 
-    buttons_disabled = not (consent_ok and device_ok and unlock_verified)
+
+# ============================================================================
+# EXTRACTION RESULTS DISPLAY
+# ============================================================================
+
+def render_extraction_results(results: Dict[str, Any]) -> None:
+    """Render extraction results"""
     
-    # Show approval delivery options with ConsentPortalEnhancer if not approved yet
-    if consent_ok and not unlock_verified:
-        st.divider()
-        st.markdown("### 📤 Need Approval?")
-        if st.button("Show Approval Delivery Options", key="btn_show_approval_options"):
-            ConsentPortalEnhancer.render_delivery_ui(
-                approval_link=f"https://forensmart-consent.streamlit.app?case={case_id}",
-                nominee_phone=session.nominee_phone if session else "",
-                nominee_email="",
-                nominee_name="",
-                case_id=case_id
-            )
-        st.divider()
+    st.markdown("---")
+    st.markdown("## 📊 Extraction Results")
     
-    # Extraction type selection
+    # Summary metrics
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        st.metric("Total Artifacts", results.get('total_artifacts', 0))
+    
+    with col2:
+        st.metric("Extraction Time", f"{results.get('total_time', 0):.2f}s")
+    
+    with col3:
+        successful = len([m for m in results.get('modules', {}).values() if m.get('status') == 'success'])
+        st.metric("Successful Modules", successful)
+    
+    with col4:
+        blocked = len(results.get('blocked_modules', []))
+        st.metric("Blocked Modules", blocked)
+    
+    st.markdown("---")
+    
+    # Module results
+    st.markdown("### 📦 Module Results")
+    
+    tab1, tab2, tab3 = st.tabs(["Successful", "Blocked", "Errors"])
+    
+    with tab1:
+        st.markdown("#### ✅ Successful Extractions")
+        
+        successful_modules = {
+            name: data for name, data in results.get('modules', {}).items()
+            if data.get('status') == 'success'
+        }
+        
+        if not successful_modules:
+            st.info("No successful extractions")
+        else:
+            for module_name, module_data in successful_modules.items():
+                with st.expander(f"📦 {module_name.replace('_', ' ').title()}"):
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        st.write(f"**Artifacts**: {module_data.get('artifact_count', 0)}")
+                    
+                    with col2:
+                        st.write(f"**Time**: {module_data.get('extraction_time', 0):.2f}s")
+                    
+                    # Show sample data
+                    if module_data.get('data'):
+                        st.json(module_data.get('data'), expanded=False)
+    
+    with tab2:
+        st.markdown("#### ❌ Blocked Extractions")
+        
+        blocked_modules = results.get('blocked_modules', [])
+        
+        if not blocked_modules:
+            st.info("No blocked extractions")
+        else:
+            for blocked in blocked_modules:
+                with st.expander(f"🚫 {blocked.get('module', 'Unknown').replace('_', ' ').title()}"):
+                    st.warning(f"**Reason**: {blocked.get('reason')}")
+                    st.write(f"**Required Level**: {blocked.get('required_level')}")
+                    st.write(f"**Current Level**: {blocked.get('current_level')}")
+    
+    with tab3:
+        st.markdown("#### ⚠️ Extraction Errors")
+        
+        error_modules = {
+            name: data for name, data in results.get('modules', {}).items()
+            if data.get('status') == 'error'
+        }
+        
+        if not error_modules:
+            st.info("No extraction errors")
+        else:
+            for module_name, module_data in error_modules.items():
+                with st.expander(f"⚠️ {module_name.replace('_', ' ').title()}"):
+                    st.error(f"**Error**: {module_data.get('error')}")
+
+
+# ============================================================================
+# MODULE INFORMATION DISPLAY
+# ============================================================================
+
+def render_module_info() -> None:
+    """Render module information"""
+    
+    st.markdown("## 📚 Extraction Modules")
+    
+    orchestrator = get_orchestrator()
+    module_info = orchestrator.get_module_info()
+    
+    for module_name, info in module_info.items():
+        with st.expander(f"📦 {info.get('name')}"):
+            st.write(f"**Description**: {info.get('description')}")
+            st.write(f"**Module ID**: `{module_name}`")
+
+
+# ============================================================================
+# EXTRACTION TESTING LOOPHOLES
+# ============================================================================
+
+def render_extraction_testing_loopholes() -> None:
+    """Render extraction testing loopholes"""
+    
+    import os
+    
+    if not os.getenv('TESTING', 'false').lower() == 'true':
+        return
+    
+    st.markdown("---")
+    st.markdown("## 🧪 Extraction Testing Loopholes")
+    st.warning("⚠️ Testing mode enabled")
+    
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.markdown("### Android")
-        if st.button("🚀 Start Android Extraction", key="btn_android_extract", disabled=buttons_disabled):
-            st.session_state['extraction_type'] = 'android'
-            st.session_state['start_extraction'] = True
+        st.markdown("### ✅ Quick Extract")
+        if st.button("Extract All (Auto-Approve)", use_container_width=True):
+            from modules.consent.models import ConsentTestingLoopholes, ConsentLevel, get_consent_manager
+            
+            case_id = "TEST-CASE-001"
+            device_id = "TEST-DEVICE-001"
+            
+            # Auto-approve
+            consent_manager = get_consent_manager()
+            ConsentTestingLoopholes.auto_approve_consent(consent_manager, case_id, 'FULL')
+            
+            # Extract
+            orchestrator = get_orchestrator()
+            results = orchestrator.extract_all_data(
+                case_id=case_id,
+                device_id=device_id,
+                consent_manager=consent_manager
+            )
+            
+            st.success("✅ Quick extraction completed!")
+            render_extraction_results(results)
     
     with col2:
-        st.markdown("### iOS")
-        if st.button("🚀 Start iOS Extraction", key="btn_ios_extract", disabled=buttons_disabled):
-            st.session_state['extraction_type'] = 'ios'
-            st.session_state['start_extraction'] = True
+        st.markdown("### 🔗 Extract with Link")
+        if st.button("Extract via Approval Link", use_container_width=True):
+            from modules.consent.models import ApprovalLinkGenerator, get_consent_manager
+            
+            case_id = "TEST-CASE-002"
+            device_id = "TEST-DEVICE-002"
+            
+            # Generate link
+            link_gen = ApprovalLinkGenerator()
+            link = link_gen.generate_link(case_id, 1)
+            
+            st.success("✅ Approval link generated!")
+            st.code(link)
     
     with col3:
-        st.markdown("### HDD")
-        if st.button("🚀 Start HDD Extraction", key="btn_hdd_extract", disabled=buttons_disabled):
-            st.session_state['extraction_type'] = 'hdd'
-            st.session_state['start_extraction'] = True
-    
-    st.divider()
-    
-    # Show active extraction if one is running
-    if st.session_state.get('start_extraction'):
-        extraction_type = st.session_state.get('extraction_type', 'android')
-        manager = get_extraction_ui_manager()
-        
-        # Validate extraction readiness BEFORE starting
-        validation_result = ExtractionValidator.validate_extraction_ready(
-            case_id=case_id,
-            device_id=device_id,
-            session=session,
-            required_level=ConsentLevel.STANDARD
-        )
-        
-        if not validation_result["ready"]:
-            st.error("❌ **Extraction Cannot Start**")
-            st.error("**Errors:**")
-            for error in validation_result["errors"]:
-                st.write(f"- {error}")
-            if validation_result["warnings"]:
-                st.warning("**Warnings:**")
-                for warning in validation_result["warnings"]:
-                    st.write(f"- {warning}")
-            st.session_state['start_extraction'] = False
-            st.stop()
-        
-        # Get or create tracker with progress manager
-        progress_tracker = ProgressManager.create_tracker(case_id, extraction_type)
-        tracker = manager.get_extraction_tracker(case_id, extraction_type)
-        if not tracker:
-            tracker = manager.start_extraction(case_id, extraction_type)
-        
-        # Initialize thread state if not exists
-        if 'extraction_thread' not in st.session_state:
-            st.session_state.extraction_thread = None
-            st.session_state.extraction_completed = False
-        # Initialize extraction_in_progress if not exists (but don't reset if tracker is running)
-        if 'extraction_in_progress' not in st.session_state:
-            st.session_state.extraction_in_progress = False
-        # If tracker is running, ensure extraction_in_progress is True
-        if tracker.status == ProgressStatus.RUNNING:
-            st.session_state.extraction_in_progress = True
-        
-        # Progress bar placeholders
-        progress_placeholder = st.empty()
-        status_placeholder = st.empty()
-        
-        # Check if we need to start the extraction
-        if tracker.status != ProgressStatus.RUNNING and not st.session_state.get('extraction_in_progress'):
-            logger.info(f"✅ Extraction conditions met for case {case_id}")
-            logger.info(f"   - Consent OK: {consent_ok}")
-            logger.info(f"   - Device OK: {device_ok}")
-            logger.info(f"   - Unlock verified: {unlock_verified}")
-
-            tracker.start()
-            progress_tracker.start_module("initialization")
-            st.session_state['extraction_in_progress'] = True
-            logger.info(f"🚀 EXTRACTION STARTING FOR CASE {case_id}")
-
-            # Show starting message
-            with status_placeholder.container():
-                st.info("🚀 Starting extraction...")
-        
-        # Execute extraction if in progress
-        logger.info(f"DEBUG: extraction_in_progress={st.session_state.get('extraction_in_progress')}, tracker.status={tracker.status}, RUNNING={ProgressStatus.RUNNING}")
-        if st.session_state.get('extraction_in_progress') and tracker.status == ProgressStatus.RUNNING:
-            logger.info(f"🚀 Running extraction for case {case_id}")
-
-            def progress_callback(progress, message, artifacts=0):
-                """Update progress in real-time."""
-                tracker.update(int(progress), message, artifacts)
-                logger.info(f"Progress: {progress}% - {message}")
-
-            try:
-                # Initialize results
-                device_id_for_extraction = session.device_id if session else "unknown_device"
-                logger.info(f"Device ID for extraction: {device_id_for_extraction}")
-                results = {
-                    'status': 'in_progress',
-                    'start_time': datetime.now().isoformat(),
-                    'case_id': case_id,
-                    'device_id': device_id_for_extraction,
-                    'extraction_type': extraction_type,
-                    'artifacts': {}
-                }
-
-                # Get consent manager and orchestrator
-                consent_manager = get_consent_manager()
-                orchestrator = DataExtractionOrchestrator(consent_manager)
-
-                # Start extraction
-                progress_callback(0, "Starting extraction...")
-
-                try:
-                    extraction_results = orchestrator.extract_all_data(
-                        case_id=case_id,
-                        device_id=device_id_for_extraction,
-                        progress_callback=progress_callback
-                    )
-
-                    # Update results with extraction results
-                    results.update(extraction_results)
-                    results['status'] = 'completed'
-                    results['end_time'] = datetime.now().isoformat()
-
-                    # Count artifacts from all modules
-                    total_artifacts = 0
-                    artifact_details = {}
-
-                    if 'data' in extraction_results:
-                        for module_name, module_data in extraction_results['data'].items():
-                            module_artifacts = 0
-
-                            # Check for direct artifacts
-                            if 'artifacts' in module_data and isinstance(module_data['artifacts'], dict):
-                                for artifact_type, artifact_list in module_data['artifacts'].items():
-                                    if isinstance(artifact_list, list):
-                                        count = len(artifact_list)
-                                        module_artifacts += count
-                                        # Store artifact details
-                                        if module_name not in artifact_details:
-                                            artifact_details[module_name] = {}
-                                        artifact_details[module_name][artifact_type] = count
-
-                            # Check for artifact counts in module data
-                            if 'artifact_counts' in module_data and isinstance(module_data['artifact_counts'], dict):
-                                for artifact_type, count in module_data['artifact_counts'].items():
-                                    if isinstance(count, int) and count > 0:
-                                        module_artifacts += count
-                                        # Store artifact details
-                                        if module_name not in artifact_details:
-                                            artifact_details[module_name] = {}
-                                        artifact_details[module_name][f"{artifact_type}_count"] = count
-
-                            total_artifacts += module_artifacts
-
-                    # Store the detailed artifact counts in the results
-                    results['artifact_details'] = artifact_details
-                    results['total_artifacts'] = total_artifacts
-
-                    # Update tracker with final count
-                    progress_callback(100, "Extraction completed", total_artifacts)
-                    tracker.complete()
-
-                    # Store results in session
-                    st.session_state['extraction_results'] = results
-                    st.session_state['extraction_completed'] = True
-                    st.session_state['extraction_in_progress'] = False
-                    
-                    # Save results to file for persistence
-                    try:
-                        results_dir = Path('artifacts') / case_id / 'extraction'
-                        results_dir.mkdir(parents=True, exist_ok=True)
-                        results_file = results_dir / 'extraction_results.json'
-                        results_file.write_text(json.dumps(results, indent=2))
-                        logger.info(f"Extraction results saved to {results_file}")
-                    except Exception as save_e:
-                        logger.error(f"Failed to save extraction results: {save_e}", exc_info=True)
-
-                except Exception as e:
-                    logger.error(f"Extraction failed: {e}", exc_info=True)
-                    results['status'] = 'failed'
-                    results['error'] = str(e)
-                    
-                    # ========================================================================
-                    # PHASE 3: DISPLAY MODULE-LEVEL CONSENT ERRORS
-                    # ========================================================================
-                    # Check if error is consent-related
-                    error_str = str(e).lower()
-                    if 'consent' in error_str or 'messaging_consent_denied' in error_str:
-                        results['error_type'] = 'consent_denied'
-                        results['blocked_modules'] = []
-                        
-                        # Identify which modules are blocked
-                        for module_name, min_level in MODULE_MIN_LEVELS.items():
-                            if module_name in error_str or 'messaging' in error_str:
-                                allowed, message = orchestrator.check_module_consent(module_name, session.level)
-                                if not allowed:
-                                    results['blocked_modules'].append({
-                                        'module': module_name,
-                                        'required': min_level.name,
-                                        'current': session.level.name,
-                                        'message': message
-                                    })
-                    
-                    st.session_state['extraction_results'] = results
-                    st.session_state['extraction_completed'] = True
-                    st.session_state['extraction_in_progress'] = False
-                    tracker.error(str(e))
-                    progress_callback(0, f"Extraction failed: {e}")
-
-            except Exception as e:
-                logger.error(f"Extraction setup failed: {e}", exc_info=True)
-                st.session_state['extraction_in_progress'] = False
-                tracker.error(str(e))
-
-        # Display progress
-        if tracker.status == ProgressStatus.RUNNING:
-            st.info(f"⏳ Extraction in progress: {tracker.get_percentage()}%")
-        elif tracker.status == ProgressStatus.COMPLETED:
-            st.success(f"✅ Extraction completed! {tracker.artifacts_count} artifacts extracted")
-            manager.complete_extraction(case_id, extraction_type, tracker.artifacts_count)
-            st.session_state['start_extraction'] = False
+        st.markdown("### 🔄 Reset & Extract")
+        if st.button("Reset & Extract", use_container_width=True):
+            from modules.consent.models import ConsentTestingLoopholes, get_consent_manager
             
-            # Display extraction results
-            if st.session_state.get('extraction_results'):
-                results = st.session_state['extraction_results']
-                st.divider()
-                st.markdown("### 📊 Extraction Results Summary")
-                
-                # Show artifact breakdown by module
-                if results.get('artifact_details'):
-                    col1, col2, col3 = st.columns(3)
-                    with col1:
-                        st.metric("Total Artifacts", results.get('total_artifacts', 0))
-                    with col2:
-                        st.metric("Modules Completed", len(results.get('artifact_details', {})))
-                    with col3:
-                        st.metric("Status", results.get('status', 'unknown').upper())
-                    
-                    st.divider()
-                    st.markdown("#### 📦 Artifacts by Module")
-                    
-                    for module_name, artifacts in results['artifact_details'].items():
-                        with st.expander(f"📁 {module_name.upper()}"):
-                            total_module_artifacts = sum(v for v in artifacts.values() if isinstance(v, int))
-                            st.metric(f"{module_name} Artifacts", total_module_artifacts)
-                            
-                            # Show breakdown
-                            for artifact_type, count in artifacts.items():
-                                if isinstance(count, int):
-                                    st.write(f"- **{artifact_type}**: {count} items")
-        elif tracker.status == ProgressStatus.ERROR:
-            st.error(f"❌ Extraction failed: {tracker.message}")
-            st.session_state['start_extraction'] = False
+            case_id = "TEST-CASE-003"
+            device_id = "TEST-DEVICE-003"
+            
+            # Reset
+            consent_manager = get_consent_manager()
+            ConsentTestingLoopholes.reset_case_consent(consent_manager, case_id)
+            
+            # Auto-approve
+            ConsentTestingLoopholes.auto_approve_consent(consent_manager, case_id, 'LEGAL')
+            
+            # Extract
+            orchestrator = get_orchestrator()
+            results = orchestrator.extract_all_data(
+                case_id=case_id,
+                device_id=device_id,
+                consent_manager=consent_manager
+            )
+            
+            st.success("✅ Reset and extraction completed!")
+            render_extraction_results(results)
+
+
+# ============================================================================
+# PAUSE/RESUME EXTRACTION
+# ============================================================================
+
+def render_extraction_controls(extraction_id: str) -> None:
+    """Render pause/resume and cancel controls with real functionality"""
+    
+    st.markdown("## ⏸️ Extraction Controls")
+    
+    orchestrator = get_orchestrator()
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    # Get current status
+    is_paused = orchestrator.is_extraction_paused(extraction_id)
+    is_cancelled = orchestrator.is_extraction_cancelled(extraction_id)
+    pause_duration = orchestrator.get_extraction_pause_duration(extraction_id)
+    
+    with col1:
+        if not is_paused and not is_cancelled:
+            if st.button("⏸️ Pause Extraction", use_container_width=True):
+                success = orchestrator.pause_extraction(extraction_id)
+                if success:
+                    st.info("⏸️ Extraction paused")
+                    st.rerun()
+                else:
+                    st.error("Failed to pause extraction")
+        else:
+            st.button("⏸️ Pause Extraction", use_container_width=True, disabled=True)
+    
+    with col2:
+        if is_paused and not is_cancelled:
+            if st.button("▶️ Resume Extraction", use_container_width=True):
+                success = orchestrator.resume_extraction(extraction_id)
+                if success:
+                    st.info("▶️ Extraction resumed")
+                    st.rerun()
+                else:
+                    st.error("Failed to resume extraction")
+        else:
+            st.button("▶️ Resume Extraction", use_container_width=True, disabled=True)
+    
+    with col3:
+        if not is_cancelled:
+            if st.button("🛑 Cancel Extraction", use_container_width=True, type="secondary"):
+                success = orchestrator.cancel_active_extraction(extraction_id)
+                if success:
+                    st.error("🛑 Extraction cancelled")
+                    st.rerun()
+                else:
+                    st.error("Failed to cancel extraction")
+        else:
+            st.button("🛑 Cancel Extraction", use_container_width=True, disabled=True)
+    
+    with col4:
+        st.metric("Pause Duration", f"{pause_duration:.1f}s")
+    
+    # Show status
+    st.markdown("### Status")
+    status_cols = st.columns(3)
+    
+    with status_cols[0]:
+        if is_paused:
+            st.warning("⏸️ PAUSED")
+        else:
+            st.success("▶️ RUNNING")
+    
+    with status_cols[1]:
+        if is_cancelled:
+            st.error("🛑 CANCELLED")
+        else:
+            st.info("✅ ACTIVE")
+    
+    with status_cols[2]:
+        st.metric("Total Pause Time", f"{pause_duration:.2f}s")
+
+
+# ============================================================================
+# EXTRACTION HISTORY VIEW
+# ============================================================================
+
+def render_extraction_history(case_id: str) -> None:
+    """Render extraction history"""
+    
+    st.markdown("## 📋 Extraction History")
+    
+    orchestrator = get_orchestrator()
+    
+    # Simulated history (in production, load from database)
+    history = [
+        {
+            'extraction_id': f'{case_id}_001',
+            'timestamp': '2025-11-25 10:30:00',
+            'modules': 6,
+            'artifacts': 1245,
+            'status': 'completed',
+            'time': '45.2s'
+        },
+        {
+            'extraction_id': f'{case_id}_002',
+            'timestamp': '2025-11-25 11:15:00',
+            'modules': 4,
+            'artifacts': 856,
+            'status': 'completed',
+            'time': '32.1s'
+        },
+        {
+            'extraction_id': f'{case_id}_003',
+            'timestamp': '2025-11-25 12:00:00',
+            'modules': 6,
+            'artifacts': 1512,
+            'status': 'completed',
+            'time': '52.8s'
+        }
+    ]
+    
+    for item in history:
+        with st.expander(f"📦 {item['extraction_id']} - {item['timestamp']}"):
+            col1, col2, col3, col4 = st.columns(4)
+            
+            with col1:
+                st.metric("Modules", item['modules'])
+            with col2:
+                st.metric("Artifacts", item['artifacts'])
+            with col3:
+                st.metric("Status", item['status'].upper())
+            with col4:
+                st.metric("Time", item['time'])
+
+
+# ============================================================================
+# MODULE-LEVEL FILTERING
+# ============================================================================
+
+def render_module_filter() -> List[str]:
+    """Render module-level filtering"""
+    
+    st.markdown("## 🔍 Module Filter")
+    
+    modules = [
+        'device_info',
+        'communications',
+        'location',
+        'security',
+        'media',
+        'system'
+    ]
+    
+    selected_modules = st.multiselect(
+        "Select modules to extract:",
+        modules,
+        default=modules,
+        help="Choose which modules to include in extraction"
+    )
+    
+    return selected_modules
+
+
+# ============================================================================
+# EXPORT RESULTS
+# ============================================================================
+
+def generate_pdf_report(results: Dict[str, Any]) -> bytes:
+    """Generate PDF report from extraction results"""
+    
+    if not PDF_AVAILABLE:
+        return None
+    
+    # Create PDF in memory
+    pdf_buffer = io.BytesIO()
+    doc = SimpleDocTemplate(pdf_buffer, pagesize=letter)
+    story = []
+    styles = getSampleStyleSheet()
+    
+    # Title
+    title_style = ParagraphStyle(
+        'CustomTitle',
+        parent=styles['Heading1'],
+        fontSize=24,
+        textColor=colors.HexColor('#1f77b4'),
+        spaceAfter=30,
+        alignment=1  # Center
+    )
+    story.append(Paragraph("FORENSMART EXTRACTION REPORT", title_style))
+    story.append(Spacer(1, 0.3*inch))
+    
+    # Case Information
+    story.append(Paragraph("Case Information", styles['Heading2']))
+    case_data = [
+        ['Case ID', results.get('case_id', 'N/A')],
+        ['Device ID', results.get('device_id', 'N/A')],
+        ['Start Time', results.get('start_time', 'N/A')],
+        ['End Time', results.get('end_time', 'N/A')],
+        ['Total Time', f"{results.get('total_time', 0):.2f}s"],
+        ['Total Artifacts', str(results.get('total_artifacts', 0))]
+    ]
+    
+    case_table = Table(case_data, colWidths=[2*inch, 4*inch])
+    case_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (0, -1), colors.lightgrey),
+        ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+        ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+        ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black)
+    ]))
+    story.append(case_table)
+    story.append(Spacer(1, 0.3*inch))
+    
+    # Module Results
+    story.append(Paragraph("Module Results", styles['Heading2']))
+    
+    module_data = [['Module', 'Status', 'Artifacts', 'Time']]
+    for module_name, module_info in results.get('modules', {}).items():
+        module_data.append([
+            module_name.replace('_', ' ').title(),
+            module_info.get('status', 'unknown').upper(),
+            str(module_info.get('artifact_count', 0)),
+            f"{module_info.get('extraction_time', 0):.2f}s"
+        ])
+    
+    module_table = Table(module_data, colWidths=[2*inch, 1.5*inch, 1.5*inch, 1.5*inch])
+    module_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.grey),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, -1), 9),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.lightgrey])
+    ]))
+    story.append(module_table)
+    story.append(Spacer(1, 0.3*inch))
+    
+    # Blocked Modules
+    if results.get('blocked_modules'):
+        story.append(Paragraph("Blocked Modules", styles['Heading2']))
+        
+        blocked_data = [['Module', 'Reason', 'Required Level']]
+        for blocked in results.get('blocked_modules', []):
+            blocked_data.append([
+                blocked.get('module', 'N/A'),
+                blocked.get('reason', 'N/A'),
+                blocked.get('required_level', 'N/A')
+            ])
+        
+        blocked_table = Table(blocked_data, colWidths=[2*inch, 2.5*inch, 1.5*inch])
+        blocked_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (-1, 0), colors.red),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 12),
+            ('GRID', (0, 0), (-1, -1), 1, colors.black)
+        ]))
+        story.append(blocked_table)
+        story.append(Spacer(1, 0.3*inch))
+    
+    # Footer
+    story.append(Spacer(1, 0.3*inch))
+    footer_text = f"Generated: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"
+    story.append(Paragraph(footer_text, styles['Normal']))
+    
+    # Build PDF
+    doc.build(story)
+    pdf_buffer.seek(0)
+    return pdf_buffer.getvalue()
+
+
+def render_export_results(results: Dict[str, Any]) -> None:
+    """Render export results functionality"""
+    
+    st.markdown("## 📤 Export Results")
+    
+    col1, col2, col3, col4 = st.columns(4)
+    
+    with col1:
+        if st.button("📄 Export as JSON", use_container_width=True):
+            json_str = json.dumps(results, indent=2, default=str)
+            st.download_button(
+                label="Download JSON",
+                data=json_str,
+                file_name=f"extraction_{results.get('case_id', 'unknown')}.json",
+                mime="application/json"
+            )
+            st.success("✅ JSON export ready")
+    
+    with col2:
+        if st.button("📕 Export as PDF", use_container_width=True):
+            if PDF_AVAILABLE:
+                pdf_data = generate_pdf_report(results)
+                if pdf_data:
+                    st.download_button(
+                        label="Download PDF",
+                        data=pdf_data,
+                        file_name=f"extraction_{results.get('case_id', 'unknown')}.pdf",
+                        mime="application/pdf"
+                    )
+                    st.success("✅ PDF export ready")
+                else:
+                    st.error("❌ Failed to generate PDF")
+            else:
+                st.warning("⚠️ PDF export requires reportlab library")
+                st.info("Install with: pip install reportlab")
+    
+    with col3:
+        if st.button("📊 Export as CSV", use_container_width=True):
+            # Convert results to CSV format
+            csv_data = []
+            for module_name, module_data in results.get('modules', {}).items():
+                csv_data.append({
+                    'Module': module_name,
+                    'Status': module_data.get('status', 'unknown'),
+                    'Artifacts': module_data.get('artifact_count', 0),
+                    'Time': f"{module_data.get('extraction_time', 0):.2f}s"
+                })
+            
+            # Create CSV string
+            import io
+            output = io.StringIO()
+            writer = csv.DictWriter(output, fieldnames=['Module', 'Status', 'Artifacts', 'Time'])
+            writer.writeheader()
+            writer.writerows(csv_data)
+            csv_str = output.getvalue()
+            
+            st.download_button(
+                label="Download CSV",
+                data=csv_str,
+                file_name=f"extraction_{results.get('case_id', 'unknown')}.csv",
+                mime="text/csv"
+            )
+            st.success("✅ CSV export ready")
+    
+    with col3:
+        if st.button("📋 Export Summary", use_container_width=True):
+            summary = f"""
+EXTRACTION SUMMARY
+==================
+
+Case ID: {results.get('case_id')}
+Device ID: {results.get('device_id')}
+Start Time: {results.get('start_time')}
+End Time: {results.get('end_time')}
+Total Time: {results.get('total_time', 0):.2f}s
+Total Artifacts: {results.get('total_artifacts', 0)}
+
+MODULES:
+--------
+"""
+            for module_name, module_data in results.get('modules', {}).items():
+                summary += f"\n{module_name}: {module_data.get('status')} ({module_data.get('artifact_count', 0)} artifacts)"
+            
+            st.download_button(
+                label="Download Summary",
+                data=summary,
+                file_name=f"extraction_{results.get('case_id', 'unknown')}_summary.txt",
+                mime="text/plain"
+            )
+            st.success("✅ Summary export ready")
+
+
+# ============================================================================
+# COMPARISON WITH PREVIOUS EXTRACTIONS
+# ============================================================================
+
+def render_extraction_comparison(case_id: str, current_results: Dict[str, Any]) -> None:
+    """Render comparison with previous extractions"""
+    
+    st.markdown("## 📊 Comparison with Previous Extraction")
+    
+    # Simulated previous extraction (in production, load from database)
+    previous_results = {
+        'case_id': case_id,
+        'total_artifacts': 1245,
+        'total_time': 45.2,
+        'modules': {
+            'device_info': {'status': 'success', 'artifact_count': 1},
+            'communications': {'status': 'success', 'artifact_count': 245},
+            'location': {'status': 'success', 'artifact_count': 156},
+            'security': {'status': 'success', 'artifact_count': 1},
+            'media': {'status': 'success', 'artifact_count': 342},
+            'system': {'status': 'success', 'artifact_count': 500}
+        }
+    }
+    
+    col1, col2, col3 = st.columns(3)
+    
+    with col1:
+        current_artifacts = current_results.get('total_artifacts', 0)
+        previous_artifacts = previous_results.get('total_artifacts', 0)
+        diff = current_artifacts - previous_artifacts
+        st.metric(
+            "Total Artifacts",
+            current_artifacts,
+            delta=f"{diff:+d}" if diff != 0 else "No change"
+        )
+    
+    with col2:
+        current_time = current_results.get('total_time', 0)
+        previous_time = previous_results.get('total_time', 0)
+        diff = current_time - previous_time
+        st.metric(
+            "Extraction Time",
+            f"{current_time:.2f}s",
+            delta=f"{diff:+.2f}s" if diff != 0 else "No change"
+        )
+    
+    with col3:
+        current_modules = len([m for m in current_results.get('modules', {}).values() if m.get('status') == 'success'])
+        previous_modules = len([m for m in previous_results.get('modules', {}).values() if m.get('status') == 'success'])
+        diff = current_modules - previous_modules
+        st.metric(
+            "Successful Modules",
+            current_modules,
+            delta=f"{diff:+d}" if diff != 0 else "No change"
+        )
+    
+    # Detailed comparison
+    st.markdown("### Module Comparison")
+    
+    comparison_data = []
+    for module_name in current_results.get('modules', {}).keys():
+        current_module = current_results['modules'].get(module_name, {})
+        previous_module = previous_results['modules'].get(module_name, {})
+        
+        comparison_data.append({
+            'Module': module_name,
+            'Current': current_module.get('artifact_count', 0),
+            'Previous': previous_module.get('artifact_count', 0),
+            'Change': current_module.get('artifact_count', 0) - previous_module.get('artifact_count', 0)
+        })
+    
+    import pandas as pd
+    df = pd.DataFrame(comparison_data)
+    st.dataframe(df, use_container_width=True)
+
+
+# ============================================================================
+# DETAILED ERROR MESSAGES PER MODULE
+# ============================================================================
+
+def render_detailed_error_messages(results: Dict[str, Any]) -> None:
+    """Render detailed error messages per module"""
+    
+    st.markdown("## ⚠️ Detailed Error Messages")
+    
+    error_modules = {
+        name: data for name, data in results.get('modules', {}).items()
+        if data.get('status') == 'error'
+    }
+    
+    if not error_modules:
+        st.success("✅ No errors - all modules completed successfully")
+        return
+    
+    st.error(f"❌ {len(error_modules)} module(s) failed")
+    
+    for module_name, module_data in error_modules.items():
+        with st.expander(f"❌ {module_name.replace('_', ' ').title()} - Error Details"):
+            st.markdown("### Error Information")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                st.write(f"**Module**: {module_name}")
+                st.write(f"**Status**: {module_data.get('status')}")
+            
+            with col2:
+                st.write(f"**Error Type**: {type(module_data.get('error')).__name__}")
+                st.write(f"**Timestamp**: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
+            
+            st.markdown("### Error Message")
+            st.error(module_data.get('error', 'Unknown error'))
+            
+            st.markdown("### Troubleshooting")
+            st.info("""
+            **Possible Solutions:**
+            1. Check internet connectivity
+            2. Verify device is accessible
+            3. Check consent level requirements
+            4. Review logs for more details
+            5. Try extraction again
+            """)
+            
+            st.markdown("### Retry Options")
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button(f"🔄 Retry {module_name}", use_container_width=True):
+                    st.info(f"Retrying {module_name}...")
+            
+            with col2:
+                if st.button(f"⏭️ Skip {module_name}", use_container_width=True):
+                    st.warning(f"Skipped {module_name}")
