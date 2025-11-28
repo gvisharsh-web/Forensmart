@@ -2113,6 +2113,7 @@ def render_enhanced_sidebar():
             ("📊 Dashboard", "dashboard"),
             ("📁 Cases", "cases"),
             ("🚀 Extraction", "extraction"),
+            ("🔐 Consent Approval", "consent_approval"),
             ("🧠 Intelligence", "intelligence"),
             ("📊 Reports", "reports"),
             ("🤖 Automation", "automation"),
@@ -2444,6 +2445,172 @@ def render_main_page():
     elif st.session_state.current_page == 'help':
         st.markdown("### ❓ Help & Documentation")
         st.info("Help page coming soon")
+    
+    elif st.session_state.current_page == 'consent_approval':
+        render_consent_approval_page()
+
+# ============================================================================
+# CONSENT APPROVAL PAGE
+# ============================================================================
+
+def render_consent_approval_page():
+    """Render consent approval page with case details"""
+    
+    st.markdown('<div class="main-header">🔐 Consent Approval</div>', unsafe_allow_html=True)
+    
+    st.markdown("---")
+    
+    # Get case ID from URL or session
+    case_id = st.query_params.get("case_id", None)
+    
+    if not case_id and st.session_state.cases_list:
+        st.markdown("### 📋 Select Case for Approval")
+        case_names = [f"{c['Case ID']} - {c['Case Name']}" for c in st.session_state.cases_list]
+        selected_case = st.selectbox("Choose case to approve:", case_names, key="approval_case_select")
+        case_id = selected_case.split(" - ")[0]
+    
+    # Find case details
+    case_details = None
+    if case_id:
+        for case in st.session_state.cases_list:
+            if case['Case ID'] == case_id:
+                case_details = case
+                break
+    
+    if case_details:
+        # Show case details
+        st.markdown("### 📋 Case Details")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.write(f"**Case ID:** {case_details['Case ID']}")
+            st.write(f"**Case Name:** {case_details['Case Name']}")
+            st.write(f"**Device:** {case_details.get('Device', 'N/A')}")
+            st.write(f"**Created:** {case_details.get('Created', 'N/A')}")
+        
+        with col2:
+            st.write(f"**Investigator:** {case_details.get('Investigator', 'N/A')}")
+            st.write(f"**Status:** {case_details.get('Status', 'N/A')}")
+            st.write(f"**Device ID:** {case_details.get('Device ID', 'N/A')}")
+            st.write(f"**Findings:** {case_details.get('Findings', 0)}")
+        
+        if case_details.get('Description'):
+            st.markdown("**Description:**")
+            st.write(case_details['Description'])
+        
+        st.markdown("---")
+        
+        # Consent approval form
+        st.markdown("### ✅ Approval Process")
+        
+        # Consent level selection
+        st.markdown("**Select Consent Level:**")
+        
+        consent_level = st.radio(
+            "What level of consent do you approve?",
+            ["STANDARD", "LEGAL", "FULL"],
+            horizontal=True,
+            help="""
+            - STANDARD: Device info, Location, Media
+            - LEGAL: STANDARD + Communications
+            - FULL: All data including System logs
+            """
+        )
+        
+        st.markdown("---")
+        
+        # Approval method
+        st.markdown("**Approval Method:**")
+        
+        approval_method = st.selectbox(
+            "How would you like to approve?",
+            ["PIN", "Pattern", "Biometric", "Email", "SMS", "Manual"]
+        )
+        
+        if approval_method == "PIN":
+            pin = st.text_input("Enter PIN:", type="password", key="approval_pin")
+            if pin:
+                st.info(f"PIN entered: {'*' * len(pin)}")
+        
+        elif approval_method == "Pattern":
+            st.info("Pattern approval: Draw pattern on device")
+            pattern = st.text_input("Pattern (e.g., 1-2-3-6-9):", key="approval_pattern")
+            if pattern:
+                st.info(f"Pattern entered: {pattern}")
+        
+        elif approval_method == "Biometric":
+            st.info("Biometric approval: Use fingerprint or face recognition")
+            biometric_type = st.selectbox("Biometric type:", ["Fingerprint", "Face Recognition"])
+            st.info(f"Biometric type: {biometric_type}")
+        
+        elif approval_method == "Email":
+            email = st.text_input("Nominee email:", key="approval_email")
+            if email:
+                st.info(f"Approval link will be sent to: {email}")
+        
+        elif approval_method == "SMS":
+            phone = st.text_input("Nominee phone:", key="approval_phone")
+            if phone:
+                st.info(f"Approval link will be sent to: {phone}")
+        
+        else:  # Manual
+            st.info("Manual approval: Investigator approves on behalf of nominee")
+            reason = st.text_area("Reason for approval:", key="approval_reason")
+        
+        st.markdown("---")
+        
+        # Legal acceptance
+        st.markdown("**Legal Acceptance:**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            accept_consent = st.checkbox(
+                "I accept the consent level and approve extraction",
+                key="accept_consent"
+            )
+        
+        with col2:
+            accept_legal = st.checkbox(
+                "I understand the legal implications",
+                key="accept_legal"
+            )
+        
+        st.markdown("---")
+        
+        # Approval buttons
+        col1, col2, col3 = st.columns(3)
+        
+        with col1:
+            if st.button("✅ Approve", use_container_width=True, type="primary"):
+                if accept_consent and accept_legal:
+                    # Update case status
+                    for case in st.session_state.cases_list:
+                        if case['Case ID'] == case_id:
+                            case['Status'] = 'Approved'
+                            st.session_state.consent_approved = True
+                            break
+                    
+                    st.success("✅ Consent approved successfully!")
+                    st.info(f"📋 Case {case_id} is now ready for extraction")
+                    st.info(f"🔐 Consent Level: {consent_level}")
+                else:
+                    st.error("❌ Please accept both checkboxes to approve")
+        
+        with col2:
+            if st.button("❌ Reject", use_container_width=True):
+                st.warning("⚠️ Consent rejected")
+                st.info("The investigator will be notified of the rejection")
+        
+        with col3:
+            if st.button("⏸️ Defer", use_container_width=True):
+                st.info("⏳ Approval deferred")
+                st.info("You can approve this case later")
+    
+    else:
+        st.warning("⚠️ No case selected")
+        st.info("Please select a case from the Cases tab or provide a case ID")
 
 # ============================================================================
 # EXTRACTION WORKFLOW GUIDE
