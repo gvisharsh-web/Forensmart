@@ -1108,6 +1108,103 @@ def render_extraction_workflow():
                 
                 st.markdown("---")
                 
+                # Show data preview for each module
+                st.markdown("### 👁️ Data Preview")
+                
+                preview_tabs = st.tabs(["Device Info", "Communications", "Location", "Media", "Security"])
+                
+                # Device Info Preview
+                with preview_tabs[0]:
+                    device_module = results.get('modules', {}).get('device_info', {})
+                    if device_module.get('status') == 'completed':
+                        device_data = device_module.get('data', {})
+                        st.success(f"✅ Device Info: {device_module.get('files', 0)} items")
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            st.write(f"**Device ID**: {device_data.get('device_id', 'N/A')}")
+                            st.write(f"**Model**: {device_data.get('model', 'N/A')}")
+                            st.write(f"**Android Version**: {device_data.get('android_version', 'N/A')}")
+                        with col2:
+                            st.write(f"**IMEI**: {device_data.get('imei', 'N/A')}")
+                            st.write(f"**Serial**: {device_data.get('serial_number', 'N/A')}")
+                            st.write(f"**Phone**: {device_data.get('phone_number', 'N/A')}")
+                    else:
+                        st.warning(f"⚠️ Device Info not extracted")
+                
+                # Communications Preview
+                with preview_tabs[1]:
+                    comms_module = results.get('modules', {}).get('communications', {})
+                    if comms_module.get('status') == 'completed':
+                        comms_data = comms_module.get('data', {})
+                        st.success(f"✅ Communications: {comms_module.get('files', 0)} items")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("SMS", comms_data.get('sms_count', 0))
+                        with col2:
+                            st.metric("Calls", comms_data.get('call_logs_count', 0))
+                        with col3:
+                            st.metric("WhatsApp", comms_data.get('whatsapp_messages', 0))
+                        with col4:
+                            st.metric("Emails", comms_data.get('email_count', 0))
+                    else:
+                        st.warning(f"⚠️ Communications not extracted")
+                
+                # Location Preview
+                with preview_tabs[2]:
+                    location_module = results.get('modules', {}).get('location', {})
+                    if location_module.get('status') == 'completed':
+                        location_data = location_module.get('data', {})
+                        st.success(f"✅ Location: {location_module.get('files', 0)} items")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("GPS Records", location_data.get('gps_records', 0))
+                        with col2:
+                            st.metric("WiFi", location_data.get('wifi_locations', 0))
+                        with col3:
+                            st.metric("Cell Towers", location_data.get('cell_tower_records', 0))
+                        with col4:
+                            st.metric("Timeline", location_data.get('google_timeline', 0))
+                    else:
+                        st.warning(f"⚠️ Location not extracted")
+                
+                # Media Preview
+                with preview_tabs[3]:
+                    media_module = results.get('modules', {}).get('media', {})
+                    if media_module.get('status') == 'completed':
+                        media_data = media_module.get('data', {})
+                        st.success(f"✅ Media: {media_module.get('files', 0)} items")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Photos", media_data.get('photos', 0))
+                        with col2:
+                            st.metric("Videos", media_data.get('videos', 0))
+                        with col3:
+                            st.metric("Audio", media_data.get('audio_files', 0))
+                        with col4:
+                            st.metric("Documents", media_data.get('documents', 0))
+                    else:
+                        st.warning(f"⚠️ Media not extracted")
+                
+                # Security Preview
+                with preview_tabs[4]:
+                    security_module = results.get('modules', {}).get('security', {})
+                    if security_module.get('status') == 'completed':
+                        security_data = security_module.get('data', {})
+                        st.success(f"✅ Security: {security_module.get('files', 0)} items")
+                        col1, col2, col3, col4 = st.columns(4)
+                        with col1:
+                            st.metric("Apps", security_data.get('installed_apps', 0))
+                        with col2:
+                            st.metric("Permissions", security_data.get('app_permissions', 0))
+                        with col3:
+                            st.metric("Biometric", security_data.get('biometric_data', 0))
+                        with col4:
+                            st.metric("Logs", security_data.get('security_logs', 0))
+                    else:
+                        st.warning(f"⚠️ Security: {security_module.get('reason', 'Not extracted')}")
+                
+                st.markdown("---")
+                
                 # Show extraction log
                 st.markdown("### 📋 Extraction Log")
                 
@@ -3690,24 +3787,81 @@ def render_consent_workflow_guide():
             st.write(f"**{level}**: {description}")
 
 # ============================================================================
-# MAIN APPLICATION
+# ============================================================================
+# MAIN APPLICATION ENTRY POINT
 # ============================================================================
 
-def main():
-    """Main application entry point with Phase 6 integration"""
+def initialize_session_state():
+    """Initialize all session state variables"""
+    defaults = {
+        'current_page': 'dashboard',
+        'cases_list': [],
+        'selected_device': None,
+        'selected_modules': {},
+        'consent_approved': False,
+        'consent_level': 'STANDARD',
+        'approval_method': 'PIN',
+        'extraction_in_progress': False,
+        'extraction_completed': False,
+        'extraction_results': None,
+        'case_id': None
+    }
     
-    # Use new frontend with enhanced sidebar and page router
+    for key, value in defaults.items():
+        if key not in st.session_state:
+            st.session_state[key] = value
+
+
+def configure_page():
+    """Configure Streamlit page settings"""
+    st.set_page_config(
+        page_title="ForenSmart - Digital Forensics Platform",
+        page_icon="🔍",
+        layout="wide",
+        initial_sidebar_state="expanded"
+    )
+    
+    # Apply custom CSS
+    st.markdown("""
+    <style>
+    .main-header {
+        font-size: 2.5rem;
+        font-weight: bold;
+        color: #FF6B35;
+        margin-bottom: 1rem;
+    }
+    .section-header {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #004E89;
+        margin-bottom: 0.5rem;
+    }
+    </style>
+    """, unsafe_allow_html=True)
+
+
+def main():
+    """Main application entry point"""
+    
+    # Configure page
+    configure_page()
+    
+    # Initialize session state
+    initialize_session_state()
+    
+    # Render main page with routing
     render_main_page()
     
-    # Footer with phase info
+    # Footer
     st.markdown("---")
     col1, col2, col3 = st.columns(3)
     with col1:
-        st.caption("🔍 Forensmart v1.0.0")
+        st.caption("🔍 ForenSmart v1.0.0")
     with col2:
-        st.caption("Phase 6: Wiring & Integration ✅")
+        st.caption("✅ Extraction & Intelligence Module")
     with col3:
         st.caption("© 2025 Digital Forensics")
+
 
 if __name__ == "__main__":
     main()
