@@ -654,6 +654,7 @@ def render_extraction_workflow():
                         "C:\\Android\\sdk\\platform-tools\\adb.exe",
                         os.path.expanduser("~\\Android\\Sdk\\platform-tools\\adb.exe"),
                         "C:\\Program Files\\Android\\Android Studio\\sdk\\platform-tools\\adb.exe",
+                        os.path.expanduser("~\\AppData\\Local\\Microsoft\\WinGet\\Packages\\Google.PlatformTools_Microsoft.Winget.Source_8wekyb3d8bbwe\\platform-tools\\adb.exe"),
                     ]
                     for path in common_paths:
                         if os.path.exists(path):
