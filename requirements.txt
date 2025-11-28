@@ -16,6 +16,7 @@ streamlit-folium>=0.15.0
 googlemaps>=4.10.0
 qrcode>=7.4.0
 pillow>=10.0.0
+opencv-python>=4.8.0
 
 # PDF & Reporting
 reportlab>=4.0.0
