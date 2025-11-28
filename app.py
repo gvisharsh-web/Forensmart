@@ -2517,6 +2517,23 @@ def render_main_page():
     if 'current_page' not in st.session_state:
         st.session_state.current_page = 'dashboard'
     
+    # Initialize cases_list if not set
+    if 'cases_list' not in st.session_state:
+        st.session_state.cases_list = []
+    
+    # Initialize other session state variables
+    if 'selected_device' not in st.session_state:
+        st.session_state.selected_device = None
+    
+    if 'selected_modules' not in st.session_state:
+        st.session_state.selected_modules = []
+    
+    if 'consent_approved' not in st.session_state:
+        st.session_state.consent_approved = False
+    
+    if 'extraction_in_progress' not in st.session_state:
+        st.session_state.extraction_in_progress = False
+    
     # Render enhanced sidebar
     render_enhanced_sidebar()
     
