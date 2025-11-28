@@ -16,11 +16,11 @@ from typing import Dict, List
 from datetime import datetime
 
 # Import UI components
-from ui_device_selector import render_device_selector
-from ui_extraction_progress import render_extraction_progress
-from ui_extraction_results import render_extraction_results
-from ui_consent_check import render_consent_check, show_consent_summary
-from ui_module_selector import render_module_selector
+from .ui_device_selector import render_device_selector
+from .ui_extraction_progress import render_extraction_progress
+from .ui_extraction_results import render_extraction_results
+from .ui_consent_check import render_consent_check, show_consent_summary
+from .ui_module_selector import render_module_selector
 
 
 def render_extraction_page() -> None:
