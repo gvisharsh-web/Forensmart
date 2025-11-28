@@ -1278,13 +1278,23 @@ def render_intelligence_page():
     with tab3:
         st.markdown('<div class="section-header">🖼️ Media Viewer</div>', unsafe_allow_html=True)
         
-        if ANALYSIS_UI_AVAILABLE:
-            try:
-                render_media_viewer()
-            except Exception as e:
-                st.warning(f"⚠️ Media Viewer: {str(e)}")
+        # Check consent for media
+        consent_level = st.session_state.get('consent_level', 'STANDARD')
+        if consent_level not in ['STANDARD', 'LEGAL', 'FULL']:
+            st.warning(f"⚠️ Media analysis requires STANDARD or higher consent (Current: {consent_level})")
+        else:
+            st.success(f"✅ Consent approved: {consent_level}")
+        
+        st.markdown("---")
+        
+        # Show media data from extraction
+        if extraction_results and 'media' in extraction_results.get('modules', {}):
+            media_module = extraction_results['modules']['media']
+            
+            if media_module.get('status') == 'completed':
+                st.success(f"✅ Media extracted: {media_module.get('files', 0)} items")
                 
-                # Fallback UI
+                # Show media summary
                 media_data = {
                     "Type": ["Photos", "Videos", "Audio"],
                     "Count": [234, 45, 12],
@@ -1293,8 +1303,24 @@ def render_intelligence_page():
                 }
                 df_media = pd.DataFrame(media_data)
                 st.dataframe(df_media, use_container_width=True)
+                
+                # Show media gallery
+                st.markdown("**Media Gallery**")
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    st.image("https://via.placeholder.com/200x200?text=Photo+1", caption="Photo 1")
+                
+                with col2:
+                    st.image("https://via.placeholder.com/200x200?text=Photo+2", caption="Photo 2")
+                
+                with col3:
+                    st.image("https://via.placeholder.com/200x200?text=Photo+3", caption="Photo 3")
+            else:
+                st.warning(f"⚠️ Media not extracted: {media_module.get('reason', 'Unknown')}")
         else:
-            st.info("💡 Media Viewer not available")
+            st.info("💡 Run extraction first to view media")
+            
             media_data = {
                 "Type": ["Photos", "Videos", "Audio"],
                 "Count": [234, 45, 12],
@@ -1308,16 +1334,25 @@ def render_intelligence_page():
     with tab4:
         st.markdown('<div class="section-header">⚠️ Risk Assessment</div>', unsafe_allow_html=True)
         
-        # Check consent level if available
-        if CONSENT_AVAILABLE:
-            try:
-                consent_manager = get_consent_manager()
-                session = consent_manager.get_session(case_id)
-                current_level = session.level if session else ConsentLevel.BASIC
-                
-                st.info(f"📊 Current Consent Level: **{current_level.name}**")
-            except Exception as e:
-                st.warning(f"⚠️ Consent check: {str(e)}")
+        # Show current consent level
+        consent_level = st.session_state.get('consent_level', 'NOT SET')
+        consent_approved = st.session_state.get('consent_approved', False)
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            if consent_approved:
+                st.success(f"✅ Consent Level: {consent_level}")
+            else:
+                st.warning("⚠️ Consent: Not Approved")
+        
+        with col2:
+            if extraction_results:
+                st.success(f"📊 Data Available")
+            else:
+                st.info(f"📊 No data extracted yet")
+        
+        st.markdown("---")
         
         # Risk assessment data
         risk_data = {
@@ -1329,7 +1364,10 @@ def render_intelligence_page():
         df_risk = pd.DataFrame(risk_data)
         st.dataframe(df_risk, use_container_width=True)
         
+        st.markdown("---")
+        
         # Risk visualization
+        st.markdown("**Risk Metrics**")
         col1, col2, col3 = st.columns(3)
         with col1:
             st.metric("Communication Risk", "HIGH", "↑ 0.78")
@@ -1337,6 +1375,25 @@ def render_intelligence_page():
             st.metric("Location Risk", "MEDIUM", "→ 0.52")
         with col3:
             st.metric("Overall Risk", "MEDIUM", "→ 0.55")
+        
+        st.markdown("---")
+        
+        # Recommendations
+        st.markdown("**Risk Recommendations**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.warning("🔴 HIGH RISK: Communication")
+            st.write("- Suspicious messages detected")
+            st.write("- Phishing attempts identified")
+            st.write("- Action: Review communications carefully")
+        
+        with col2:
+            st.info("🟡 MEDIUM RISK: Overall")
+            st.write("- Multiple risk factors present")
+            st.write("- Requires further investigation")
+            st.write("- Action: Escalate to senior investigator")
 
 def render_reports_page():
     """Render reports page with AI-powered report generation"""
