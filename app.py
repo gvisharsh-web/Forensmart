@@ -466,44 +466,53 @@ def render_cases_page():
         
         else:  # Detect connected device
             st.markdown("**Connected Device Detection**")
+            st.info("💡 **Note**: Since this is a web app, direct device detection is limited. Please enter your device ID manually or use auto-generate option.")
             
-            # Simulate device detection
-            detection_method = st.selectbox(
-                "Detection Method",
-                ["USB", "Network (ADB)", "WiFi", "Manual Entry"]
-            )
+            st.markdown("**Enter Your Device Information**")
             
-            if st.button("🔍 Scan for Connected Devices", use_container_width=True):
-                with st.spinner("Scanning for connected devices..."):
-                    import time
-                    time.sleep(1)
-                    
-                    # Simulated device detection
-                    detected_devices = {
-                        "USB": ["iPhone-A1B2C3D4E5F6", "Samsung-Galaxy-S21-ABC123"],
-                        "Network (ADB)": ["192.168.1.100:5555", "192.168.1.101:5555"],
-                        "WiFi": ["iPhone-WiFi-ABC123", "Android-WiFi-XYZ789"],
-                        "Manual Entry": []
-                    }
-                    
-                    devices = detected_devices.get(detection_method, [])
-                    
-                    if devices:
-                        st.success(f"✅ Found {len(devices)} device(s)")
-                        selected_device = st.selectbox(
-                            "Select device:",
-                            devices,
-                            key="detected_device"
-                        )
-                        device_id = selected_device
-                        st.info(f"📱 Selected Device ID: **{device_id}**")
-                    else:
-                        st.warning("⚠️ No devices detected. Please enter manually.")
-                        device_id = st.text_input(
-                            "Device ID",
-                            placeholder="Enter device ID manually",
-                            key="manual_fallback_device_id"
-                        )
+            # Try to detect devices via ADB if available
+            try:
+                import subprocess
+                result = subprocess.run(
+                    ["adb", "devices"],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                adb_output = result.stdout
+                
+                # Parse ADB output
+                devices_list = []
+                for line in adb_output.split('\n')[1:]:
+                    if line.strip() and 'device' in line:
+                        device_info = line.split()[0]
+                        if device_info and device_info != 'List':
+                            devices_list.append(device_info)
+                
+                if devices_list:
+                    st.success(f"✅ Found {len(devices_list)} connected device(s) via ADB")
+                    selected_device = st.selectbox(
+                        "Select your connected device:",
+                        devices_list,
+                        key="adb_detected_device"
+                    )
+                    device_id = selected_device
+                    st.info(f"📱 Selected Device ID: **{device_id}**")
+                else:
+                    st.warning("⚠️ No ADB devices detected.")
+                    device_id = st.text_input(
+                        "Enter your Device ID manually",
+                        placeholder="e.g., emulator-5554 or your device serial number",
+                        key="manual_device_id_detect"
+                    )
+            except:
+                # ADB not available - show manual entry
+                st.warning("⚠️ ADB not available. Please enter your device ID manually.")
+                device_id = st.text_input(
+                    "Enter your Device ID",
+                    placeholder="e.g., your device serial number, IMEI, or custom ID",
+                    key="manual_device_id_fallback"
+                )
         
         description = st.text_area("Case Description", placeholder="Enter case details...")
         
