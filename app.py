@@ -2342,6 +2342,165 @@ def render_main_page():
         st.info("Help page coming soon")
 
 # ============================================================================
+# CONSENT WORKFLOW GUIDE
+# ============================================================================
+
+def render_consent_workflow_guide():
+    """Render consent workflow guide for users"""
+    st.markdown('<div class="main-header">🔐 Consent Workflow Guide</div>', unsafe_allow_html=True)
+    
+    st.markdown("""
+    ## How Consent Works in ForenSmart
+    
+    The consent process is **independent of device detection**. Here's how it works:
+    """)
+    
+    tab1, tab2, tab3 = st.tabs(["📋 Workflow", "❓ FAQ", "⚙️ Settings"])
+    
+    with tab1:
+        st.markdown("### Consent Process Flow")
+        
+        st.markdown("""
+        **Step 1: Create Case**
+        - Create a new case with case name and investigator info
+        - Device ID can be auto-generated or manual
+        - Device ID is just for reference, not required for consent
+        
+        **Step 2: Set Consent Level**
+        - **STANDARD**: Device info, Location, Media
+        - **LEGAL**: All STANDARD + Communications
+        - **FULL**: All data including System logs
+        
+        **Step 3: Get Approval**
+        - Nominee receives approval link
+        - Nominee approves via PIN/Pattern/Biometric
+        - Approval is tied to Case ID, not device
+        
+        **Step 4: Extract Data**
+        - Extraction proceeds based on approved consent level
+        - Only approved modules are extracted
+        - Artifacts are routed based on consent level
+        
+        **Step 5: Generate Report**
+        - Report includes only approved data
+        - Compliance with consent level maintained
+        """)
+        
+        st.markdown("---")
+        
+        st.markdown("### Key Points")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.success("✅ **Consent is Case-Based**")
+            st.write("Tied to Case ID, not device ID")
+            
+            st.success("✅ **Device ID is Optional**")
+            st.write("Can be auto-generated or manual")
+            
+            st.success("✅ **Works Offline**")
+            st.write("Consent approval can be done offline")
+        
+        with col2:
+            st.success("✅ **Secure**")
+            st.write("Digital signature support")
+            
+            st.success("✅ **Flexible**")
+            st.write("Multiple approval methods")
+            
+            st.success("✅ **Auditable**")
+            st.write("Complete audit trail maintained")
+    
+    with tab2:
+        st.markdown("### Frequently Asked Questions")
+        
+        with st.expander("❓ What if device is not detected?"):
+            st.write("""
+            **No problem!** You can:
+            1. Auto-generate a device ID
+            2. Enter a custom device ID manually
+            3. Use device serial number if available
+            
+            The consent process doesn't require device detection.
+            """)
+        
+        with st.expander("❓ Can I proceed without device ID?"):
+            st.write("""
+            **Yes!** Device ID is optional. You can:
+            1. Leave it blank and auto-generate
+            2. Enter any identifier you prefer
+            3. Update it later if needed
+            
+            Consent is tied to Case ID, not device ID.
+            """)
+        
+        with st.expander("❓ How does consent work without device connection?"):
+            st.write("""
+            **Consent is independent of device connection:**
+            1. Create case (device optional)
+            2. Set consent level
+            3. Send approval link to nominee
+            4. Nominee approves (can be done offline)
+            5. Approval is stored with case
+            6. When device connects later, extraction uses stored consent
+            """)
+        
+        with st.expander("❓ What if nominee is not available?"):
+            st.write("""
+            **Multiple approval methods available:**
+            1. PIN approval
+            2. Pattern approval
+            3. Biometric approval
+            4. Email approval link
+            5. SMS approval
+            6. In-person approval
+            
+            Choose the method that works best for your case.
+            """)
+        
+        with st.expander("❓ Can I change consent level later?"):
+            st.write("""
+            **Yes!** You can:
+            1. Request higher consent level
+            2. Send new approval link
+            3. Nominee approves new level
+            4. Extraction updates accordingly
+            
+            Audit trail tracks all consent changes.
+            """)
+    
+    with tab3:
+        st.markdown("### Consent Settings")
+        
+        st.markdown("**Approval Methods**")
+        
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            st.checkbox("📱 PIN Approval", value=True)
+            st.checkbox("🔲 Pattern Approval", value=True)
+            st.checkbox("👆 Biometric Approval", value=True)
+        
+        with col2:
+            st.checkbox("📧 Email Approval", value=True)
+            st.checkbox("💬 SMS Approval", value=True)
+            st.checkbox("🤝 In-Person Approval", value=True)
+        
+        st.markdown("---")
+        
+        st.markdown("**Consent Levels**")
+        
+        consent_levels = {
+            "STANDARD": "Device info, Location, Media",
+            "LEGAL": "STANDARD + Communications",
+            "FULL": "All data including System logs"
+        }
+        
+        for level, description in consent_levels.items():
+            st.write(f"**{level}**: {description}")
+
+# ============================================================================
 # MAIN APPLICATION
 # ============================================================================
 
