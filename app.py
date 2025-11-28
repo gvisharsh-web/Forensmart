@@ -2698,9 +2698,14 @@ def render_consent_approval_page():
                     
                     img = qr.make_image(fill_color="black", back_color="white")
                     
+                    # Convert PIL Image to bytes for Streamlit
+                    img_bytes = BytesIO()
+                    img.save(img_bytes, format='PNG')
+                    img_bytes.seek(0)
+                    
                     # Display QR code
                     st.markdown("**QR Code for Approval:**")
-                    st.image(img, width=200)
+                    st.image(img_bytes, width=200)
                     
                     # WhatsApp message
                     whatsapp_message = f"""
