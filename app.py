@@ -867,6 +867,7 @@ def render_extraction_workflow():
             st.info(f"📋 Selected: {st.session_state.selected_device}")
             
             # Find and show case details
+            case_found = False
             for case in st.session_state.cases_list:
                 if case['Case ID'] == st.session_state.selected_device:
                     col1, col2, col3 = st.columns(3)
@@ -876,15 +877,64 @@ def render_extraction_workflow():
                         st.write(f"**Device:** {case.get('Device', 'N/A')}")
                     with col3:
                         st.write(f"**Status:** {case['Status']}")
+                    case_found = True
                     break
             
             st.markdown("---")
             
-            try:
-                render_consent_check()
-            except Exception as e:
-                st.warning(f"⚠️ Consent check: {str(e)}")
-                st.info("💡 Generate approval link and send to nominee")
+            # Consent approval form
+            st.markdown("### ✅ Approve Consent")
+            
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                consent_level = st.radio(
+                    "Consent Level:",
+                    ["STANDARD", "LEGAL", "FULL"],
+                    horizontal=True
+                )
+            
+            with col2:
+                approval_method = st.selectbox(
+                    "Approval Method:",
+                    ["Manual", "PIN", "Biometric"]
+                )
+            
+            st.markdown("---")
+            
+            # Approval checkbox
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                accept_consent = st.checkbox(
+                    "I accept the consent level",
+                    key="consent_accept"
+                )
+            
+            with col2:
+                accept_legal = st.checkbox(
+                    "I understand legal implications",
+                    key="consent_legal"
+                )
+            
+            st.markdown("---")
+            
+            # Approve button
+            col1, col2 = st.columns(2)
+            
+            with col1:
+                if st.button("✅ Approve Consent", use_container_width=True, type="primary"):
+                    if accept_consent and accept_legal:
+                        st.session_state.consent_approved = True
+                        st.success(f"✅ Consent approved for {st.session_state.selected_device}")
+                        st.info(f"🔐 Consent Level: {consent_level}")
+                    else:
+                        st.error("❌ Please accept both checkboxes")
+            
+            with col2:
+                if st.button("❌ Reject Consent", use_container_width=True):
+                    st.session_state.consent_approved = False
+                    st.warning("⚠️ Consent rejected")
     
     # STEP 4: Extraction Progress
     with tab4:
