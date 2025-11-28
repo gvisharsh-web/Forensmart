@@ -2629,10 +2629,128 @@ def render_consent_approval_page():
         
         approval_method = st.selectbox(
             "How would you like to approve?",
-            ["PIN", "Pattern", "Biometric", "Email", "SMS", "Manual"]
+            ["WhatsApp + QR", "SMS", "Email", "PIN", "Pattern", "Biometric", "Manual"]
         )
         
-        if approval_method == "PIN":
+        # Generate approval link
+        import uuid
+        approval_token = str(uuid.uuid4())
+        approval_link = f"http://localhost:8501/?page=consent_approval&token={approval_token}&case_id={case_id}"
+        
+        if approval_method == "WhatsApp + QR":
+            st.markdown("**WhatsApp + QR Code Approval**")
+            
+            nominee_phone = st.text_input("Nominee WhatsApp number (with country code):", 
+                                         placeholder="e.g., +91-9876543210", 
+                                         key="approval_whatsapp")
+            
+            if nominee_phone:
+                # Generate QR code
+                try:
+                    import qrcode
+                    from io import BytesIO
+                    
+                    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+                    qr.add_data(approval_link)
+                    qr.make(fit=True)
+                    
+                    img = qr.make_image(fill_color="black", back_color="white")
+                    
+                    # Display QR code
+                    st.markdown("**QR Code for Approval:**")
+                    st.image(img, width=200)
+                    
+                    # WhatsApp message
+                    whatsapp_message = f"""
+🔐 *ForenSmart Consent Approval*
+
+Hello,
+
+You have a consent approval request for case *{case_id}*.
+
+📋 *Case:* {case_details['Case Name']}
+🔗 *Approval Link:* {approval_link}
+
+Scan the QR code or click the link to approve.
+
+⏰ *Expires in:* 24 hours
+                    """
+                    
+                    # WhatsApp link
+                    whatsapp_link = f"https://wa.me/{nominee_phone.replace('-', '').replace('+', '')}?text={whatsapp_message.replace(chr(10), '%0A').replace(' ', '%20')}"
+                    
+                    col1, col2 = st.columns(2)
+                    
+                    with col1:
+                        if st.button("📱 Send via WhatsApp", use_container_width=True, type="primary"):
+                            st.success("✅ WhatsApp link generated!")
+                            st.markdown(f"[Click here to send via WhatsApp]({whatsapp_link})")
+                    
+                    with col2:
+                        if st.button("📋 Copy Link", use_container_width=True):
+                            st.info(f"Link copied: {approval_link}")
+                
+                except Exception as e:
+                    st.warning(f"QR code generation error: {str(e)}")
+        
+        elif approval_method == "SMS":
+            st.markdown("**SMS Approval**")
+            
+            phone = st.text_input("Nominee phone number:", 
+                                 placeholder="e.g., +91-9876543210", 
+                                 key="approval_sms_phone")
+            
+            if phone:
+                sms_message = f"ForenSmart: Approve case {case_id} here: {approval_link}"
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    if st.button("📱 Send SMS", use_container_width=True, type="primary"):
+                        st.success(f"✅ SMS would be sent to: {phone}")
+                        st.info(f"Message: {sms_message}")
+                
+                with col2:
+                    if st.button("📋 Copy SMS Link", use_container_width=True):
+                        st.info(f"Link: {approval_link}")
+        
+        elif approval_method == "Email":
+            st.markdown("**Email Approval**")
+            
+            email = st.text_input("Nominee email:", key="approval_email")
+            
+            if email:
+                email_subject = f"ForenSmart Consent Approval - Case {case_id}"
+                email_body = f"""
+Dear Nominee,
+
+You have received a consent approval request for case {case_id}.
+
+Case Details:
+- Case Name: {case_details['Case Name']}
+- Device: {case_details.get('Device', 'N/A')}
+- Investigator: {case_details.get('Investigator', 'N/A')}
+
+Approval Link: {approval_link}
+
+This link expires in 24 hours.
+
+Best regards,
+ForenSmart Team
+                """
+                
+                col1, col2 = st.columns(2)
+                
+                with col1:
+                    if st.button("📧 Send Email", use_container_width=True, type="primary"):
+                        st.success(f"✅ Email would be sent to: {email}")
+                        st.info(f"Subject: {email_subject}")
+                
+                with col2:
+                    if st.button("📋 Copy Link", use_container_width=True):
+                        st.info(f"Link: {approval_link}")
+        
+        elif approval_method == "PIN":
             pin = st.text_input("Enter PIN:", type="password", key="approval_pin")
             if pin:
                 st.info(f"PIN entered: {'*' * len(pin)}")
@@ -2647,16 +2765,6 @@ def render_consent_approval_page():
             st.info("Biometric approval: Use fingerprint or face recognition")
             biometric_type = st.selectbox("Biometric type:", ["Fingerprint", "Face Recognition"])
             st.info(f"Biometric type: {biometric_type}")
-        
-        elif approval_method == "Email":
-            email = st.text_input("Nominee email:", key="approval_email")
-            if email:
-                st.info(f"Approval link will be sent to: {email}")
-        
-        elif approval_method == "SMS":
-            phone = st.text_input("Nominee phone:", key="approval_phone")
-            if phone:
-                st.info(f"Approval link will be sent to: {phone}")
         
         else:  # Manual
             st.info("Manual approval: Investigator approves on behalf of nominee")
