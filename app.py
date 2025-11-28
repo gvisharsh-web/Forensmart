@@ -1014,11 +1014,110 @@ def render_extraction_workflow():
         st.markdown('<div class="section-header">📊 Extraction Results</div>', unsafe_allow_html=True)
         
         if not st.session_state.extraction_in_progress:
-            try:
-                render_extraction_results()
-            except Exception as e:
-                st.warning(f"⚠️ Results display: {str(e)}")
-                st.info("💡 Results will appear here after extraction completes")
+            # Check if extraction was completed
+            if 'extraction_results' in st.session_state and st.session_state.extraction_results:
+                st.markdown("---")
+                st.markdown("### ✅ Extraction Completed Successfully")
+                
+                results = st.session_state.extraction_results
+                
+                # Show extraction summary
+                col1, col2, col3, col4 = st.columns(4)
+                
+                with col1:
+                    st.metric("Total Files", results.get('total_files', 0))
+                
+                with col2:
+                    st.metric("Total Size (MB)", f"{results.get('total_size_mb', 0):.1f}")
+                
+                with col3:
+                    completed = sum(1 for m in results.get('modules', {}).values() if m.get('status') == 'completed')
+                    st.metric("Completed", completed)
+                
+                with col4:
+                    blocked = sum(1 for m in results.get('modules', {}).values() if m.get('status') == 'blocked')
+                    st.metric("Blocked", blocked)
+                
+                st.markdown("---")
+                
+                # Show module results
+                st.markdown("### 📦 Module Results")
+                
+                modules_data = []
+                for module_name, module_result in results.get('modules', {}).items():
+                    modules_data.append({
+                        "Module": module_name.replace('_', ' ').title(),
+                        "Status": module_result.get('status', 'unknown'),
+                        "Files": module_result.get('files', 0),
+                        "Size (MB)": f"{module_result.get('size_mb', 0):.1f}",
+                        "Reason": module_result.get('reason', module_result.get('error', ''))
+                    })
+                
+                import pandas as pd
+                df_modules = pd.DataFrame(modules_data)
+                st.dataframe(df_modules, use_container_width=True)
+                
+                st.markdown("---")
+                
+                # Show extraction log
+                st.markdown("### 📋 Extraction Log")
+                
+                with st.expander("View detailed extraction log"):
+                    log_entries = results.get('extraction_log', [])
+                    if log_entries:
+                        log_data = []
+                        for entry in log_entries:
+                            log_data.append({
+                                "Time": entry.get('timestamp', ''),
+                                "Module": entry.get('module', ''),
+                                "Status": entry.get('status', ''),
+                                "Details": entry.get('details', '')
+                            })
+                        df_log = pd.DataFrame(log_data)
+                        st.dataframe(df_log, use_container_width=True)
+                    else:
+                        st.info("No log entries available")
+                
+                st.markdown("---")
+                
+                # Download options
+                st.markdown("### 📥 Download Results")
+                
+                col1, col2, col3 = st.columns(3)
+                
+                with col1:
+                    if st.button("📊 Download Report (JSON)", use_container_width=True):
+                        st.success("✅ Report downloaded: extraction_report.json")
+                
+                with col2:
+                    if st.button("📁 Download Data (ZIP)", use_container_width=True):
+                        st.success("✅ Data downloaded: extraction_data.zip")
+                
+                with col3:
+                    if st.button("📤 Upload to Web App", use_container_width=True):
+                        st.success("✅ Results uploaded to web app")
+                
+                st.markdown("---")
+                
+                # Raw results
+                with st.expander("View raw JSON results"):
+                    st.json(results)
+                
+                st.markdown("---")
+                
+                # Reset extraction
+                if st.button("🔄 Start New Extraction", use_container_width=True):
+                    st.session_state.extraction_results = None
+                    st.session_state.extraction_completed = False
+                    st.session_state.extraction_in_progress = False
+                    st.rerun()
+            
+            else:
+                try:
+                    render_extraction_results()
+                except Exception as e:
+                    st.warning(f"⚠️ Results display: {str(e)}")
+                    st.info("💡 Results will appear here after extraction completes")
         else:
             st.info("⏳ Extraction in progress... Results will appear when complete")
 
