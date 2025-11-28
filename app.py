@@ -906,16 +906,21 @@ def render_extraction_workflow():
             
             if st.session_state.extraction_in_progress:
                 try:
-                    render_extraction_progress()
+                    # Get case_id from selected_device
+                    case_id = st.session_state.selected_device or "UNKNOWN"
+                    adapter_type = "android"  # Default adapter type
+                    
+                    render_extraction_progress(adapter_type, case_id)
                 except Exception as e:
                     st.warning(f"⚠️ Progress display: {str(e)}")
                     
                     # Fallback progress display
+                    st.markdown("**Extraction Progress:**")
                     progress_bar = st.progress(0)
                     status_text = st.empty()
                     
                     for i in range(101):
-                        progress_bar.progress(i)
+                        progress_bar.progress(i / 100)
                         status_text.text(f"Extraction progress: {i}%")
                     
                     st.success("✅ Extraction completed!")
