@@ -2110,8 +2110,7 @@ def render_main_page():
         render_dashboard_landing()
     
     elif st.session_state.current_page == 'cases':
-        st.markdown("### 📁 Cases Management")
-        st.info("Cases management page coming soon")
+        render_cases_page()
     
     elif st.session_state.current_page == 'extraction':
         render_extraction_workflow()
