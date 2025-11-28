@@ -622,69 +622,92 @@ def render_extraction_workflow():
     with tab1:
         st.markdown('<div class="section-header">📱 Select Device/Account</div>', unsafe_allow_html=True)
         
-        st.markdown("**Connected Devices**")
+        st.markdown("**Device Selection Options**")
         
-        # Try to detect connected devices via ADB
-        try:
-            import subprocess
-            result = subprocess.run(
-                ["adb", "devices"],
-                capture_output=True,
-                text=True,
-                timeout=5
-            )
-            adb_output = result.stdout
+        device_option = st.radio(
+            "How would you like to select your device?",
+            ["From Connected Devices", "From Your Cases", "Manual Entry"],
+            horizontal=True
+        )
+        
+        selected_device = None
+        
+        if device_option == "From Connected Devices":
+            st.markdown("**Detecting Connected Devices...**")
             
-            # Parse ADB output
-            devices_list = []
-            for line in adb_output.split('\n')[1:]:
-                if line.strip() and 'device' in line and 'List' not in line:
-                    device_info = line.split()[0]
-                    if device_info:
-                        devices_list.append(device_info)
-            
-            if devices_list:
-                st.success(f"✅ Found {len(devices_list)} connected device(s)")
-                selected_device = st.selectbox(
-                    "Select your device:",
-                    devices_list,
-                    key="extraction_device_select"
-                )
-                st.session_state.selected_device = selected_device
-                st.info(f"📱 Selected Device: **{selected_device}**")
-            else:
-                st.warning("⚠️ No ADB devices detected")
-                st.info("💡 Make sure device is connected and ADB is enabled")
+            # Try to detect connected devices via ADB
+            try:
+                import subprocess
+                import shutil
                 
-                # Fallback: Show cases to select from
-                st.markdown("---")
-                st.markdown("**Or select from your cases:**")
+                # Check if adb is available
+                adb_path = shutil.which("adb")
                 
-                if st.session_state.cases_list:
-                    case_names = [f"{case['Case ID']} - {case['Case Name']}" for case in st.session_state.cases_list]
-                    selected_case = st.selectbox("Select case:", case_names, key="extraction_case_select")
+                if adb_path:
+                    result = subprocess.run(
+                        [adb_path, "devices"],
+                        capture_output=True,
+                        text=True,
+                        timeout=5
+                    )
+                    adb_output = result.stdout
                     
-                    # Extract case ID
-                    case_id = selected_case.split(" - ")[0]
-                    st.session_state.selected_device = case_id
-                    st.info(f"📋 Selected Case: **{case_id}**")
+                    # Parse ADB output
+                    devices_list = []
+                    for line in adb_output.split('\n')[1:]:
+                        if line.strip() and 'device' in line and 'List' not in line:
+                            device_info = line.split()[0]
+                            if device_info:
+                                devices_list.append(device_info)
+                    
+                    if devices_list:
+                        st.success(f"✅ Found {len(devices_list)} connected device(s)")
+                        selected_device = st.selectbox(
+                            "Select your device:",
+                            devices_list,
+                            key="extraction_device_select"
+                        )
+                        st.session_state.selected_device = selected_device
+                        st.info(f"📱 Selected Device: **{selected_device}**")
+                    else:
+                        st.warning("⚠️ No ADB devices detected")
+                        st.info("💡 Make sure device is connected and ADB is enabled")
                 else:
-                    st.info("💡 No cases created yet. Create a case first in the Cases section.")
+                    st.warning("⚠️ ADB not installed")
+                    st.info("💡 ADB (Android Debug Bridge) is not available. Use 'From Your Cases' option instead.")
+            
+            except Exception as e:
+                st.warning(f"⚠️ Device detection error: {str(e)}")
+                st.info("💡 Use 'From Your Cases' option instead.")
         
-        except Exception as e:
-            st.warning(f"⚠️ Device detection error: {str(e)}")
-            st.info("💡 Fallback: Select from your cases")
+        elif device_option == "From Your Cases":
+            st.markdown("**Select from Your Cases**")
             
             if st.session_state.cases_list:
                 case_names = [f"{case['Case ID']} - {case['Case Name']}" for case in st.session_state.cases_list]
-                selected_case = st.selectbox("Select case:", case_names, key="extraction_case_fallback")
+                selected_case = st.selectbox("Select case:", case_names, key="extraction_case_select")
                 
                 # Extract case ID
                 case_id = selected_case.split(" - ")[0]
-                st.session_state.selected_device = case_id
+                selected_device = case_id
+                st.session_state.selected_device = selected_device
                 st.info(f"📋 Selected Case: **{case_id}**")
             else:
                 st.info("💡 No cases created yet. Create a case first in the Cases section.")
+        
+        else:  # Manual Entry
+            st.markdown("**Enter Device Information Manually**")
+            
+            manual_device_id = st.text_input(
+                "Device ID/Serial Number",
+                placeholder="e.g., emulator-5554, device-serial, or case ID",
+                key="manual_extraction_device"
+            )
+            
+            if manual_device_id:
+                selected_device = manual_device_id
+                st.session_state.selected_device = selected_device
+                st.info(f"📱 Selected Device: **{selected_device}**")
     
     # STEP 2: Module Selection
     with tab2:
