@@ -11,6 +11,13 @@ Provides functionality to validate report compliance with:
 import logging
 from typing import Dict, List, Any, Tuple
 
+# Import validators
+try:
+    from modules.shared.validators import validate_file_path, validate_extraction_data
+    VALIDATORS_AVAILABLE = True
+except ImportError:
+    VALIDATORS_AVAILABLE = False
+
 # ============================================================================
 # LOGGING SETUP
 # ============================================================================
@@ -50,8 +57,14 @@ class ReportValidator:
         try:
             errors = []
             
+            # ✅ Validate input type
+            if not isinstance(report_content, str):
+                logger.error(f"❌ Invalid report content type: {type(report_content).__name__}")
+                return False, ["Report content must be a string"]
+            
             # Check if report is not empty
             if not report_content or len(report_content.strip()) == 0:
+                logger.warning("⚠️ Report content is empty")
                 errors.append("Report content is empty")
             
             # Check for required sections
@@ -65,15 +78,16 @@ class ReportValidator:
             
             for section in required_sections:
                 if section not in report_content:
+                    logger.warning(f"⚠️ Missing required section: {section}")
                     errors.append(f"Missing required section: {section}")
             
             is_valid = len(errors) == 0
-            logger.info(f"Report structure validation: {'PASSED' if is_valid else 'FAILED'}")
+            logger.info(f"✅ Report structure validation: {'PASSED' if is_valid else 'FAILED'}")
             
             return is_valid, errors
         
         except Exception as e:
-            logger.error(f"Error validating report structure: {str(e)}")
+            logger.error(f"❌ Error validating report structure: {e}", exc_info=True)
             return False, [str(e)]
     
     def validate_data_integrity(self, report_data: Dict[str, Any]) -> Tuple[bool, List[str]]:
@@ -88,6 +102,18 @@ class ReportValidator:
         """
         try:
             errors = []
+            
+            # ✅ Validate report data structure
+            if not isinstance(report_data, dict):
+                logger.error(f"❌ Invalid report data type: {type(report_data).__name__}")
+                return False, ["Report data must be a dictionary"]
+            
+            # ✅ Validate extraction data if present
+            if 'extraction_results' in report_data:
+                is_valid, error_msg = validate_extraction_data(report_data['extraction_results'])
+                if not is_valid:
+                    logger.warning(f"⚠️ Invalid extraction data: {error_msg}")
+                    errors.append(f"Invalid extraction data: {error_msg}")
             
             # Check for required fields
             required_fields = ['case_id', 'case_details', 'extraction_results']

@@ -16,6 +16,15 @@ import os
 from typing import Dict, List, Optional, Any
 from datetime import datetime
 
+# Import validators
+try:
+    from modules.shared.validators import validate_device_id, validate_file_path
+    VALIDATORS_AVAILABLE = True
+except ImportError:
+    VALIDATORS_AVAILABLE = False
+    logger = logging.getLogger(__name__)
+    logger.warning("⚠️ Validators not available")
+
 logger = logging.getLogger(__name__)
 
 
@@ -84,6 +93,11 @@ class DeviceDetector:
                         status = status.strip()
                         
                         if status == 'device':
+                            # ✅ Validate device_id
+                            if not validate_device_id(device_id):
+                                logger.warning(f"⚠️ Invalid device ID format: {device_id}")
+                                continue
+                            
                             device_info = self._get_android_device_info(device_id)
                             android_devices[device_id] = device_info
                             logger.info(f"✅ Android device found: {device_id}")
@@ -92,8 +106,11 @@ class DeviceDetector:
         except FileNotFoundError:
             logger.warning("⚠️ ADB not found - Android device detection skipped")
             return {}
+        except subprocess.TimeoutExpired:
+            logger.error("❌ ADB command timeout - device detection failed")
+            return {}
         except Exception as e:
-            logger.error(f"❌ Error detecting Android devices: {e}")
+            logger.error(f"❌ Error detecting Android devices: {e}", exc_info=True)
             return {}
     
     def detect_ios_devices(self) -> Dict[str, Dict[str, Any]]:
@@ -111,10 +128,13 @@ class DeviceDetector:
                     timeout=5
                 )
                 
-                if result.returncode == 0 and 'iPhone' in result.stdout or 'iPad' in result.stdout:
-                    # Parse output to find iOS devices
-                    logger.info("✅ iOS device(s) detected")
-                    # TODO: Parse detailed device info
+                # ✅ Proper null check and logic
+                if result.returncode == 0 and result.stdout:
+                    if 'iPhone' in result.stdout or 'iPad' in result.stdout:
+                        logger.info("✅ iOS device(s) detected")
+                        # TODO: Parse detailed device info
+                else:
+                    logger.warning("⚠️ Could not get USB device info")
             
             return ios_devices
         except Exception as e:
@@ -184,11 +204,65 @@ class DeviceDetector:
             )
             model = result.stdout.strip() if result.returncode == 0 else 'Unknown'
             
+            # Get battery level
+            battery_level = 'N/A'
+            try:
+                result = subprocess.run(
+                    ['adb', '-s', device_id, 'shell', 'dumpsys', 'battery'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    for line in result.stdout.split('\n'):
+                        if 'level:' in line:
+                            battery_level = line.split(':')[1].strip() + '%'
+                            break
+            except:
+                pass
+            
+            # Get storage info
+            storage_total = 'N/A'
+            try:
+                result = subprocess.run(
+                    ['adb', '-s', device_id, 'shell', 'df', '/data'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    lines = result.stdout.strip().split('\n')
+                    if len(lines) > 1:
+                        parts = lines[1].split()
+                        if len(parts) >= 2:
+                            total_kb = int(parts[1])
+                            total_gb = total_kb / (1024 * 1024)
+                            storage_total = f"{total_gb:.1f} GB"
+            except:
+                pass
+            
+            # Get Android version
+            android_version = 'Unknown'
+            try:
+                result = subprocess.run(
+                    ['adb', '-s', device_id, 'shell', 'getprop', 'ro.build.version.release'],
+                    capture_output=True,
+                    text=True,
+                    timeout=5
+                )
+                if result.returncode == 0:
+                    android_version = result.stdout.strip()
+            except:
+                pass
+            
             return {
                 'device_id': device_id,
                 'device_type': 'Android',
                 'model': model,
                 'status': 'connected',
+                'battery': battery_level,
+                'storage': storage_total,
+                'android_version': android_version,
                 'capabilities': ['device_info', 'communications', 'media', 'location', 'apps', 'files'],
                 'timestamp': datetime.now().isoformat()
             }
@@ -198,6 +272,9 @@ class DeviceDetector:
                 'device_id': device_id,
                 'device_type': 'Android',
                 'status': 'connected',
+                'battery': 'N/A',
+                'storage': 'N/A',
+                'android_version': 'Unknown',
                 'capabilities': []
             }
     

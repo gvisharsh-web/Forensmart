@@ -11,7 +11,17 @@ import os
 import subprocess
 import json
 import time
+import logging
 from typing import Dict, List, Optional, Tuple, Any, Callable
+
+# Import validators
+try:
+    from modules.shared.validators import validate_device_id, validate_file_path
+    VALIDATORS_AVAILABLE = True
+except ImportError:
+    VALIDATORS_AVAILABLE = False
+
+logger = logging.getLogger(__name__)
 
 class AndroidADB:
     _DEFAULT_CANDIDATES = [
@@ -85,8 +95,13 @@ class AndroidADB:
         return 1, '', f"Failed after {max_retries} attempts: {last_error}"
 
     def _prepare(self, base_args: List[str], device_id: Optional[str] = None) -> List[str]:
+        """Prepare ADB command with optional device ID"""
         cmd = [self.adb_path]
         if device_id:
+            # ✅ Validate device_id
+            if not validate_device_id(device_id):
+                logger.warning(f"⚠️ Invalid device ID format: {device_id}")
+                # Still add it, but log the warning
             cmd.extend(['-s', device_id])
         cmd.extend(base_args)
         return cmd
@@ -313,6 +328,374 @@ class AndroidADB:
                 f.write(out)
             dumped['calllog_dump'] = calls_out
         return dumped
+
+    # ============================================================================
+    # FORENSIC AGENTS - Advanced Data Extraction
+    # ============================================================================
+    
+    def extract_call_logs(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Extract call logs from device"""
+        call_logs = []
+        
+        try:
+            # ✅ Validate device_id if provided
+            if device_id and not validate_device_id(device_id):
+                logger.error(f"❌ Invalid device ID: {device_id}")
+                return []
+            
+            # Method 1: Content Provider
+            code, out, err = self._run(self._prepare(['shell', 'content', 'query', '--uri', 'content://com.android.contacts/calls'], device_id))
+            if code == 0 and out:
+                lines = out.split('\n')
+                for line in lines:
+                    if 'Row:' in line:
+                        call_logs.append({'data': line.strip(), 'source': 'content_provider'})
+                logger.info(f"✅ Extracted {len(call_logs)} call logs via content provider")
+            else:
+                logger.debug(f"⚠️ Content provider method failed: {err}")
+            
+            # Method 2: SQLite fallback
+            if not call_logs:
+                code, out, err = self._run(self._prepare(['shell', 'sqlite3', '/data/data/com.android.providers.contacts/databases/contacts2.db', 'SELECT * FROM calls LIMIT 500'], device_id))
+                if code == 0 and out:
+                    lines = out.split('\n')
+                    for line in lines:
+                        if line.strip():
+                            call_logs.append({'data': line.strip(), 'source': 'sqlite'})
+                    logger.info(f"✅ Extracted {len(call_logs)} call logs via SQLite")
+                else:
+                    logger.debug(f"⚠️ SQLite method failed: {err}")
+            
+            return call_logs
+        except Exception as e:
+            logger.error(f"❌ Error extracting call logs: {e}", exc_info=True)
+            return []
+    
+    def extract_browser_history(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Extract browser history from Chrome and other browsers"""
+        browser_history = []
+        
+        try:
+            # ✅ Validate device_id if provided
+            if device_id and not validate_device_id(device_id):
+                logger.error(f"❌ Invalid device ID: {device_id}")
+                return []
+            
+            chrome_paths = [
+                '/data/data/com.android.chrome/databases/History',
+                '/data/data/com.google.android.gms/databases/gservices.db',
+                '/sdcard/Android/data/com.android.chrome/files'
+            ]
+            
+            for path in chrome_paths:
+                try:
+                    code, out, err = self._run(self._prepare(['shell', 'find', path, '-type', 'f'], device_id))
+                    if code == 0 and out:
+                        files = out.split('\n')
+                        for file in files:
+                            if file.strip():
+                                browser_history.append({'source': 'Chrome', 'path': file.strip()})
+                        logger.debug(f"✅ Found {len(files)} files in {path}")
+                    else:
+                        logger.debug(f"⚠️ Could not access {path}: {err}")
+                except Exception as path_err:
+                    logger.warning(f"⚠️ Error processing path {path}: {path_err}")
+                    continue
+            
+            logger.info(f"✅ Extracted {len(browser_history)} browser history items")
+            return browser_history
+        except Exception as e:
+            logger.error(f"❌ Error extracting browser history: {e}", exc_info=True)
+            return []
+    
+    def extract_whatsapp_artifacts(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Extract WhatsApp artifacts including databases (requires root access)"""
+        whatsapp_artifacts = []
+        
+        whatsapp_paths = [
+            # Non-root accessible paths
+            '/sdcard/WhatsApp/Media',
+            '/sdcard/Android/data/com.whatsapp/files',
+            '/storage/emulated/0/WhatsApp/Media',
+            '/storage/emulated/0/Android/data/com.whatsapp/files',
+            
+            # Root-accessible database paths
+            '/data/data/com.whatsapp/databases',
+            '/data/data/com.whatsapp.w4b/databases',  # WhatsApp Business
+        ]
+        
+        for path in whatsapp_paths:
+            # Try non-root access first
+            code, out, _ = self._run(self._prepare(['shell', 'find', path, '-type', 'f'], device_id))
+            if code == 0 and out:
+                files = out.split('\n')
+                for file in files:
+                    if file.strip():
+                        whatsapp_artifacts.append({'source': 'WhatsApp', 'path': file.strip(), 'access': 'non-root'})
+            
+            # Try root access for databases
+            if 'databases' in path:
+                code, out, _ = self._run(self._prepare(['shell', 'su', '-c', f'find {path} -type f'], device_id))
+                if code == 0 and out:
+                    files = out.split('\n')
+                    for file in files:
+                        if file.strip():
+                            whatsapp_artifacts.append({'source': 'WhatsApp', 'path': file.strip(), 'access': 'root'})
+        
+        return whatsapp_artifacts
+    
+    def extract_instagram_artifacts(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Extract Instagram artifacts including databases (requires root access)"""
+        instagram_artifacts = []
+        
+        instagram_paths = [
+            # Non-root accessible paths
+            '/sdcard/Android/data/com.instagram.android/files',
+            '/sdcard/Android/data/com.instagram.android/cache',
+            '/storage/emulated/0/Android/data/com.instagram.android/files',
+            '/storage/emulated/0/Android/data/com.instagram.android/cache',
+            
+            # Root-accessible database paths
+            '/data/data/com.instagram.android/databases',
+            '/data/data/com.instagram.android/shared_prefs',
+        ]
+        
+        for path in instagram_paths:
+            # Try non-root access first
+            code, out, _ = self._run(self._prepare(['shell', 'find', path, '-type', 'f'], device_id))
+            if code == 0 and out:
+                files = out.split('\n')
+                for file in files:
+                    if file.strip():
+                        instagram_artifacts.append({'source': 'Instagram', 'path': file.strip(), 'access': 'non-root'})
+            
+            # Try root access for databases
+            if 'databases' in path or 'shared_prefs' in path:
+                code, out, _ = self._run(self._prepare(['shell', 'su', '-c', f'find {path} -type f'], device_id))
+                if code == 0 and out:
+                    files = out.split('\n')
+                    for file in files:
+                        if file.strip():
+                            instagram_artifacts.append({'source': 'Instagram', 'path': file.strip(), 'access': 'root'})
+        
+        return instagram_artifacts
+    
+    def extract_messaging_app_artifacts(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Extract artifacts from messaging apps (Telegram, Signal, etc.) - requires root for databases"""
+        messaging_artifacts = []
+        
+        messaging_apps = {
+            'Telegram': [
+                '/sdcard/Telegram',
+                '/storage/emulated/0/Telegram',
+                '/data/data/org.telegram.messenger/databases',
+                '/data/data/org.telegram.messenger/files',
+            ],
+            'Signal': [
+                '/sdcard/Signal',
+                '/storage/emulated/0/Signal',
+                '/data/data/org.signal/databases',
+                '/data/data/org.signal/files',
+            ],
+            'Facebook Messenger': [
+                '/data/data/com.facebook.orca/databases',
+                '/data/data/com.facebook.orca/files',
+            ]
+        }
+        
+        for app_name, paths in messaging_apps.items():
+            for path in paths:
+                # Try non-root access first
+                code, out, _ = self._run(self._prepare(['shell', 'find', path, '-type', 'f'], device_id))
+                if code == 0 and out:
+                    files = out.split('\n')
+                    for file in files:
+                        if file.strip():
+                            messaging_artifacts.append({'source': app_name, 'path': file.strip(), 'access': 'non-root'})
+                
+                # Try root access for databases
+                if 'databases' in path:
+                    code, out, _ = self._run(self._prepare(['shell', 'su', '-c', f'find {path} -type f'], device_id))
+                    if code == 0 and out:
+                        files = out.split('\n')
+                        for file in files:
+                            if file.strip():
+                                messaging_artifacts.append({'source': app_name, 'path': file.strip(), 'access': 'root'})
+        
+        return messaging_artifacts
+    
+    def extract_installed_apps(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Extract list of installed apps"""
+        installed_apps = []
+        
+        # Get third-party apps
+        code, out, _ = self._run(self._prepare(['shell', 'pm', 'list', 'packages', '-3'], device_id))
+        if code == 0 and out:
+            packages = out.split('\n')
+            for package in packages:
+                if package.strip():
+                    app_name = package.replace('package:', '').strip()
+                    installed_apps.append({'package': app_name, 'type': 'third_party'})
+        
+        # Get system apps
+        code, out, _ = self._run(self._prepare(['shell', 'pm', 'list', 'packages', '-s'], device_id))
+        if code == 0 and out:
+            packages = out.split('\n')
+            for package in packages:
+                if package.strip():
+                    app_name = package.replace('package:', '').strip()
+                    installed_apps.append({'package': app_name, 'type': 'system'})
+        
+        return installed_apps
+    
+    def extract_wifi_networks(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Extract WiFi network history"""
+        wifi_networks = []
+        
+        # Get WiFi configuration
+        code, out, _ = self._run(self._prepare(['shell', 'cat', '/data/misc/wifi/wpa_supplicant.conf'], device_id))
+        if code == 0 and out:
+            lines = out.split('\n')
+            for line in lines:
+                if 'ssid=' in line or 'bssid=' in line:
+                    wifi_networks.append({'data': line.strip()})
+        
+        return wifi_networks
+    
+    def extract_system_logs(self, device_id: Optional[str] = None, lines: int = 1000) -> List[Dict[str, Any]]:
+        """Extract system logs from logcat"""
+        system_logs = []
+        
+        # Get logcat logs
+        code, out, _ = self._run(self._prepare(['shell', 'logcat', '-d', '-t', str(lines)], device_id))
+        if code == 0 and out:
+            log_lines = out.split('\n')
+            for line in log_lines:
+                if line.strip():
+                    system_logs.append({'log': line.strip()})
+        
+        return system_logs
+    
+    def extract_media_files(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """
+        DEPRECATED: Media extraction has been consolidated to UI extraction method.
+        This method is kept for backward compatibility but returns empty list.
+        Use modules.extraction.ui_extraction_progress.perform_extraction() instead.
+        """
+        logger.warning("⚠️ extract_media_files() is deprecated - use UI extraction method instead")
+        return []
+    
+    def _extract_media_files_legacy(self, device_id: Optional[str] = None) -> List[Dict[str, Any]]:
+        """Extract media files (photos, videos, audio) from device"""
+        media_files = []
+        
+        logger.info(f"🎬 Starting media file extraction for device: {device_id}")
+        
+        try:
+            # Common media directories - limit to most important ones to avoid timeout
+            media_paths = [
+                '/sdcard/DCIM',
+                '/sdcard/Pictures',
+                '/sdcard/Movies',
+                '/sdcard/Music',
+                '/storage/emulated/0/DCIM',
+                '/storage/emulated/0/Pictures',
+                '/storage/emulated/0/Movies',
+                '/storage/emulated/0/Music'
+            ]
+            
+            max_files = 1000  # Limit to prevent timeout
+            
+            for path in media_paths:
+                if len(media_files) >= max_files:
+                    logger.info(f"Reached maximum media files limit ({max_files})")
+                    break
+                
+                try:
+                    logger.debug(f"Searching for media in: {path}")
+                    
+                    # Try find command first (more reliable)
+                    cmd = self._prepare(['shell', 'find', path, '-type', 'f', '-maxdepth', '3'], device_id)
+                    code, out, err = self._run(cmd)
+                    
+                    # If find fails or returns nothing, try ls command as fallback
+                    if code != 0 or not out:
+                        logger.debug(f"Find command failed for {path}, trying ls command")
+                        
+                        cmd = self._prepare(['shell', 'ls', '-R', path], device_id)
+                        code, out, err = self._run(cmd)
+                    
+                    if code == 0 and out:
+                        file_count = 0
+                        for file_path in out.strip().split('\n'):
+                            if not file_path.strip():
+                                continue
+                            
+                            # Skip directory lines from ls output
+                            if ':' in file_path or file_path.startswith('total'):
+                                continue
+                            
+                            # Get file info
+                            file_name = file_path.split('/')[-1].strip()
+                            if not file_name or '.' not in file_name:
+                                continue
+                            
+                            file_ext = file_name.split('.')[-1].lower()
+                            
+                            # Check if it's a media file
+                            if file_ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp', 'mp4', 'avi', 'mkv', 'mov', 'mp3', 'wav', 'aac', 'm4a', 'flac', 'ogg']:
+                                # Construct full path
+                                if file_path.startswith('/'):
+                                    full_path = file_path.strip()
+                                else:
+                                    full_path = f"{path}/{file_path.strip()}"
+                                
+                                media_files.append({
+                                    'path': full_path,
+                                    'name': file_name,
+                                    'type': 'photo' if file_ext in ['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'] else 'video' if file_ext in ['mp4', 'avi', 'mkv', 'mov'] else 'audio',
+                                    'extension': file_ext,
+                                    'source': 'Device Storage',
+                                    'access': 'standard'
+                                })
+                                file_count += 1
+                                
+                                if len(media_files) >= max_files:
+                                    logger.info(f"Reached maximum media files limit in {path}")
+                                    break
+                        
+                        if file_count > 0:
+                            logger.info(f"✅ Found {file_count} media files in {path} (Total: {len(media_files)})")
+                        else:
+                            logger.debug(f"No media files found in {path}")
+                    else:
+                        logger.debug(f"No files found in {path} or access denied (code: {code})")
+                
+                except Exception as e:
+                    logger.warning(f"Error extracting media from {path}: {e}")
+                    continue
+        
+        except Exception as e:
+            logger.warning(f"Error extracting media files: {e}")
+        
+        logger.info(f"✅ Media file extraction completed. Found {len(media_files)} files")
+        return media_files
+    
+    def extract_all_forensic_data(self, device_id: Optional[str] = None) -> Dict[str, Any]:
+        """Extract all forensic data from device"""
+        forensic_data = {
+            'call_logs': self.extract_call_logs(device_id),
+            'browser_history': self.extract_browser_history(device_id),
+            'installed_apps': self.extract_installed_apps(device_id),
+            'wifi_networks': self.extract_wifi_networks(device_id),
+            'system_logs': self.extract_system_logs(device_id),
+            'whatsapp_artifacts': self.extract_whatsapp_artifacts(device_id),
+            'instagram_artifacts': self.extract_instagram_artifacts(device_id),
+            'messaging_app_artifacts': self.extract_messaging_app_artifacts(device_id),
+            # ✅ Media files extraction moved to UI extraction method
+            # 'media_files': self.extract_media_files(device_id)
+        }
+        return forensic_data
 
     def extract_location_data(self, case_id: str, out_dir: str) -> Dict[str, str]:
         """Extract GPS, WiFi, and cell tower data from dumpsys location output."""

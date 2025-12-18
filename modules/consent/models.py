@@ -235,7 +235,6 @@ class ConsentSession:
     device_id: Optional[str] = None
     is_test_session: bool = False
     is_mock: bool = False
-    mock_data: Optional[Dict[str, Any]] = None
     audit_trail_id: Optional[str] = None
 
     def __post_init__(self):
@@ -1006,12 +1005,7 @@ class ConsentTestingLoopholes:
             approved_by=nominee_email,
             approval_method='MOCK_CONSENT',
             timestamp=datetime.now(),
-            is_mock=True,
-            mock_data={
-                'created_at': datetime.now().isoformat(),
-                'expires_at': (datetime.now() + timedelta(hours=1)).isoformat(),
-                'test_mode': True
-            }
+            is_mock=True
         )
         
         # Save session

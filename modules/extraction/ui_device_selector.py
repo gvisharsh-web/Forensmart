@@ -56,46 +56,102 @@ def render_physical_device_selector():
     
     st.info("💡 Please connect your device via USB")
     
-    # Simulated device list
-    devices = [
-        {'id': 'device_001', 'name': 'Samsung Galaxy S21', 'status': 'connected'},
-        {'id': 'device_002', 'name': 'iPhone 13', 'status': 'connected'},
-        {'id': 'device_003', 'name': 'USB Storage', 'status': 'offline'}
-    ]
+    # Detect devices
+    try:
+        from modules.extraction.adapters.device_detector import DeviceDetector
+        detector = DeviceDetector()
+        all_devices = detector.detect_all_devices()
+    except Exception as e:
+        logger.warning(f"Device detector not available: {e}")
+        all_devices = {}
     
     # Filter by device type
+    filtered_devices = []
+    
     if device_type == "Android (ADB)":
-        filtered_devices = [d for d in devices if 'Samsung' in d['name']]
+        filtered_devices = [d for d in all_devices.values() if d.get('device_type') == 'Android']
     elif device_type == "iOS (iTunes)":
-        filtered_devices = [d for d in devices if 'iPhone' in d['name']]
+        filtered_devices = [d for d in all_devices.values() if d.get('device_type') == 'iOS']
     else:
-        filtered_devices = [d for d in devices if 'USB' in d['name']]
+        filtered_devices = [d for d in all_devices.values() if d.get('device_type') == 'HDD']
+    
+    # Show refresh button
+    col1, col2 = st.columns([3, 1])
+    with col2:
+        if st.button("🔄 Refresh", use_container_width=True, key="refresh_devices"):
+            st.rerun()
     
     if not filtered_devices:
         st.warning(f"⚠️ No {device_type} devices found")
+        
+        if device_type == "Android (ADB)":
+            st.error("**Android Device Not Found**")
+            st.info("""
+            **To connect an Android device:**
+            1. Enable USB Debugging on your device (Settings → Developer Options → USB Debugging)
+            2. Connect your device via USB cable
+            3. Accept the USB debugging prompt on your device
+            4. Click 🔄 Refresh to detect the device
+            
+            **Troubleshooting:**
+            - Make sure ADB (Android Debug Bridge) is installed
+            - Try: `adb devices` in terminal to verify connection
+            - Restart ADB: `adb kill-server` then `adb start-server`
+            """)
+        elif device_type == "iOS (iTunes)":
+            st.error("**iOS Device Not Found**")
+            st.info("""
+            **To connect an iOS device:**
+            1. Install iTunes or Apple Configurator 2
+            2. Connect your device via USB cable
+            3. Trust the computer on your device
+            4. Click 🔄 Refresh to detect the device
+            
+            **Troubleshooting:**
+            - Make sure iTunes/Xcode is installed
+            - Try restarting iTunes
+            - Reconnect the USB cable
+            """)
+        else:
+            st.error("**Storage Device Not Found**")
+            st.info("""
+            **To connect a storage device:**
+            1. Connect your external HDD/USB drive via USB
+            2. Make sure it's mounted/recognized by your system
+            3. Click 🔄 Refresh to detect the device
+            
+            **Troubleshooting:**
+            - Check if device appears in File Explorer
+            - Try a different USB port
+            - Restart the application
+            """)
         return
-    
+        
     st.success(f"✅ Found {len(filtered_devices)} device(s)")
     
     # Display devices
     for device in filtered_devices:
         col1, col2, col3 = st.columns([2, 1, 1])
         
+        device_id = device.get('device_id', 'Unknown')
+        device_name = device.get('model', device.get('device_type', 'Device'))
+        device_status = device.get('status', 'unknown')
+        
         with col1:
-            st.write(f"📱 {device['name']}")
-            st.caption(f"ID: {device['id']}")
+            st.write(f"📱 {device_name}")
+            st.caption(f"ID: {device_id}")
         
         with col2:
-            if device['status'] == 'connected':
+            if device_status == 'connected':
                 st.success("✅ Connected")
             else:
                 st.warning("⚠️ Offline")
         
         with col3:
-            if st.button("Select", key=f"select_{device['id']}"):
+            if st.button("Select", key=f"select_{device_id}"):
                 st.session_state.selected_device = device
                 st.session_state.device_type = device_type
-                st.success(f"✅ Selected: {device['name']}")
+                st.success(f"✅ Selected: {device_name}")
     
     # Show selected device info
     if st.session_state.get('selected_device'):
@@ -107,12 +163,13 @@ def render_physical_device_selector():
         col1, col2 = st.columns(2)
         
         with col1:
-            st.metric("Device Name", device.get('name', 'N/A'))
-            st.metric("Device ID", device.get('id', 'N/A'))
+            device_name = device.get('model', device.get('device_type', 'N/A'))
+            st.metric("Device Name", device_name)
+            st.metric("Device ID", device.get('device_id', 'N/A'))
         
         with col2:
             st.metric("Status", device.get('status', 'N/A'))
-            st.metric("Type", st.session_state.device_type)
+            st.metric("Type", st.session_state.get('device_type', 'N/A'))
 
 
 def render_cloud_account_selector():

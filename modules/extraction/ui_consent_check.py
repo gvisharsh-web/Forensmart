@@ -106,22 +106,51 @@ def render_consent_check() -> Tuple[bool, Dict]:
         return False, consent_details
 
 
-def generate_approval_link(case_id: str) -> str:
+def generate_approval_link(case_id: str, nominee_email: str = "nominee@example.com") -> str:
     """
-    Generate approval link for nominee.
+    Generate approval link for nominee with hash verification.
+    
+    Hash-based approval system:
+    - Primary: Hash verification (from approval link)
+    - Fallback: Fallback hash verification
+    - No PIN required
     
     Args:
         case_id: Case ID
+        nominee_email: Nominee email
         
     Returns:
-        str: Approval link
+        str: Approval link with hash parameters
     """
-    # In production, this would generate a secure token
-    # For now, using case_id as example
-    base_url = "https://forensmart.streamlit.app"
-    token = generate_secure_token(case_id)
+    import hmac
+    import hashlib
+    import secrets
+    from datetime import datetime, timedelta
     
-    approval_link = f"{base_url}/approve?case_id={case_id}&token={token}"
+    # Generate hash components
+    token = secrets.token_urlsafe(32)
+    expires_at = (datetime.utcnow() + timedelta(hours=24)).isoformat()
+    
+    # Create data to hash
+    data_to_hash = f"{case_id}:{nominee_email}:{expires_at}:{token}"
+    
+    # Generate HMAC-SHA256 hash
+    secret_key = "forensmart-secret-key"
+    approval_hash = hmac.new(
+        secret_key.encode(),
+        data_to_hash.encode(),
+        hashlib.sha256
+    ).hexdigest()
+    
+    # Build approval link with hash parameters
+    base_url = "https://forensmart.streamlit.app"
+    approval_link = (
+        f"{base_url}/?case_id={case_id}"
+        f"&hash={approval_hash}"
+        f"&token={token}"
+        f"&expires_at={expires_at}"
+        f"&nominee_email={nominee_email}"
+    )
     
     return approval_link
 
@@ -194,7 +223,7 @@ def get_consent_details(case_id: str) -> Dict:
             'status': 'PENDING_CONSENT',  # or 'APPROVED'
             'required_level': 'LEGAL',
             'current_level': 'LEGAL',
-            'approval_method': 'PIN',
+            'approval_method': 'HASH',  # Hash-based verification (no PIN)
             'approved_at': None,
             'created_at': '2025-11-26 17:00:00',
             'modules': ['Communications', 'Media', 'Social Media']

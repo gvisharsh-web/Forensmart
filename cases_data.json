@@ -1,0 +1,130 @@
+[
+  {
+    "id": "CASE-001",
+    "name": "Case 1",
+    "status": "Active",
+    "created": "2025-12-01"
+  },
+  {
+    "id": "CASE-002",
+    "name": "Case 2",
+    "status": "Active",
+    "created": "2025-12-02"
+  },
+  {
+    "id": "CASE-003",
+    "name": "Case 3",
+    "status": "Completed",
+    "created": "2025-11-28"
+  },
+  {
+    "id": "CASE-004",
+    "name": "Case 4",
+    "status": "Active",
+    "created": "2025-12-03"
+  },
+  {
+    "id": "CASE-005",
+    "name": "Case 5",
+    "status": "Pending",
+    "created": "2025-12-04"
+  },
+  {
+    "id": "CASE-006",
+    "name": "Case 6",
+    "status": "Active",
+    "created": "2025-12-04"
+  },
+  {
+    "id": "CASE-007",
+    "name": "Case 7",
+    "status": "Completed",
+    "created": "2025-11-30"
+  },
+  {
+    "id": "CASE-008",
+    "name": "Case 8",
+    "status": "Active",
+    "created": "2025-12-01"
+  },
+  {
+    "id": "CASE-009",
+    "name": "Case 9",
+    "status": "Pending",
+    "created": "2025-12-02"
+  },
+  {
+    "id": "CASE-010",
+    "name": "Case 10",
+    "status": "Active",
+    "created": "2025-12-03"
+  },
+  {
+    "id": "CASE-011",
+    "name": "Case 11",
+    "status": "Completed",
+    "created": "2025-11-29"
+  },
+  {
+    "id": "CASE-012",
+    "name": "Case 12",
+    "status": "Active",
+    "created": "2025-12-04"
+  },
+  {
+    "id": "CASE-013",
+    "name": "JHGF",
+    "status": "Active",
+    "created": "2025-12-07",
+    "updated": "2025-12-07 17:11:32"
+  },
+  {
+    "id": "CASE-014",
+    "name": "DSE",
+    "status": "Active",
+    "created": "2025-12-07",
+    "updated": "2025-12-07 20:19:14"
+  },
+  {
+    "id": "CASE-015",
+    "name": "VISZZ",
+    "status": "Active",
+    "created": "2025-12-10",
+    "updated": "2025-12-10 20:54:08"
+  },
+  {
+    "id": "CASE-016",
+    "name": "HGF",
+    "status": "Active",
+    "created": "2025-12-10",
+    "updated": "2025-12-10 22:25:35"
+  },
+  {
+    "id": "CASE-017",
+    "name": "OIUHG",
+    "status": "Active",
+    "created": "2025-12-12",
+    "updated": "2025-12-12 21:47:29"
+  },
+  {
+    "id": "CASE-018",
+    "name": "JHGFXSDFGH",
+    "status": "Active",
+    "created": "2025-12-12",
+    "updated": "2025-12-12 21:47:45"
+  },
+  {
+    "id": "CASE-019",
+    "name": "dfgh",
+    "status": "Active",
+    "created": "2025-12-18",
+    "updated": "2025-12-18 17:16:35"
+  },
+  {
+    "id": "CASE-020",
+    "name": "dg",
+    "status": "Active",
+    "created": "2025-12-18",
+    "updated": "2025-12-18 17:17:06"
+  }
+]

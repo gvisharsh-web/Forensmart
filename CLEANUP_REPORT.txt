@@ -1,0 +1,55 @@
+================================================================================
+FORENSMART SIMULATED DATA CLEANUP
+================================================================================
+Start Time: 2025-12-01 12:58:21
+
+SCANNING FILES FOR SIMULATED DATA...
+--------------------------------------------------------------------------------
+  [1] modules/consent/ui.py
+  [1] modules/consent/models.py
+  [6] modules/extraction/adapters/adb_adapter.py
+  [3] modules/extraction/ui_extraction_results.py
+  [2] modules/extraction/ui.py
+  [2] modules/extraction/ui_consent_check.py
+  [2] modules/extraction/ui_extraction_progress.py
+  [1] modules/extraction/ui_consent_approval.py
+  [6] modules/extraction/adapters/email_adapter.py
+  [3] modules/extraction/adapters/google_drive_adapter.py
+  [2] modules/extraction/adapters/hdd_adapter.py
+  [4] modules/extraction/adapters/instagram_adapter.py
+  [2] modules/extraction/adapters/ios_adapter.py
+  [3] modules/extraction/adapters/onedrive_adapter.py
+  [2] modules/extraction/adapters/snapchat_adapter.py
+  [2] modules/analysis/media_viewer.py
+
+Total simulated data patterns found: 42
+
+REMOVING SIMULATED DATA...
+--------------------------------------------------------------------------------
+
+CLEANUP SUMMARY
+--------------------------------------------------------------------------------
+Files cleaned: 0
+Total lines removed: 0
+Patterns found: 4
+
+Pattern breakdown:
+  - 'name': '[^']*': 19 occurrences
+  - # Simulated.*?\n.*?\n: 17 occurrences
+  - sample_.*?=.*?\n: 4 occurrences
+  - mock_.*?=.*?\n: 2 occurrences
+
+================================================================================
+End Time: 2025-12-01 12:58:21
+================================================================================
+
+[DONE] CLEANUP COMPLETE!
+
+NEXT STEPS:
+1. Review the changes in the modules
+2. Test the application with real data
+3. Verify all features work correctly
+
+ROLLBACK AVAILABLE:
+If needed, restore from the rollback copy:
+  Copy-Item -Path 'c:\Forensmart_ROLLBACK_20251201_125231' -Destination 'c:\Forensmart' -Recurse -Force

@@ -328,7 +328,6 @@ def render_testing_dashboard(
                 st.code(link)
         
         st.markdown("### 📋 Mock Consent")
-        consent_level = st.selectbox("Consent Level:", ["STANDARD", "LEGAL", "FULL"], key="mock_level")
     
     with col3:
         st.markdown("### 🔄 Reset All")
@@ -346,8 +345,6 @@ def render_testing_dashboard(
     
     with col1:
         st.markdown("### ➕ Create Mock Consent")
-        case_id = st.text_input("Case ID:", key="mock_case")
-        consent_level = st.selectbox("Consent Level:", ["STANDARD", "LEGAL", "FULL"], key="mock_consent_level")
         if st.button("Create Mock", use_container_width=True):
             if case_id:
                 ConsentTestingLoopholes.create_mock_consent(consent_manager, case_id, consent_level)

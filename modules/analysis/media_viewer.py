@@ -27,6 +27,18 @@ try:
 except ImportError:
     ARTIFACT_ROUTING_AVAILABLE = False
 
+# Import validators
+try:
+    from modules.shared.validators import (
+        validate_file_path,
+        validate_media_extension,
+        validate_media_file
+    )
+    VALIDATORS_AVAILABLE = True
+except ImportError:
+    VALIDATORS_AVAILABLE = False
+    logger.warning("⚠️ Validators not available")
+
 logger = logging.getLogger(__name__)
 
 # Try to import face detection libraries
@@ -394,9 +406,12 @@ class MediaViewer:
             state = "shown" if self.display_toggles[image_id]['image'] else "hidden"
             logger.info(f"✅ Image display toggled: {image_id} - {state}")
             return self.display_toggles[image_id]['image']
+        except KeyError as e:
+            logger.error(f"❌ Missing display toggle key: {e}")
+            return False
         except Exception as e:
-            logger.error(f"❌ Error toggling image display: {e}")
-            return True
+            logger.error(f"❌ Error toggling image display: {e}", exc_info=True)
+            return False
     
     def toggle_video_display(self, video_id: str, show: bool = None) -> bool:
         """Toggle video display visibility"""
@@ -414,9 +429,12 @@ class MediaViewer:
             state = "shown" if self.display_toggles[video_id]['video'] else "hidden"
             logger.info(f"✅ Video display toggled: {video_id} - {state}")
             return self.display_toggles[video_id]['video']
+        except KeyError as e:
+            logger.error(f"❌ Missing display toggle key: {e}")
+            return False
         except Exception as e:
-            logger.error(f"❌ Error toggling video display: {e}")
-            return True
+            logger.error(f"❌ Error toggling video display: {e}", exc_info=True)
+            return False
     
     def toggle_redactions_display(self, media_id: str, show: bool = None) -> bool:
         """Toggle redactions display visibility"""
@@ -434,13 +452,20 @@ class MediaViewer:
             state = "shown" if self.display_toggles[media_id]['redactions'] else "hidden"
             logger.info(f"✅ Redactions display toggled: {media_id} - {state}")
             return self.display_toggles[media_id]['redactions']
+        except KeyError as e:
+            logger.error(f"❌ Missing display toggle key: {e}")
+            return False
         except Exception as e:
-            logger.error(f"❌ Error toggling redactions display: {e}")
-            return True
+            logger.error(f"❌ Error toggling redactions display: {e}", exc_info=True)
+            return False
     
     def get_display_state(self, media_id: str) -> Dict[str, bool]:
         """Get current display state for media"""
         try:
+            if not isinstance(media_id, str) or not media_id:
+                logger.warning(f"⚠️ Invalid media_id: {media_id}")
+                return {'image': True, 'video': True, 'redactions': True}
+            
             if media_id not in self.display_toggles:
                 self.display_toggles[media_id] = {
                     'image': True,
@@ -450,8 +475,11 @@ class MediaViewer:
             
             logger.info(f"✅ Display state retrieved: {media_id}")
             return self.display_toggles[media_id]
+        except KeyError as e:
+            logger.error(f"❌ Missing display toggle key: {e}")
+            return {'image': True, 'video': True, 'redactions': True}
         except Exception as e:
-            logger.error(f"❌ Error getting display state: {e}")
+            logger.error(f"❌ Error getting display state: {e}", exc_info=True)
             return {'image': True, 'video': True, 'redactions': True}
     
     def reset_display_toggles(self, media_id: str = None) -> bool:
@@ -482,6 +510,22 @@ class MediaViewer:
     def view_image(self, image_path: str) -> Dict[str, Any]:
         """View image with redactions"""
         try:
+            # ✅ Validate file path
+            if not validate_file_path(image_path):
+                logger.error(f"❌ Invalid image path: {image_path}")
+                return {'status': 'error', 'error': 'Invalid image path'}
+            
+            # ✅ Validate media extension
+            if not validate_media_extension(image_path):
+                logger.error(f"❌ Invalid image extension: {image_path}")
+                return {'status': 'error', 'error': 'Invalid image format'}
+            
+            # ✅ Validate complete media file
+            is_valid, error_msg = validate_media_file(image_path)
+            if not is_valid:
+                logger.error(f"❌ Invalid media file: {error_msg}")
+                return {'status': 'error', 'error': error_msg}
+            
             from PIL import Image
             image = Image.open(image_path)
             
@@ -493,9 +537,15 @@ class MediaViewer:
                 'format': image.format,
                 'redactions': self.redaction_manager.get_image_redactions(image_path)
             }
+        except FileNotFoundError as e:
+            logger.error(f"❌ Image file not found: {image_path}")
+            return {'status': 'error', 'error': 'Image file not found'}
+        except PermissionError as e:
+            logger.error(f"❌ Permission denied reading image: {image_path}")
+            return {'status': 'error', 'error': 'Permission denied'}
         except Exception as e:
-            logger.error(f"❌ Error viewing image: {e}")
-            return {'status': 'error', 'error': str(e)}
+            logger.error(f"❌ Error viewing image {image_path}: {e}", exc_info=True)
+            return {'status': 'error', 'error': f'Failed to view image: {type(e).__name__}'}
     
     def get_image_metadata(self, image_path: str) -> Dict[str, Any]:
         """Extract image metadata"""
@@ -518,8 +568,11 @@ class MediaViewer:
                 exif_data = image._getexif()
                 if exif_data:
                     metadata['exif'] = {TAGS.get(k, k): v for k, v in exif_data.items()}
-            except:
-                pass
+            except (AttributeError, KeyError, TypeError) as e:
+                logger.warning(f"⚠️ Could not extract EXIF data: {e}")
+                # Continue without EXIF data
+            except Exception as e:
+                logger.error(f"❌ Unexpected error extracting EXIF: {e}", exc_info=True)
             
             logger.info(f"✅ Image metadata extracted: {image_path}")
             return metadata
@@ -3934,6 +3987,244 @@ class MediaViewer:
         except Exception as e:
             logger.error(f"❌ Error syncing media from artifacts: {e}")
             return False
+    
+    # ========================================================================
+    # APP ARTIFACTS MEDIA ANALYSIS - WhatsApp, Instagram, Messaging Apps
+    # ========================================================================
+    
+    def extract_and_analyze_app_artifacts_media(self, device_id: Optional[str] = None, adapter_type: str = 'android') -> Dict[str, Any]:
+        """Extract app artifacts using adapter methods and analyze media"""
+        result = {
+            'timestamp': datetime.now().isoformat(),
+            'extraction_status': 'pending',
+            'app_artifacts': {},
+            'media_analysis': {},
+            'error': None
+        }
+        
+        try:
+            # Extract app artifacts using adapter methods
+            if adapter_type.lower() == 'android':
+                from adapters.android_adb import AndroidADB
+                adb = AndroidADB()
+                
+                # Extract app artifacts using adapter methods
+                whatsapp_artifacts = adb.extract_whatsapp_artifacts(device_id)
+                instagram_artifacts = adb.extract_instagram_artifacts(device_id)
+                messaging_artifacts = adb.extract_messaging_app_artifacts(device_id)
+                
+                result['app_artifacts'] = {
+                    'whatsapp_artifacts': whatsapp_artifacts,
+                    'instagram_artifacts': instagram_artifacts,
+                    'messaging_app_artifacts': messaging_artifacts
+                }
+                
+                result['extraction_status'] = 'success'
+                logger.info(f"✅ App artifacts extracted: WhatsApp={len(whatsapp_artifacts)}, Instagram={len(instagram_artifacts)}, Messaging={len(messaging_artifacts)}")
+            
+            elif adapter_type.lower() == 'ios':
+                from adapters.ios_logical import Adapter as iOSAdapter
+                ios = iOSAdapter()
+                
+                # Extract app artifacts using adapter methods
+                whatsapp_artifacts = ios.extract_whatsapp_artifacts(device_id) if hasattr(ios, 'extract_whatsapp_artifacts') else []
+                instagram_artifacts = ios.extract_instagram_artifacts(device_id) if hasattr(ios, 'extract_instagram_artifacts') else []
+                messaging_artifacts = ios.extract_messaging_app_artifacts(device_id) if hasattr(ios, 'extract_messaging_app_artifacts') else []
+                
+                result['app_artifacts'] = {
+                    'whatsapp_artifacts': whatsapp_artifacts,
+                    'instagram_artifacts': instagram_artifacts,
+                    'messaging_app_artifacts': messaging_artifacts
+                }
+                
+                result['extraction_status'] = 'success'
+                logger.info(f"✅ App artifacts extracted: WhatsApp={len(whatsapp_artifacts)}, Instagram={len(instagram_artifacts)}, Messaging={len(messaging_artifacts)}")
+            
+            # Analyze extracted app artifacts media
+            if result['app_artifacts']:
+                result['media_analysis'] = self.analyze_app_artifacts_media(result['app_artifacts'])
+                logger.info(f"✅ App artifacts media analysis complete")
+            
+        except Exception as e:
+            result['extraction_status'] = 'failed'
+            result['error'] = str(e)
+            logger.error(f"❌ Error extracting/analyzing app artifacts: {e}")
+        
+        return result
+    
+    def analyze_app_artifacts_media(self, app_artifacts: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze media from app artifacts (WhatsApp, Instagram, Messaging apps)"""
+        analysis = {
+            'timestamp': datetime.now().isoformat(),
+            'whatsapp_media': {},
+            'instagram_media': {},
+            'messaging_media': {},
+            'total_media_artifacts': 0,
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        try:
+            # Analyze WhatsApp media artifacts
+            whatsapp_artifacts = app_artifacts.get('whatsapp_artifacts', [])
+            if whatsapp_artifacts:
+                media_count = sum(1 for a in whatsapp_artifacts if any(ext in a.get('path', '').lower() for ext in ['.jpg', '.png', '.mp4', '.mp3', '.wav']))
+                database_count = sum(1 for a in whatsapp_artifacts if '.db' in a.get('path', ''))
+                
+                analysis['whatsapp_media'] = {
+                    'total_artifacts': len(whatsapp_artifacts),
+                    'media_files': media_count,
+                    'database_files': database_count,
+                    'root_access': sum(1 for a in whatsapp_artifacts if a.get('access') == 'root')
+                }
+                
+                if media_count > 0:
+                    analysis['findings'].append(f"✅ WhatsApp: {media_count} media files found")
+                
+                if database_count > 0:
+                    analysis['findings'].append(f"✅ WhatsApp: {database_count} database files with media metadata")
+                    analysis['risk_level'] = 'High'
+            
+            # Analyze Instagram media artifacts
+            instagram_artifacts = app_artifacts.get('instagram_artifacts', [])
+            if instagram_artifacts:
+                media_count = sum(1 for a in instagram_artifacts if any(ext in a.get('path', '').lower() for ext in ['.jpg', '.png', '.mp4', '.webp']))
+                cache_count = sum(1 for a in instagram_artifacts if 'cache' in a.get('path', '').lower())
+                
+                analysis['instagram_media'] = {
+                    'total_artifacts': len(instagram_artifacts),
+                    'media_files': media_count,
+                    'cached_media': cache_count,
+                    'root_access': sum(1 for a in instagram_artifacts if a.get('access') == 'root')
+                }
+                
+                if media_count > 0:
+                    analysis['findings'].append(f"✅ Instagram: {media_count} media files found")
+                
+                if cache_count > 0:
+                    analysis['findings'].append(f"✅ Instagram: {cache_count} cached media items")
+                    analysis['risk_level'] = 'High'
+            
+            # Analyze Messaging app media artifacts
+            messaging_artifacts = app_artifacts.get('messaging_app_artifacts', [])
+            if messaging_artifacts:
+                media_count = sum(1 for a in messaging_artifacts if any(ext in a.get('path', '').lower() for ext in ['.jpg', '.png', '.mp4', '.mp3', '.wav', '.webp']))
+                apps_with_media = set(a.get('source', 'Unknown') for a in messaging_artifacts if any(ext in a.get('path', '').lower() for ext in ['.jpg', '.png', '.mp4', '.mp3']))
+                
+                analysis['messaging_media'] = {
+                    'total_artifacts': len(messaging_artifacts),
+                    'media_files': media_count,
+                    'apps_with_media': list(apps_with_media),
+                    'root_access': sum(1 for a in messaging_artifacts if a.get('access') == 'root')
+                }
+                
+                if media_count > 0:
+                    analysis['findings'].append(f"✅ Messaging Apps: {media_count} media files found in {len(apps_with_media)} apps")
+                    analysis['risk_level'] = 'High'
+            
+            # Calculate totals
+            analysis['total_media_artifacts'] = (
+                analysis['whatsapp_media'].get('media_files', 0) +
+                analysis['instagram_media'].get('media_files', 0) +
+                analysis['messaging_media'].get('media_files', 0)
+            )
+            
+            if analysis['total_media_artifacts'] > 1000:
+                analysis['findings'].append(f"⚠️ Large media collection: {analysis['total_media_artifacts']} files")
+            
+            logger.info(f"App artifacts media analysis complete: {analysis['total_media_artifacts']} media files")
+        
+        except Exception as e:
+            logger.warning(f"Error analyzing app artifacts media: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def extract_media_metadata_from_artifacts(self, app_artifacts: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract media metadata from app artifacts"""
+        metadata = {
+            'timestamp': datetime.now().isoformat(),
+            'whatsapp_metadata': [],
+            'instagram_metadata': [],
+            'messaging_metadata': [],
+            'total_metadata_items': 0,
+            'findings': []
+        }
+        
+        try:
+            # WhatsApp media metadata
+            whatsapp_artifacts = app_artifacts.get('whatsapp_artifacts', [])
+            for artifact in whatsapp_artifacts:
+                if isinstance(artifact, dict):
+                    path = artifact.get('path', '')
+                    # Extract media files
+                    if any(ext in path.lower() for ext in ['.jpg', '.jpeg', '.png', '.mp4', '.mp3', '.wav']):
+                        file_name = path.split('/')[-1]
+                        metadata['whatsapp_metadata'].append({
+                            'file': file_name,
+                            'path': path,
+                            'access': artifact.get('access', 'unknown'),
+                            'type': 'Media file',
+                            'source': 'WhatsApp'
+                        })
+            
+            # Instagram media metadata
+            instagram_artifacts = app_artifacts.get('instagram_artifacts', [])
+            for artifact in instagram_artifacts:
+                if isinstance(artifact, dict):
+                    path = artifact.get('path', '')
+                    # Extract media files
+                    if any(ext in path.lower() for ext in ['.jpg', '.jpeg', '.png', '.mp4', '.webp']):
+                        file_name = path.split('/')[-1]
+                        metadata['instagram_metadata'].append({
+                            'file': file_name,
+                            'path': path,
+                            'access': artifact.get('access', 'unknown'),
+                            'type': 'Media file',
+                            'source': 'Instagram'
+                        })
+            
+            # Messaging app media metadata
+            messaging_artifacts = app_artifacts.get('messaging_app_artifacts', [])
+            for artifact in messaging_artifacts:
+                if isinstance(artifact, dict):
+                    path = artifact.get('path', '')
+                    source = artifact.get('source', 'Unknown')
+                    # Extract media files
+                    if any(ext in path.lower() for ext in ['.jpg', '.jpeg', '.png', '.mp4', '.mp3', '.wav', '.webp']):
+                        file_name = path.split('/')[-1]
+                        metadata['messaging_metadata'].append({
+                            'file': file_name,
+                            'path': path,
+                            'access': artifact.get('access', 'unknown'),
+                            'type': 'Media file',
+                            'source': source
+                        })
+            
+            # Calculate totals
+            metadata['total_metadata_items'] = (
+                len(metadata['whatsapp_metadata']) +
+                len(metadata['instagram_metadata']) +
+                len(metadata['messaging_metadata'])
+            )
+            
+            # Generate findings
+            if metadata['whatsapp_metadata']:
+                metadata['findings'].append(f"✅ WhatsApp: {len(metadata['whatsapp_metadata'])} media files extracted")
+            
+            if metadata['instagram_metadata']:
+                metadata['findings'].append(f"✅ Instagram: {len(metadata['instagram_metadata'])} media files extracted")
+            
+            if metadata['messaging_metadata']:
+                metadata['findings'].append(f"✅ Messaging Apps: {len(metadata['messaging_metadata'])} media files extracted")
+            
+            logger.info(f"Media metadata extraction complete: {metadata['total_metadata_items']} items")
+        
+        except Exception as e:
+            logger.warning(f"Error extracting media metadata: {e}")
+            metadata['error'] = str(e)
+        
+        return metadata
 
 
 # ============================================================================

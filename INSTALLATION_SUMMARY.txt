@@ -1,0 +1,257 @@
+================================================================================
+FORENSMART - DATABASE INSTALLATION SUMMARY
+================================================================================
+
+Date: December 1, 2025
+Status: [INSTALLATION REQUIRED]
+
+================================================================================
+CURRENT STATUS
+================================================================================
+
+PostgreSQL: ❌ NOT INSTALLED
+Redis: ❌ NOT INSTALLED
+
+You need to install both before ForenSmart can run.
+
+================================================================================
+QUICK INSTALLATION STEPS
+================================================================================
+
+STEP 1: INSTALL POSTGRESQL (15 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Download PostgreSQL
+   → Go to https://www.postgresql.org/download/windows/
+   → Click "Download the installer"
+   → Download PostgreSQL 15 (or latest)
+
+2. Run Installer
+   → Double-click the .exe file
+   → Click "Next" through all steps
+   → When asked for password, enter: postgres123
+   → Remember this password!
+
+3. Verify Installation
+   → Open Command Prompt
+   → Run: psql --version
+   → Should show: psql (PostgreSQL) 15.x
+
+4. Create Database
+   → Open Command Prompt
+   → Run: psql -U postgres -h localhost
+   → Enter password: postgres123
+   → Run these commands:
+      CREATE DATABASE forensmart;
+      CREATE USER forensmart_user WITH PASSWORD 'your_password';
+      GRANT ALL PRIVILEGES ON DATABASE forensmart TO forensmart_user;
+      \q
+
+5. Update .env File
+   → Edit: c:\Forensmart\.env
+   → Add: DATABASE_URL=postgresql://forensmart_user:your_password@localhost:5432/forensmart
+
+Reference: INSTALL_POSTGRESQL_WINDOWS.md
+
+Expected Time: 15 minutes
+
+================================================================================
+STEP 2: INSTALL REDIS (10 minutes)
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Option A: Windows Installer (Recommended)
+
+1. Download Redis
+   → Go to https://github.com/microsoftarchive/redis/releases
+   → Download: Redis-x64-3.2.100.msi
+
+2. Run Installer
+   → Double-click the .msi file
+   → Click "Next" through all steps
+   → Default port: 6379
+   → Install as Service: YES
+
+3. Verify Installation
+   → Open Command Prompt
+   → Run: redis-cli --version
+   → Should show: redis-cli 3.2.100
+
+4. Test Connection
+   → Open Command Prompt
+   → Run: redis-cli
+   → Run: ping
+   → Should return: PONG
+   → Run: exit
+
+5. Update .env File
+   → Edit: c:\Forensmart\.env
+   → Add: REDIS_URL=redis://localhost:6379/0
+
+Reference: INSTALL_REDIS_WINDOWS.md
+
+Expected Time: 10 minutes
+
+Option B: Docker (Alternative)
+
+1. Install Docker Desktop
+   → Go to https://www.docker.com/products/docker-desktop
+   → Download and install
+
+2. Run Redis in Docker
+   → Open Command Prompt
+   → Run: docker run -d -p 6379:6379 redis:latest
+   → Redis will start automatically
+
+Expected Time: 5 minutes (after Docker installed)
+
+================================================================================
+STEP 3: VERIFY BOTH ARE RUNNING
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Test PostgreSQL:
+  psql -U postgres -h localhost
+  SELECT version();
+  \q
+
+Test Redis:
+  redis-cli ping
+  Should return: PONG
+
+Both should work without errors.
+
+================================================================================
+STEP 4: UPDATE .ENV FILE
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+Edit: c:\Forensmart\.env
+
+Add these lines:
+
+# PostgreSQL
+DATABASE_URL=postgresql://forensmart_user:your_password@localhost:5432/forensmart
+DATABASE_POOL_SIZE=10
+DATABASE_MAX_OVERFLOW=20
+
+# Redis
+REDIS_URL=redis://localhost:6379/0
+REDIS_PASSWORD=
+REDIS_DB=0
+
+Save the file.
+
+================================================================================
+STEP 5: START FORENSMART
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+1. Open PowerShell as Administrator
+
+2. Navigate to ForenSmart:
+   cd c:\Forensmart
+
+3. Activate virtual environment:
+   .\venv\Scripts\Activate.ps1
+
+4. Run the app:
+   streamlit run app.py
+
+5. Open browser:
+   http://localhost:8501
+
+ForenSmart should now be running!
+
+================================================================================
+TOTAL INSTALLATION TIME
+================================================================================
+
+PostgreSQL:     15 minutes
+Redis:          10 minutes
+Configuration:  5 minutes
+─────────────────────────
+TOTAL:          30 minutes
+
+================================================================================
+DOCUMENTATION REFERENCES
+================================================================================
+
+For PostgreSQL Installation:
+  → INSTALL_POSTGRESQL_WINDOWS.md
+
+For Redis Installation:
+  → INSTALL_REDIS_WINDOWS.md
+
+For Complete Setup:
+  → SETUP_POSTGRESQL_REDIS_AS_SERVICES.md
+
+For Troubleshooting:
+  → Check the "TROUBLESHOOTING" section in each guide
+
+================================================================================
+WHAT HAPPENS AFTER INSTALLATION
+================================================================================
+
+Once PostgreSQL and Redis are installed and running:
+
+1. ForenSmart can start
+2. All modules will work
+3. Data will be persisted in PostgreSQL
+4. Cache will work with Redis
+5. Real-time features will function
+6. Online approval will work (after implementation)
+
+================================================================================
+COMMON ISSUES
+================================================================================
+
+Issue: "psql not found"
+Solution: PostgreSQL not in PATH
+  → Reinstall PostgreSQL
+  → Or add to PATH manually
+
+Issue: "Connection refused"
+Solution: PostgreSQL/Redis not running
+  → Check Services (services.msc)
+  → Start the service
+  → Or restart the service
+
+Issue: "Port already in use"
+Solution: Another app using port 5432 or 6379
+  → Kill the process using the port
+  → Or change the port in configuration
+
+Issue: "Password authentication failed"
+Solution: Wrong password
+  → Use correct password from installation
+  → Or reset password (see guides)
+
+================================================================================
+NEXT STEPS
+================================================================================
+
+1. ✅ Read this summary
+2. ⏭️ Install PostgreSQL (15 min)
+3. ⏭️ Install Redis (10 min)
+4. ⏭️ Update .env file (5 min)
+5. ⏭️ Start ForenSmart (streamlit run app.py)
+6. ⏭️ Open http://localhost:8501
+
+Total Time: 30 minutes
+
+================================================================================
+READY TO INSTALL?
+================================================================================
+
+Start with PostgreSQL:
+  → INSTALL_POSTGRESQL_WINDOWS.md
+
+Then install Redis:
+  → INSTALL_REDIS_WINDOWS.md
+
+Then update .env and start ForenSmart!
+
+Good luck! You're almost there!
+
+================================================================================
+Status: [INSTALLATION REQUIRED]
+Date: December 1, 2025
+Time: 13:23 UTC+05:30
+================================================================================

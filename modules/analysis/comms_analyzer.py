@@ -29,6 +29,16 @@ import requests
 from modules.analysis.models import DatabaseManager, updater
 from modules.shared.utils import ArtifactPathBuilder, ResultsRepository
 
+# Import validators
+try:
+    from modules.shared.validators import (
+        validate_extraction_data,
+        validate_timestamp
+    )
+    VALIDATORS_AVAILABLE = True
+except ImportError:
+    VALIDATORS_AVAILABLE = False
+
 logger = logging.getLogger(__name__)
 
 # ============================================================================
@@ -409,104 +419,118 @@ class CommsAnalyzer:
                        case_id: str = None, consent_manager: Any = None) -> Dict[str, Any]:
         """Comprehensive message analysis with contact phone tracking and consent verification"""
         
-        # Check consent if available
-        if consent_manager and case_id:
-            try:
-                from modules.consent.models import ConsentLevel, MODULE_MIN_LEVELS
-                
-                session = consent_manager.get_session(case_id)
-                if session:
-                    min_level = MODULE_MIN_LEVELS.get('communications', ConsentLevel.LEGAL)
+        try:
+            # ✅ Validate message input
+            if not isinstance(message, str) or not message.strip():
+                logger.error("❌ Invalid message: must be non-empty string")
+                return {'status': 'error', 'message': 'Invalid message input'}
+            
+            # Check consent if available
+            if consent_manager and case_id:
+                try:
+                    from modules.consent.models import ConsentLevel, MODULE_MIN_LEVELS
                     
-                    if session.level < min_level:
-                        logger.warning(f"Communications analysis blocked: {session.level.name} < {min_level.name}")
-                        return {
-                            'status': 'consent_denied',
-                            'message': f'Communications analysis requires {min_level.name} consent',
-                            'required_level': min_level.name,
-                            'current_level': session.level.name,
-                            'case_id': case_id
-                        }
-            except Exception as e:
-                logger.error(f"Error checking consent: {e}")
-        
-        # Run all analyses
-        keywords = self.detect_keywords(message)
-        patterns = self.match_fraud_patterns(message)
-        entities = self.extract_entities(message)
-        phishing = self.detect_phishing(message, email)
-        threats = self.detect_threats(message)
-        fraud = self.detect_fraud(message)
-        
-        # Database checks
-        phone_check = self.check_phone_database(phone) if phone else {"match": False}
-        email_check = self.check_email_database(email) if email else {"match": False}
-        contact_phone_check = self.check_phone_database(contact_phone) if contact_phone else {"match": False}
-        
-        # Auto-report if found in database
-        if phone_check["match"] and phone:
-            if phone_check["type"] == "FRAUDSTER":
-                self.updater.auto_report_fraudster(phone)
-                logger.info(f"✅ Auto-reported fraudster: {phone}")
-            elif phone_check["type"] == "HARASSER":
-                self.updater.auto_report_harasser(phone)
-                logger.info(f"✅ Auto-reported harasser: {phone}")
-        
-        # Calculate combined risk score
-        ai_risk = max(
-            phishing["phishing_score"],
-            threats["threat_score"],
-            fraud["fraud_score"]
-        )
-        
-        db_risk = 0.95 if (phone_check["match"] or email_check["match"]) else 0.0
-        
-        combined_risk = (ai_risk * 0.6 + db_risk * 0.4)
-        
-        # Determine classification
-        if combined_risk > 0.85:
-            classification = "CRITICAL"
-        elif combined_risk > 0.70:
-            classification = "HIGH"
-        elif combined_risk > 0.50:
-            classification = "MEDIUM"
-        else:
-            classification = "LOW"
-        
-        return {
-            "timestamp": datetime.utcnow().isoformat(),
-            "message_preview": message[:100] + "..." if len(message) > 100 else message,
-            "sender": {
-                "phone": phone,
-                "email": email,
-                "name": sender_name
-            },
-            "contact": {
-                "phone": contact_phone,
-                "phone_match": contact_phone_check
-            },
-            "analysis": {
-                "keywords": keywords,
-                "patterns": patterns[:3],  # Top 3 patterns
-                "entities": entities,
-                "phishing": phishing,
-                "threats": threats,
-                "fraud": fraud
-            },
-            "database_checks": {
-                "sender_phone_match": phone_check,
-                "contact_phone_match": contact_phone_check,
-                "email_match": email_check
-            },
-            "risk_scores": {
-                "ai_risk": round(ai_risk, 2),
-                "database_risk": round(db_risk, 2),
-                "combined_risk": round(combined_risk, 2)
-            },
-            "classification": classification,
-            "recommendation": self._get_recommendation(classification, phishing, threats, fraud),
-            "actions": self._get_actions(classification, phone_check, email_check)
-        }
+                    session = consent_manager.get_session(case_id)
+                    if session:
+                        min_level = MODULE_MIN_LEVELS.get('communications', ConsentLevel.LEGAL)
+                        
+                        if session.level < min_level:
+                            logger.warning(f"⚠️ Communications analysis blocked: {session.level.name} < {min_level.name}")
+                            return {
+                                'status': 'consent_denied',
+                                'message': f'Communications analysis requires {min_level.name} consent',
+                                'required_level': min_level.name,
+                                'current_level': session.level.name,
+                                'case_id': case_id
+                            }
+                except Exception as e:
+                    logger.error(f"❌ Error checking consent: {e}", exc_info=True)
+            
+            # Run all analyses
+            keywords = self.detect_keywords(message)
+            patterns = self.match_fraud_patterns(message)
+            entities = self.extract_entities(message)
+            phishing = self.detect_phishing(message, email)
+            threats = self.detect_threats(message)
+            fraud = self.detect_fraud(message)
+            
+            # Database checks
+            phone_check = self.check_phone_database(phone) if phone else {"match": False}
+            email_check = self.check_email_database(email) if email else {"match": False}
+            contact_phone_check = self.check_phone_database(contact_phone) if contact_phone else {"match": False}
+            
+            # Auto-report if found in database
+            if phone_check["match"] and phone:
+                if phone_check["type"] == "FRAUDSTER":
+                    self.updater.auto_report_fraudster(phone)
+                    logger.info(f"✅ Auto-reported fraudster: {phone}")
+                elif phone_check["type"] == "HARASSER":
+                    self.updater.auto_report_harasser(phone)
+                    logger.info(f"✅ Auto-reported harasser: {phone}")
+            
+            # Calculate combined risk score
+            ai_risk = max(
+                phishing["phishing_score"],
+                threats["threat_score"],
+                fraud["fraud_score"]
+            )
+            
+            db_risk = 0.95 if (phone_check["match"] or email_check["match"]) else 0.0
+            
+            combined_risk = (ai_risk * 0.6 + db_risk * 0.4)
+            
+            # Determine classification
+            if combined_risk > 0.85:
+                classification = "CRITICAL"
+            elif combined_risk > 0.70:
+                classification = "HIGH"
+            elif combined_risk > 0.50:
+                classification = "MEDIUM"
+            else:
+                classification = "LOW"
+            
+            return {
+                "timestamp": datetime.utcnow().isoformat(),
+                "message_preview": message[:100] + "..." if len(message) > 100 else message,
+                "sender": {
+                    "phone": phone,
+                    "email": email,
+                    "name": sender_name
+                },
+                "contact": {
+                    "phone": contact_phone,
+                    "phone_match": contact_phone_check
+                },
+                "analysis": {
+                    "keywords": keywords,
+                    "patterns": patterns[:3],  # Top 3 patterns
+                    "entities": entities,
+                    "phishing": phishing,
+                    "threats": threats,
+                    "fraud": fraud
+                },
+                "database_checks": {
+                    "sender_phone_match": phone_check,
+                    "contact_phone_match": contact_phone_check,
+                    "email_match": email_check
+                },
+                "risk_scores": {
+                    "ai_risk": round(ai_risk, 2),
+                    "database_risk": round(db_risk, 2),
+                    "combined_risk": round(combined_risk, 2)
+                },
+                "classification": classification,
+                "recommendation": self._get_recommendation(classification, phishing, threats, fraud),
+                "actions": self._get_actions(classification, phone_check, email_check)
+            }
+        except Exception as e:
+            logger.error(f"❌ Error analyzing message: {e}", exc_info=True)
+            return {
+                'status': 'error',
+                'message': 'Error analyzing message',
+                'error': str(e),
+                'classification': 'UNKNOWN'
+            }
     
     # ========================================================================
     # HELPER METHODS
@@ -606,6 +630,434 @@ class CommsAnalyzer:
         except Exception as e:
             logger.error(f"❌ Error loading comms analysis: {e}")
             return None
+    
+    # ========================================================================
+    # FORENSIC ANALYSIS - Call Logs, Browser History, Apps, WiFi, Logs
+    # ========================================================================
+    
+    def analyze_call_logs(self, call_logs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze call logs for suspicious patterns"""
+        analysis = {
+            'total_calls': len(call_logs),
+            'suspicious_calls': [],
+            'frequent_contacts': {},
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        if not call_logs:
+            return analysis
+        
+        try:
+            # Extract phone numbers and count frequencies
+            phone_numbers = {}
+            for call in call_logs:
+                if isinstance(call, dict):
+                    data_str = str(call.get('data', ''))
+                    numbers = re.findall(r'\+?1?\d{9,15}', data_str)
+                    for number in numbers:
+                        phone_numbers[number] = phone_numbers.get(number, 0) + 1
+            
+            analysis['frequent_contacts'] = dict(sorted(
+                phone_numbers.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:10])
+            
+            # Detect patterns
+            if len(phone_numbers) > 50:
+                analysis['findings'].append('⚠️ High number of unique contacts (50+)')
+                analysis['risk_level'] = 'Medium'
+            
+            if analysis['total_calls'] > 1000:
+                analysis['findings'].append('⚠️ Excessive call volume (1000+ calls)')
+                analysis['risk_level'] = 'Medium'
+            
+            logger.info(f"Call logs analysis: {analysis['total_calls']} calls analyzed")
+        except Exception as e:
+            logger.warning(f"Error analyzing call logs: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def analyze_browser_history(self, browser_history: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze browser history for suspicious websites"""
+        analysis = {
+            'total_entries': len(browser_history),
+            'suspicious_sites': [],
+            'visited_domains': {},
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        if not browser_history:
+            return analysis
+        
+        try:
+            # Extract domains from URLs
+            domains = {}
+            for entry in browser_history:
+                if isinstance(entry, dict):
+                    path = entry.get('path', '')
+                    domain_match = re.search(r'https?://([^/]+)', path)
+                    if domain_match:
+                        domain = domain_match.group(1)
+                        domains[domain] = domains.get(domain, 0) + 1
+            
+            analysis['visited_domains'] = dict(sorted(
+                domains.items(),
+                key=lambda x: x[1],
+                reverse=True
+            )[:10])
+            
+            # Check for suspicious domains
+            for domain in domains.keys():
+                if any(keyword in domain.lower() for keyword in ['malware', 'phishing', 'hack', 'crack']):
+                    analysis['suspicious_sites'].append(domain)
+                    analysis['risk_level'] = 'High'
+                    analysis['findings'].append(f'🚨 Suspicious domain detected: {domain}')
+            
+            logger.info(f"Browser history analysis: {analysis['total_entries']} entries analyzed")
+        except Exception as e:
+            logger.warning(f"Error analyzing browser history: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def analyze_installed_apps(self, installed_apps: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze installed apps for suspicious or malicious apps"""
+        analysis = {
+            'total_apps': len(installed_apps),
+            'suspicious_apps': [],
+            'third_party_apps': 0,
+            'system_apps': 0,
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        if not installed_apps:
+            return analysis
+        
+        try:
+            # Known malicious app packages
+            malicious_packages = [
+                'com.mspy', 'com.spyzie', 'com.flexispy', 'com.pegasus',
+                'com.predator', 'com.spymaster', 'com.spyphone'
+            ]
+            
+            for app in installed_apps:
+                if isinstance(app, dict):
+                    package = app.get('package', '')
+                    app_type = app.get('type', '')
+                    
+                    if app_type == 'third_party':
+                        analysis['third_party_apps'] += 1
+                    elif app_type == 'system':
+                        analysis['system_apps'] += 1
+                    
+                    # Check for malicious apps
+                    if package in malicious_packages:
+                        analysis['suspicious_apps'].append(package)
+                        analysis['risk_level'] = 'High'
+                        analysis['findings'].append(f'🚨 Malicious app detected: {package}')
+            
+            if analysis['third_party_apps'] > 100:
+                analysis['findings'].append(f'⚠️ High number of third-party apps ({analysis["third_party_apps"]})')
+                analysis['risk_level'] = 'Medium'
+            
+            logger.info(f"Installed apps analysis: {analysis['total_apps']} apps analyzed")
+        except Exception as e:
+            logger.warning(f"Error analyzing installed apps: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def analyze_wifi_networks(self, wifi_networks: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze WiFi network history for suspicious networks"""
+        analysis = {
+            'total_networks': len(wifi_networks),
+            'suspicious_networks': [],
+            'open_networks': [],
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        if not wifi_networks:
+            return analysis
+        
+        try:
+            for network in wifi_networks:
+                if isinstance(network, dict):
+                    data = network.get('data', '')
+                    
+                    # Check for open networks (no encryption)
+                    if 'open' in data.lower() or 'none' in data.lower():
+                        analysis['open_networks'].append(data)
+                        analysis['findings'].append(f'⚠️ Open WiFi network detected: {data}')
+                        analysis['risk_level'] = 'Medium'
+                    
+                    # Check for suspicious SSIDs
+                    if any(keyword in data.lower() for keyword in ['admin', 'test', 'fake', 'spoof']):
+                        analysis['suspicious_networks'].append(data)
+                        analysis['findings'].append(f'⚠️ Suspicious WiFi network: {data}')
+            
+            logger.info(f"WiFi networks analysis: {analysis['total_networks']} networks analyzed")
+        except Exception as e:
+            logger.warning(f"Error analyzing WiFi networks: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def analyze_system_logs(self, system_logs: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze system logs for errors, crashes, and suspicious activity"""
+        analysis = {
+            'total_logs': len(system_logs),
+            'error_count': 0,
+            'warning_count': 0,
+            'crash_count': 0,
+            'suspicious_activity': [],
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        if not system_logs:
+            return analysis
+        
+        try:
+            for log in system_logs:
+                if isinstance(log, dict):
+                    log_text = log.get('log', '').lower()
+                    
+                    # Count error types
+                    if 'error' in log_text:
+                        analysis['error_count'] += 1
+                    if 'warning' in log_text:
+                        analysis['warning_count'] += 1
+                    if 'crash' in log_text or 'fatal' in log_text:
+                        analysis['crash_count'] += 1
+                    
+                    # Check for suspicious keywords
+                    if any(keyword in log_text for keyword in ['malware', 'exploit', 'hack', 'unauthorized']):
+                        analysis['suspicious_activity'].append(log_text[:100])
+                        analysis['risk_level'] = 'High'
+            
+            if analysis['error_count'] > 100:
+                analysis['findings'].append(f'⚠️ High error count: {analysis["error_count"]}')
+                analysis['risk_level'] = 'Medium'
+            
+            if analysis['crash_count'] > 10:
+                analysis['findings'].append(f'⚠️ Multiple crashes detected: {analysis["crash_count"]}')
+                analysis['risk_level'] = 'Medium'
+            
+            logger.info(f"System logs analysis: {analysis['total_logs']} logs analyzed")
+        except Exception as e:
+            logger.warning(f"Error analyzing system logs: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def analyze_all_forensic_data(self, forensic_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze all forensic data and return consolidated analysis"""
+        try:
+            # ✅ Validate forensic data structure
+            is_valid, error_msg = validate_extraction_data(forensic_data)
+            if not is_valid:
+                logger.warning(f"⚠️ Invalid forensic data structure: {error_msg}")
+            
+            consolidated = {
+                'timestamp': datetime.now().isoformat(),
+                'call_logs': self.analyze_call_logs(forensic_data.get('call_logs', [])),
+                'browser_history': self.analyze_browser_history(forensic_data.get('browser_history', [])),
+                'installed_apps': self.analyze_installed_apps(forensic_data.get('installed_apps', [])),
+                'wifi_networks': self.analyze_wifi_networks(forensic_data.get('wifi_networks', [])),
+                'system_logs': self.analyze_system_logs(forensic_data.get('system_logs', [])),
+                'overall_risk': 'Low'
+            }
+            
+            # Calculate overall risk level
+            risk_levels = ['Low', 'Medium', 'High']
+            max_risk_index = 0
+            
+            for analysis in consolidated.values():
+                if isinstance(analysis, dict) and 'risk_level' in analysis:
+                    risk_level = analysis['risk_level']
+                    if risk_level in risk_levels:
+                        max_risk_index = max(max_risk_index, risk_levels.index(risk_level))
+            
+            consolidated['overall_risk'] = risk_levels[max_risk_index]
+            
+            logger.info(f"✅ Forensic data analysis complete. Overall risk: {consolidated['overall_risk']}")
+            return consolidated
+        except Exception as e:
+            logger.error(f"❌ Error analyzing forensic data: {e}", exc_info=True)
+            return {
+                'timestamp': datetime.now().isoformat(),
+                'error': str(e),
+                'overall_risk': 'Unknown'
+            }
+    
+    # ========================================================================
+    # APP ARTIFACTS ANALYSIS - WhatsApp, Instagram, Messaging Apps
+    # ========================================================================
+    
+    def analyze_whatsapp_artifacts(self, whatsapp_artifacts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze WhatsApp artifacts for suspicious activity"""
+        analysis = {
+            'total_artifacts': len(whatsapp_artifacts),
+            'root_access_artifacts': 0,
+            'non_root_artifacts': 0,
+            'databases_found': [],
+            'media_found': [],
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        try:
+            for artifact in whatsapp_artifacts:
+                if isinstance(artifact, dict):
+                    access_level = artifact.get('access', 'unknown')
+                    path = artifact.get('path', '')
+                    
+                    if access_level == 'root':
+                        analysis['root_access_artifacts'] += 1
+                        if 'databases' in path or '.db' in path:
+                            analysis['databases_found'].append(path)
+                            analysis['findings'].append(f'✅ Root access to database: {path.split("/")[-1]}')
+                    else:
+                        analysis['non_root_artifacts'] += 1
+                        if 'Media' in path or 'media' in path:
+                            analysis['media_found'].append(path)
+            
+            # Risk assessment
+            if analysis['databases_found']:
+                analysis['findings'].append(f'🚨 {len(analysis["databases_found"])} encrypted databases accessible')
+                analysis['risk_level'] = 'High'
+            
+            if analysis['total_artifacts'] > 1000:
+                analysis['findings'].append(f'⚠️ Large number of artifacts: {analysis["total_artifacts"]}')
+                analysis['risk_level'] = 'Medium'
+            
+            logger.info(f"WhatsApp artifacts analysis: {analysis['total_artifacts']} artifacts analyzed")
+        except Exception as e:
+            logger.warning(f"Error analyzing WhatsApp artifacts: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def analyze_instagram_artifacts(self, instagram_artifacts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze Instagram artifacts for suspicious activity"""
+        analysis = {
+            'total_artifacts': len(instagram_artifacts),
+            'root_access_artifacts': 0,
+            'non_root_artifacts': 0,
+            'databases_found': [],
+            'cached_content': [],
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        try:
+            for artifact in instagram_artifacts:
+                if isinstance(artifact, dict):
+                    access_level = artifact.get('access', 'unknown')
+                    path = artifact.get('path', '')
+                    
+                    if access_level == 'root':
+                        analysis['root_access_artifacts'] += 1
+                        if 'databases' in path or 'shared_prefs' in path:
+                            analysis['databases_found'].append(path)
+                            analysis['findings'].append(f'✅ Root access to: {path.split("/")[-1]}')
+                    else:
+                        analysis['non_root_artifacts'] += 1
+                        if 'cache' in path:
+                            analysis['cached_content'].append(path)
+            
+            # Risk assessment
+            if analysis['databases_found']:
+                analysis['findings'].append(f'🚨 {len(analysis["databases_found"])} databases with user data accessible')
+                analysis['risk_level'] = 'High'
+            
+            if analysis['cached_content']:
+                analysis['findings'].append(f'⚠️ {len(analysis["cached_content"])} cached items found')
+            
+            logger.info(f"Instagram artifacts analysis: {analysis['total_artifacts']} artifacts analyzed")
+        except Exception as e:
+            logger.warning(f"Error analyzing Instagram artifacts: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def analyze_messaging_app_artifacts(self, messaging_artifacts: List[Dict[str, Any]]) -> Dict[str, Any]:
+        """Analyze messaging app artifacts (Telegram, Signal, Messenger)"""
+        analysis = {
+            'total_artifacts': len(messaging_artifacts),
+            'by_app': {},
+            'root_access_count': 0,
+            'databases_found': [],
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        try:
+            for artifact in messaging_artifacts:
+                if isinstance(artifact, dict):
+                    source = artifact.get('source', 'Unknown')
+                    access_level = artifact.get('access', 'unknown')
+                    path = artifact.get('path', '')
+                    
+                    # Count by app
+                    if source not in analysis['by_app']:
+                        analysis['by_app'][source] = {'count': 0, 'root': 0}
+                    
+                    analysis['by_app'][source]['count'] += 1
+                    
+                    if access_level == 'root':
+                        analysis['root_access_count'] += 1
+                        analysis['by_app'][source]['root'] += 1
+                        
+                        if 'databases' in path:
+                            analysis['databases_found'].append({'app': source, 'path': path})
+                            analysis['findings'].append(f'✅ {source}: Root access to database')
+            
+            # Risk assessment
+            if analysis['root_access_count'] > 0:
+                analysis['findings'].append(f'🚨 Root access to {analysis["root_access_count"]} artifacts')
+                analysis['risk_level'] = 'High'
+            
+            if len(analysis['by_app']) > 2:
+                analysis['findings'].append(f'⚠️ Multiple messaging apps detected: {list(analysis["by_app"].keys())}')
+            
+            logger.info(f"Messaging app artifacts analysis: {analysis['total_artifacts']} artifacts analyzed")
+        except Exception as e:
+            logger.warning(f"Error analyzing messaging app artifacts: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def analyze_all_app_artifacts(self, app_artifacts: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze all app artifacts (WhatsApp, Instagram, Messaging apps)"""
+        consolidated = {
+            'timestamp': datetime.now().isoformat(),
+            'whatsapp': self.analyze_whatsapp_artifacts(app_artifacts.get('whatsapp_artifacts', [])),
+            'instagram': self.analyze_instagram_artifacts(app_artifacts.get('instagram_artifacts', [])),
+            'messaging_apps': self.analyze_messaging_app_artifacts(app_artifacts.get('messaging_app_artifacts', [])),
+            'overall_risk': 'Low'
+        }
+        
+        # Calculate overall risk level
+        risk_levels = ['Low', 'Medium', 'High']
+        max_risk_index = 0
+        
+        for analysis in consolidated.values():
+            if isinstance(analysis, dict) and 'risk_level' in analysis:
+                risk_level = analysis['risk_level']
+                if risk_level in risk_levels:
+                    max_risk_index = max(max_risk_index, risk_levels.index(risk_level))
+        
+        consolidated['overall_risk'] = risk_levels[max_risk_index]
+        
+        logger.info(f"App artifacts analysis complete. Overall risk: {consolidated['overall_risk']}")
+        return consolidated
 
 
 # ============================================================================

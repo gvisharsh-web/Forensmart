@@ -30,6 +30,12 @@ from collections import defaultdict, Counter
 
 from modules.analysis.models import DatabaseManager, updater
 from modules.shared.utils import ArtifactPathBuilder, ResultsRepository
+from modules.shared.validators import (
+    validate_coordinates,
+    validate_timestamp,
+    validate_location,
+    validate_file_path
+)
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +82,14 @@ class OfflineQueueManager:
                 timeout=3
             )
             return response.status_code == 200
-        except:
+        except requests.exceptions.Timeout:
+            logger.warning("⚠️ Connectivity check timeout")
+            return False
+        except requests.exceptions.ConnectionError:
+            logger.warning("⚠️ No internet connection")
+            return False
+        except Exception as e:
+            logger.error(f"❌ Unexpected error checking connectivity: {e}")
             return False
     
     def is_connected(self) -> bool:
@@ -476,8 +489,10 @@ class LocationIntelligence:
                                      name: str = None, location_type: str = "USER_INPUT") -> Dict[str, Any]:
         """Add location from coordinate input"""
         try:
-            if not self.validate_coordinates(latitude, longitude):
-                return {"status": "error", "message": "Invalid coordinates"}
+            # ✅ Validate coordinates using validator
+            if not validate_coordinates(latitude, longitude):
+                logger.error(f"❌ Invalid coordinates: {latitude}, {longitude}")
+                return {"status": "error", "message": "Invalid coordinates - must be valid GPS coordinates"}
             
             lat = float(latitude)
             lon = float(longitude)
@@ -491,27 +506,48 @@ class LocationIntelligence:
                 "source": "user_input"
             }
             
+            # ✅ Validate location structure
+            is_valid, error_msg = validate_location(location)
+            if not is_valid:
+                logger.error(f"❌ Invalid location structure: {error_msg}")
+                return {"status": "error", "message": f"Invalid location: {error_msg}"}
+            
             logger.info(f"✅ Location added from coordinates: {lat}, {lon}")
             return {"status": "success", "location": location}
+        except ValueError as e:
+            logger.error(f"❌ Value error adding location: {e}")
+            return {"status": "error", "message": "Invalid coordinate values"}
         except Exception as e:
-            logger.error(f"Error adding location from coordinates: {e}")
+            logger.error(f"❌ Error adding location from coordinates: {e}", exc_info=True)
             return {"status": "error", "message": str(e)}
     
     def add_location_from_link(self, link: str, name: str = None, case_id: str = None,
                               added_by: str = None, notes: str = None) -> Dict[str, Any]:
         """Add location from GPS link and track in database (with offline support)"""
         try:
+            # ✅ Validate link input
+            if not isinstance(link, str) or not link:
+                logger.error("❌ Invalid link: must be non-empty string")
+                return {"status": "error", "message": "Invalid link format"}
+            
             parsed = self.parse_location_link(link)
             
             if not parsed:
+                logger.warning(f"⚠️ Could not parse location link: {link}")
                 return {"status": "error", "message": "Could not parse location link"}
             
             if "error" in parsed:
+                logger.error(f"❌ Error parsing location link: {parsed['error']}")
                 return {"status": "error", "message": parsed["error"]}
             
             lat = parsed.get("latitude")
             lon = parsed.get("longitude")
             source = parsed.get("source", "unknown")
+            
+            # ✅ Validate parsed coordinates
+            if not validate_coordinates(lat, lon):
+                logger.error(f"❌ Invalid coordinates from link: {lat}, {lon}")
+                return {"status": "error", "message": "Invalid coordinates in link"}
             
             location = {
                 "latitude": lat,
@@ -522,6 +558,12 @@ class LocationIntelligence:
                 "source": source,
                 "original_link": link
             }
+            
+            # ✅ Validate location structure
+            is_valid, error_msg = validate_location(location)
+            if not is_valid:
+                logger.error(f"❌ Invalid location structure: {error_msg}")
+                return {"status": "error", "message": f"Invalid location: {error_msg}"}
             
             # Track in database if case_id provided
             if case_id:
@@ -663,8 +705,15 @@ class LocationIntelligence:
                         current_time = datetime.fromisoformat(timestamp)
                         next_time = datetime.fromisoformat(sorted_locations[i+1].get("timestamp", ""))
                         duration = (next_time - current_time).total_seconds() / 60  # minutes
-                    except:
-                        pass
+                    except ValueError as e:
+                        logger.warning(f"⚠️ Invalid timestamp format: {e}")
+                        duration = 0
+                    except (KeyError, IndexError) as e:
+                        logger.warning(f"⚠️ Missing timestamp data: {e}")
+                        duration = 0
+                    except Exception as e:
+                        logger.error(f"❌ Error calculating duration: {e}")
+                        duration = 0
                 
                 timeline.append({
                     "index": i + 1,
@@ -1202,6 +1251,354 @@ class LocationIntelligence:
         except Exception as e:
             logger.error(f"❌ Error loading GPS links: {e}")
             return None
+    
+    # ========================================================================
+    # FORENSIC LOCATION EXTRACTION - From Device Logs
+    # ========================================================================
+    
+    def extract_location_logs_from_device(self, location_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract location logs from device forensic data"""
+        extraction = {
+            'gps_locations': [],
+            'wifi_locations': [],
+            'cell_tower_locations': [],
+            'total_locations': 0,
+            'timestamp_range': {},
+            'findings': []
+        }
+        
+        try:
+            # Extract GPS locations
+            gps_data = location_data.get('gps_coordinates', [])
+            if gps_data:
+                for gps in gps_data:
+                    if isinstance(gps, dict):
+                        extraction['gps_locations'].append({
+                            'latitude': gps.get('latitude'),
+                            'longitude': gps.get('longitude'),
+                            'accuracy': gps.get('accuracy'),
+                            'timestamp': gps.get('timestamp'),
+                            'type': 'GPS'
+                        })
+            
+            # Extract WiFi locations
+            wifi_data = location_data.get('wifi_networks', [])
+            if wifi_data:
+                for wifi in wifi_data:
+                    if isinstance(wifi, dict):
+                        extraction['wifi_locations'].append({
+                            'ssid': wifi.get('ssid'),
+                            'bssid': wifi.get('bssid'),
+                            'rssi': wifi.get('rssi'),
+                            'type': 'WiFi'
+                        })
+            
+            # Extract cell tower locations
+            cell_data = location_data.get('cell_towers', [])
+            if cell_data:
+                for cell in cell_data:
+                    if isinstance(cell, dict):
+                        extraction['cell_tower_locations'].append({
+                            'mcc': cell.get('mcc'),
+                            'mnc': cell.get('mnc'),
+                            'ci': cell.get('ci'),
+                            'tac': cell.get('tac'),
+                            'type': 'Cell Tower'
+                        })
+            
+            extraction['total_locations'] = (
+                len(extraction['gps_locations']) +
+                len(extraction['wifi_locations']) +
+                len(extraction['cell_tower_locations'])
+            )
+            
+            # Analyze timestamp range
+            all_timestamps = []
+            for loc in extraction['gps_locations']:
+                if loc.get('timestamp'):
+                    all_timestamps.append(loc['timestamp'])
+            
+            if all_timestamps:
+                extraction['timestamp_range'] = {
+                    'earliest': min(all_timestamps),
+                    'latest': max(all_timestamps),
+                    'duration_days': (datetime.fromisoformat(max(all_timestamps)) - 
+                                    datetime.fromisoformat(min(all_timestamps))).days
+                }
+            
+            logger.info(f"✅ Extracted {extraction['total_locations']} location logs from device")
+            
+        except Exception as e:
+            logger.warning(f"Error extracting location logs: {e}")
+            extraction['error'] = str(e)
+        
+        return extraction
+    
+    def analyze_location_logs(self, location_logs: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze extracted location logs for patterns and anomalies"""
+        analysis = {
+            'gps_analysis': {},
+            'movement_patterns': {},
+            'anomalies': [],
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        try:
+            gps_locations = location_logs.get('gps_locations', [])
+            
+            if gps_locations:
+                # Analyze GPS patterns
+                coordinates = [(loc['latitude'], loc['longitude']) for loc in gps_locations if loc.get('latitude')]
+                
+                if len(coordinates) > 1:
+                    # Calculate distances between consecutive points
+                    distances = []
+                    for i in range(len(coordinates) - 1):
+                        dist = self.calculate_distance(
+                            coordinates[i][0], coordinates[i][1],
+                            coordinates[i+1][0], coordinates[i+1][1]
+                        )
+                        distances.append(dist)
+                    
+                    analysis['gps_analysis'] = {
+                        'total_points': len(coordinates),
+                        'avg_distance_km': sum(distances) / len(distances) if distances else 0,
+                        'max_distance_km': max(distances) if distances else 0,
+                        'min_distance_km': min(distances) if distances else 0
+                    }
+                    
+                    # Detect rapid movement (possible spoofing)
+                    rapid_movements = sum(1 for d in distances if d > 100)  # 100km+ in one step
+                    if rapid_movements > 0:
+                        analysis['findings'].append(f'⚠️ {rapid_movements} rapid movements detected (>100km)')
+                        analysis['risk_level'] = 'Medium'
+                    
+                    # Detect stationary periods (home/work)
+                    stationary = sum(1 for d in distances if d < 1)  # Less than 1km
+                    if stationary > len(distances) * 0.5:
+                        analysis['findings'].append('✅ Normal movement patterns detected')
+            
+            # Analyze WiFi locations
+            wifi_locations = location_logs.get('wifi_locations', [])
+            if len(wifi_locations) > 20:
+                analysis['findings'].append(f'⚠️ High number of WiFi networks: {len(wifi_locations)}')
+                analysis['risk_level'] = 'Medium'
+            
+            logger.info(f"Location logs analysis complete. Risk: {analysis['risk_level']}")
+            
+        except Exception as e:
+            logger.warning(f"Error analyzing location logs: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def extract_and_analyze_forensic_locations(self, location_data: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract and analyze location logs from forensic data"""
+        # Extract location logs
+        location_logs = self.extract_location_logs_from_device(location_data)
+        
+        # Analyze location logs
+        location_analysis = self.analyze_location_logs(location_logs)
+        
+        # Combine results
+        forensic_location_analysis = {
+            'timestamp': datetime.now().isoformat(),
+            'extracted_logs': location_logs,
+            'analysis': location_analysis,
+            'overall_risk': location_analysis.get('risk_level', 'Low')
+        }
+        
+        logger.info(f"✅ Forensic location analysis complete")
+        return forensic_location_analysis
+    
+    # ========================================================================
+    # APP ARTIFACTS LOCATION ANALYSIS - WhatsApp, Instagram, Messaging Apps
+    # ========================================================================
+    
+    def analyze_app_artifacts_locations(self, app_artifacts: Dict[str, Any]) -> Dict[str, Any]:
+        """Analyze app artifacts for location-related data and metadata"""
+        analysis = {
+            'timestamp': datetime.now().isoformat(),
+            'whatsapp_analysis': {},
+            'instagram_analysis': {},
+            'messaging_analysis': {},
+            'location_metadata': [],
+            'risk_level': 'Low',
+            'findings': []
+        }
+        
+        try:
+            # Analyze WhatsApp artifacts
+            whatsapp_artifacts = app_artifacts.get('whatsapp_artifacts', [])
+            if whatsapp_artifacts:
+                analysis['whatsapp_analysis'] = {
+                    'total_artifacts': len(whatsapp_artifacts),
+                    'root_access_count': sum(1 for a in whatsapp_artifacts if a.get('access') == 'root'),
+                    'database_artifacts': sum(1 for a in whatsapp_artifacts if '.db' in a.get('path', '')),
+                    'media_artifacts': sum(1 for a in whatsapp_artifacts if 'Media' in a.get('path', ''))
+                }
+                
+                if analysis['whatsapp_analysis']['root_access_count'] > 0:
+                    analysis['findings'].append(f"🚨 WhatsApp: {analysis['whatsapp_analysis']['root_access_count']} root-accessible artifacts")
+                    analysis['risk_level'] = 'High'
+                
+                if analysis['whatsapp_analysis']['database_artifacts'] > 0:
+                    analysis['findings'].append(f"✅ WhatsApp: {analysis['whatsapp_analysis']['database_artifacts']} database artifacts found")
+                    analysis['location_metadata'].append({
+                        'source': 'WhatsApp',
+                        'type': 'Message metadata',
+                        'potential_location_data': 'Timestamps, location shares, media metadata'
+                    })
+            
+            # Analyze Instagram artifacts
+            instagram_artifacts = app_artifacts.get('instagram_artifacts', [])
+            if instagram_artifacts:
+                analysis['instagram_analysis'] = {
+                    'total_artifacts': len(instagram_artifacts),
+                    'root_access_count': sum(1 for a in instagram_artifacts if a.get('access') == 'root'),
+                    'database_artifacts': sum(1 for a in instagram_artifacts if '.db' in a.get('path', '')),
+                    'cached_artifacts': sum(1 for a in instagram_artifacts if 'cache' in a.get('path', ''))
+                }
+                
+                if analysis['instagram_analysis']['root_access_count'] > 0:
+                    analysis['findings'].append(f"🚨 Instagram: {analysis['instagram_analysis']['root_access_count']} root-accessible artifacts")
+                    analysis['risk_level'] = 'High'
+                
+                if analysis['instagram_analysis']['database_artifacts'] > 0:
+                    analysis['findings'].append(f"✅ Instagram: {analysis['instagram_analysis']['database_artifacts']} database artifacts found")
+                    analysis['location_metadata'].append({
+                        'source': 'Instagram',
+                        'type': 'User data & metadata',
+                        'potential_location_data': 'Location tags, check-ins, photo metadata (EXIF)'
+                    })
+            
+            # Analyze Messaging app artifacts
+            messaging_artifacts = app_artifacts.get('messaging_app_artifacts', [])
+            if messaging_artifacts:
+                apps_found = set(a.get('source', 'Unknown') for a in messaging_artifacts)
+                analysis['messaging_analysis'] = {
+                    'total_artifacts': len(messaging_artifacts),
+                    'apps_found': list(apps_found),
+                    'root_access_count': sum(1 for a in messaging_artifacts if a.get('access') == 'root'),
+                    'database_artifacts': sum(1 for a in messaging_artifacts if 'databases' in a.get('path', ''))
+                }
+                
+                if analysis['messaging_analysis']['root_access_count'] > 0:
+                    analysis['findings'].append(f"🚨 Messaging Apps: {analysis['messaging_analysis']['root_access_count']} root-accessible artifacts")
+                    analysis['risk_level'] = 'High'
+                
+                for app in apps_found:
+                    app_count = sum(1 for a in messaging_artifacts if a.get('source') == app)
+                    analysis['findings'].append(f"✅ {app}: {app_count} artifacts found")
+                    
+                    location_data = {
+                        'source': app,
+                        'type': 'Message & metadata',
+                        'potential_location_data': 'Timestamps, location shares, contact info'
+                    }
+                    analysis['location_metadata'].append(location_data)
+            
+            # Overall assessment
+            total_artifacts = (
+                len(whatsapp_artifacts) +
+                len(instagram_artifacts) +
+                len(messaging_artifacts)
+            )
+            
+            if total_artifacts > 5000:
+                analysis['findings'].append(f"⚠️ Large artifact collection: {total_artifacts} artifacts")
+                if analysis['risk_level'] == 'Low':
+                    analysis['risk_level'] = 'Medium'
+            
+            logger.info(f"App artifacts location analysis complete. Risk: {analysis['risk_level']}")
+        
+        except Exception as e:
+            logger.warning(f"Error analyzing app artifacts locations: {e}")
+            analysis['error'] = str(e)
+        
+        return analysis
+    
+    def extract_location_metadata_from_artifacts(self, app_artifacts: Dict[str, Any]) -> Dict[str, Any]:
+        """Extract location-related metadata from app artifacts"""
+        metadata = {
+            'timestamp': datetime.now().isoformat(),
+            'whatsapp_locations': [],
+            'instagram_locations': [],
+            'messaging_locations': [],
+            'total_location_references': 0,
+            'findings': []
+        }
+        
+        try:
+            # WhatsApp location metadata
+            whatsapp_artifacts = app_artifacts.get('whatsapp_artifacts', [])
+            for artifact in whatsapp_artifacts:
+                if isinstance(artifact, dict):
+                    path = artifact.get('path', '')
+                    # Check for location-related files
+                    if any(keyword in path.lower() for keyword in ['location', 'media', 'msgstore']):
+                        metadata['whatsapp_locations'].append({
+                            'path': path,
+                            'access': artifact.get('access', 'unknown'),
+                            'type': 'Location/Media metadata'
+                        })
+            
+            # Instagram location metadata
+            instagram_artifacts = app_artifacts.get('instagram_artifacts', [])
+            for artifact in instagram_artifacts:
+                if isinstance(artifact, dict):
+                    path = artifact.get('path', '')
+                    # Check for location-related files
+                    if any(keyword in path.lower() for keyword in ['location', 'cache', 'database']):
+                        metadata['instagram_locations'].append({
+                            'path': path,
+                            'access': artifact.get('access', 'unknown'),
+                            'type': 'Location/Photo metadata'
+                        })
+            
+            # Messaging app location metadata
+            messaging_artifacts = app_artifacts.get('messaging_app_artifacts', [])
+            for artifact in messaging_artifacts:
+                if isinstance(artifact, dict):
+                    path = artifact.get('path', '')
+                    source = artifact.get('source', 'Unknown')
+                    # Check for location-related files
+                    if any(keyword in path.lower() for keyword in ['location', 'database', 'shared_prefs']):
+                        metadata['messaging_locations'].append({
+                            'app': source,
+                            'path': path,
+                            'access': artifact.get('access', 'unknown'),
+                            'type': 'Message/Location metadata'
+                        })
+            
+            # Calculate totals
+            metadata['total_location_references'] = (
+                len(metadata['whatsapp_locations']) +
+                len(metadata['instagram_locations']) +
+                len(metadata['messaging_locations'])
+            )
+            
+            # Generate findings
+            if metadata['whatsapp_locations']:
+                metadata['findings'].append(f"✅ WhatsApp: {len(metadata['whatsapp_locations'])} location-related artifacts")
+            
+            if metadata['instagram_locations']:
+                metadata['findings'].append(f"✅ Instagram: {len(metadata['instagram_locations'])} location-related artifacts")
+            
+            if metadata['messaging_locations']:
+                metadata['findings'].append(f"✅ Messaging Apps: {len(metadata['messaging_locations'])} location-related artifacts")
+            
+            if metadata['total_location_references'] > 100:
+                metadata['findings'].append(f"⚠️ Significant location metadata found: {metadata['total_location_references']} references")
+            
+            logger.info(f"Location metadata extraction complete: {metadata['total_location_references']} references found")
+        
+        except Exception as e:
+            logger.warning(f"Error extracting location metadata: {e}")
+            metadata['error'] = str(e)
+        
+        return metadata
 
 
 # ============================================================================

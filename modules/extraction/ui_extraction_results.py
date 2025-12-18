@@ -141,28 +141,32 @@ def show_artifacts(results: Dict[str, Any]):
     
     logger.info("🎁 Showing artifacts")
     
+    # Get modules data (contains counts)
+    modules = results.get('modules', {})
+    
+    # Extract counts - handle both integer counts and list formats
     artifacts = {
-        'emails': results.get('modules', {}).get('emails', []),
-        'messages': results.get('modules', {}).get('messages', []),
-        'files': results.get('modules', {}).get('files', []),
-        'attachments': results.get('modules', {}).get('attachments', []),
-        'media': results.get('modules', {}).get('media', []),
-        'contacts': results.get('modules', {}).get('contacts', [])
+        'emails': modules.get('emails', 0) if isinstance(modules.get('emails'), int) else len(modules.get('emails', [])),
+        'messages': modules.get('messages', 0) if isinstance(modules.get('messages'), int) else len(modules.get('messages', [])),
+        'files': modules.get('files', 0) if isinstance(modules.get('files'), int) else len(modules.get('files', [])),
+        'attachments': modules.get('attachments', 0) if isinstance(modules.get('attachments'), int) else len(modules.get('attachments', [])),
+        'media': modules.get('media', 0) if isinstance(modules.get('media'), int) else len(modules.get('media', [])),
+        'contacts': modules.get('contacts', 0) if isinstance(modules.get('contacts'), int) else len(modules.get('contacts', []))
     }
     
     col1, col2, col3 = st.columns(3)
     
     with col1:
-        st.metric("📧 Emails", len(artifacts['emails']))
-        st.metric("💬 Messages", len(artifacts['messages']))
+        st.metric("📧 Emails", artifacts['emails'])
+        st.metric("💬 Messages", artifacts['messages'])
     
     with col2:
-        st.metric("📄 Files", len(artifacts['files']))
-        st.metric("📎 Attachments", len(artifacts['attachments']))
+        st.metric("📄 Files", artifacts['files'])
+        st.metric("📎 Attachments", artifacts['attachments'])
     
     with col3:
-        st.metric("📸 Media", len(artifacts['media']))
-        st.metric("👥 Contacts", len(artifacts['contacts']))
+        st.metric("📸 Media", artifacts['media'])
+        st.metric("👥 Contacts", artifacts['contacts'])
 
 
 def show_filtering_options(results: Dict[str, Any]):

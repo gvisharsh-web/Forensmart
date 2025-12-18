@@ -20,16 +20,23 @@ def render_module_selector() -> Dict[str, bool]:
     
     st.write("Choose which modules to extract from the device:")
     
-    # Initialize session state for modules
+    # Initialize session state for modules with default values
+    default_modules = {
+        'device_info': True,
+        'communications': True,
+        'location': False,
+        'media': True,
+        'security': False,
+        'social_media': True,
+    }
+    
     if 'selected_modules' not in st.session_state:
-        st.session_state['selected_modules'] = {
-            'device_info': True,
-            'communications': True,
-            'location': False,
-            'media': True,
-            'security': False,
-            'social_media': True,
-        }
+        st.session_state['selected_modules'] = default_modules.copy()
+    else:
+        # Ensure all keys exist (in case session state is corrupted)
+        for key, value in default_modules.items():
+            if key not in st.session_state['selected_modules']:
+                st.session_state['selected_modules'][key] = value
     
     # Create columns for better layout
     col1, col2 = st.columns(2)
@@ -39,7 +46,7 @@ def render_module_selector() -> Dict[str, bool]:
         
         device_info = st.checkbox(
             "📱 Device Info",
-            value=st.session_state['selected_modules']['device_info'],
+            value=st.session_state['selected_modules'].get('device_info', True),
             help="Device model, OS version, storage, etc."
         )
         st.session_state['selected_modules']['device_info'] = device_info
@@ -48,14 +55,14 @@ def render_module_selector() -> Dict[str, bool]:
         
         communications = st.checkbox(
             "💬 Communications",
-            value=st.session_state['selected_modules']['communications'],
+            value=st.session_state['selected_modules'].get('communications', True),
             help="SMS, Messages, Emails, Call logs"
         )
         st.session_state['selected_modules']['communications'] = communications
         
         location = st.checkbox(
             "📍 Location Data",
-            value=st.session_state['selected_modules']['location'],
+            value=st.session_state['selected_modules'].get('location', False),
             help="GPS history, location tags, maps"
         )
         st.session_state['selected_modules']['location'] = location
@@ -65,7 +72,7 @@ def render_module_selector() -> Dict[str, bool]:
         
         media = st.checkbox(
             "🖼️ Media",
-            value=st.session_state['selected_modules']['media'],
+            value=st.session_state['selected_modules'].get('media', True),
             help="Photos, Videos, Audio files"
         )
         st.session_state['selected_modules']['media'] = media
@@ -74,14 +81,14 @@ def render_module_selector() -> Dict[str, bool]:
         
         security = st.checkbox(
             "🔒 Security",
-            value=st.session_state['selected_modules']['security'],
+            value=st.session_state['selected_modules'].get('security', False),
             help="Installed apps, passwords, encryption"
         )
         st.session_state['selected_modules']['security'] = security
         
         social_media = st.checkbox(
             "📱 Social Media",
-            value=st.session_state['selected_modules']['social_media'],
+            value=st.session_state['selected_modules'].get('social_media', True),
             help="WhatsApp, Instagram, Telegram, Facebook, Snapchat"
         )
         st.session_state['selected_modules']['social_media'] = social_media

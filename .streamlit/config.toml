@@ -4,11 +4,7 @@
 
 [client]
 showErrorDetails = true
-toolbarMode = "minimal"
 showSidebarNavigation = true
-primaryColor = "#FF6B35"
-secondaryBackgroundColor = "#F0F2F6"
-textColor = "#262730"
 
 [server]
 port = 8501
@@ -38,22 +34,3 @@ serverAddress = "localhost"
 token = ""
 
 [deprecation]
-showPyplotGlobalUse = false
-showfileRerunButton = true
-showImageCompression = true
-
-[client.toolbarMode]
-# Possible values: "auto", "minimal", "viewer"
-value = "minimal"
-
-[client.showErrorDetails]
-value = true
-
-[client.showSidebarNavigation]
-value = true
-
-[client.showRunningSessionButton]
-value = true
-
-[client.showPyplotGlobalUse]
-value = false
